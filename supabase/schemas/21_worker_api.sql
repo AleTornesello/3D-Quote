@@ -1,6 +1,24 @@
 -- Functions used by the slicer-worker (service role only). Each changes the job, the item and the queue message in
 -- one transaction. See docs/services/slicer-worker.md#processing-loop.
 
+-- A message still in the queue must carry the job it is reported for; otherwise another job's message would be
+-- deleted and that job left running forever. A message that is already gone (handled by another delivery) passes.
+create or replace function private.require_job_message(p_msg_id bigint, p_job_id bigint)
+returns void
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1 from pgmq.q_slicing_jobs m
+    where m.msg_id = p_msg_id and (m.message ->> 'job_id')::bigint is distinct from p_job_id
+  ) then
+    raise exception 'job_message_mismatch' using errcode = '22023';
+  end if;
+end;
+$$;
+
 -- Reads the next message and marks its job running. Messages read more than max_attempts times (the worker died on
 -- every attempt) fail their job and are archived; messages whose job no longer exists are archived. Returns no rows
 -- when nothing is ready.
@@ -73,6 +91,7 @@ begin
      or p_results ->> 'bbox_z_mm' is null then
     raise exception 'invalid_results' using errcode = '22023';
   end if;
+  perform private.require_job_message(p_msg_id, p_job_id);
 
   select * into v_job from public.slicing_jobs where id = p_job_id for update;
   if not found then
@@ -127,6 +146,7 @@ security definer
 set search_path = ''
 as $$
 begin
+  perform private.require_job_message(p_msg_id, p_job_id);
   perform 1 from public.slicing_jobs where id = p_job_id for update;
   if not found then
     perform pgmq.archive('slicing_jobs', p_msg_id);

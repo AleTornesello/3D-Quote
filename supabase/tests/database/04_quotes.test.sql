@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(24);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local'),
@@ -103,6 +103,12 @@ select throws_ok(
   $$delete from auth.users where id = '00000000-0000-4000-8000-0000000000a2'$$,
   '23503', null, 'an auth user who created quotes cannot be deleted'
 );
+
+select throws_ok(
+  $$set local role service_role; delete from public.quotes where notes = 'second'$$,
+  'P0001', 'quote_not_draft', 'even the service role cannot delete a non-draft quote'
+);
+reset role;
 
 -- Owner
 set local role authenticated;

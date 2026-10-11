@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local'),
@@ -15,6 +15,8 @@ insert into public.quotes (id, client_id, created_by, status, sent_at) overridin
   (900002, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now());
 insert into storage.objects (bucket_id, name) values
   ('models', '900001/seed/existing.stl'),
+  ('models', '900002/seed/sent.stl'),
+  ('models', '900002/seed/sent-delete.stl'),
   ('branding', 'test-logo.png');
 
 -- What the migration sets up
@@ -67,6 +69,28 @@ select ok(exists (select 1 from storage.objects where name = 'test-logo.png'), '
 select throws_ok(
   $$insert into storage.objects (bucket_id, name) values ('branding', 'other.png')$$,
   '42501', null, 'operators cannot upload branding'
+);
+
+set local storage.allow_delete_query to 'true';
+select results_eq(
+  $$with u as (
+      update storage.objects set name = '900001/seed/moved.stl'
+      where bucket_id = 'models' and name = '900002/seed/sent.stl' returning 1
+    ) select count(*)::int from u$$,
+  $$values (0)$$,
+  'staff cannot move the model of a sent quote'
+);
+select results_eq(
+  $$with d as (delete from storage.objects where bucket_id = 'models' and name = '900002/seed/sent-delete.stl' returning 1)
+    select count(*)::int from d$$,
+  $$values (0)$$,
+  'or delete it'
+);
+select results_eq(
+  $$with d as (delete from storage.objects where bucket_id = 'models' and name = '900001/u1/part.stl' returning 1)
+    select count(*)::int from d$$,
+  $$values (1)$$,
+  'staff can delete a model in a draft quote''s folder'
 );
 
 -- Signed in without a staff row

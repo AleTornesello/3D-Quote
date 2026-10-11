@@ -170,7 +170,8 @@ before-insert trigger; supplied values are replaced. The sequence is zero-padded
 without being cut.
 
 The `quotes_guard` trigger (every role, the service role included): once a quote leaves `draft`, the only allowed
-change is `status` moving from `sent` to `accepted`, `rejected` or `expired`. Anything else raises `quote_not_draft`.
+change is `status` moving from `sent` to `accepted`, `rejected` or `expired`. Anything else, including deleting the
+quote, raises `quote_not_draft`.
 
 ### `quote_items`
 
@@ -235,6 +236,8 @@ what happened (see [slicer-worker](../services/slicer-worker.md)).
 - Object path: `<quote_id>/<upload_id>/<original_filename>`, where `upload_id` is a UUID generated in the browser.
   The file is uploaded before the quote item exists, so the item id can't be part of the key.
 - Upload rule: the first folder must be the id of a `draft` quote (`private.can_upload_model(name)`).
+- Change rule: files in the folder of a quote that has left `draft` can't be moved or deleted by staff
+  (`private.can_change_model(name)`); folders of deleted quotes stay removable.
 - Objects that no `quote_items.model_path` points to (upload finished, item never created) are orphans; a periodic
   cleanup removes them (proposed).
 - The worker downloads with the service role.
@@ -246,8 +249,8 @@ Policies on `storage.objects`, all `to authenticated` (declared in `supabase/sch
 |---|---|
 | `models: staff read` | staff, `models` bucket |
 | `models: staff upload to draft quotes` | `private.can_upload_model(name)` |
-| `models: staff update in draft quotes` | staff; the new name must pass `private.can_upload_model(name)` |
-| `models: staff delete` | staff |
+| `models: staff update in draft quotes` | `private.can_change_model(name)`; the new name must pass `private.can_upload_model(name)` |
+| `models: staff delete` | `private.can_change_model(name)` |
 | `branding: staff read` | staff |
 | `branding: owner upload` | owner |
 | `branding: owner update` | owner |
@@ -310,8 +313,9 @@ Each function in `public` is a `security invoker` SQL wrapper that calls the sam
 in `private`. The private function has `set search_path = ''`, checks `private.is_staff()` or `private.is_owner()`
 first, and raises one of the [errors](#errors) below. EXECUTE is revoked from `public` and `anon` everywhere and
 granted only as listed. Internal helpers (`require_staff`, `require_owner`, `require_draft_quote`,
-`require_active_catalog`, `enqueue_slicing_job`, `mark_quote_outcome`, `expire_quotes`) are `security invoker` and
-granted to nobody.
+`require_active_catalog`, `enqueue_slicing_job`, `mark_quote_outcome`, `expire_quotes`, `require_job_message`) are
+`security invoker` and granted to nobody. The storage helpers `can_upload_model` and `can_change_model` are
+`security definer` and granted to `authenticated` for the storage policies.
 
 **Web app functions** (`authenticated`):
 
@@ -339,7 +343,9 @@ granted to nobody.
 | `not_priced` | `item_total` is null |
 | `does_not_fit` | Any bbox axis exceeds the printer's build volume on the same axis |
 
-**Worker functions** (`service_role` only; each changes the job, the item and the queue message in one transaction):
+**Worker functions** (`service_role` only; each changes the job, the item and the queue message in one transaction).
+`worker_complete_job` and `worker_fail_job` raise `job_message_mismatch` when `msg_id` is still queued but carries a
+different `job_id`:
 
 | Function | Does |
 |---|---|
@@ -357,7 +363,7 @@ breaking change.
 | `42501` | `not_staff`, `owner_required` |
 | `P0001` | `last_owner`, `quote_not_draft`, `quote_not_sent`, `quote_not_sendable`, `retry_not_allowed`, `quote_item_move_not_allowed` |
 | `P0002` | `quote_not_found`, `item_not_found`, `model_not_found` |
-| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `invalid_override`, `invalid_markup`, `invalid_results` |
+| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch` |
 
 ## Open questions
 

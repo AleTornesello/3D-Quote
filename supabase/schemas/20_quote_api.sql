@@ -583,3 +583,25 @@ begin
   return exists (select 1 from public.quotes where id = v_folder::bigint and status = 'draft');
 end;
 $$;
+
+-- Storage rule for changing or removing a models object: staff, and the object is not in the folder of a quote that
+-- has left draft (those files back a sent quote). Folders of deleted quotes stay removable.
+create or replace function private.can_change_model(p_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_folder text := split_part(p_name, '/', 1);
+begin
+  if not private.is_staff() then
+    return false;
+  end if;
+  if v_folder !~ '^[0-9]{1,18}$' then
+    return true;
+  end if;
+  return not exists (select 1 from public.quotes where id = v_folder::bigint and status <> 'draft');
+end;
+$$;

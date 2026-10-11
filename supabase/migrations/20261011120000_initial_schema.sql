@@ -454,6 +454,26 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION private.can_change_model(p_name text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_folder text := split_part(p_name, '/', 1);
+begin
+  if not private.is_staff() then
+    return false;
+  end if;
+  if v_folder !~ '^[0-9]{1,18}$' then
+    return true;
+  end if;
+  return not exists (select 1 from public.quotes where id = v_folder::bigint and status <> 'draft');
+end;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION private.can_upload_model(p_name text)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -775,6 +795,13 @@ CREATE OR REPLACE FUNCTION private.quotes_guard()
  SET search_path TO ''
 AS $function$
 begin
+  if tg_op = 'DELETE' then
+    if old.status <> 'draft' then
+      raise exception 'quote_not_draft';
+    end if;
+    return old;
+  end if;
+
   if old.status <> 'draft'
      and not (
        old.status = 'sent'
@@ -821,6 +848,23 @@ begin
   end if;
   if v_status <> 'draft' then
     raise exception 'quote_not_draft';
+  end if;
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION private.require_job_message(p_msg_id bigint, p_job_id bigint)
+ RETURNS void
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if exists (
+    select 1 from pgmq.q_slicing_jobs m
+    where m.msg_id = p_msg_id and (m.message ->> 'job_id')::bigint is distinct from p_job_id
+  ) then
+    raise exception 'job_message_mismatch' using errcode = '22023';
   end if;
 end;
 $function$
@@ -1114,6 +1158,7 @@ begin
      or p_results ->> 'bbox_z_mm' is null then
     raise exception 'invalid_results' using errcode = '22023';
   end if;
+  perform private.require_job_message(p_msg_id, p_job_id);
 
   select * into v_job from public.slicing_jobs where id = p_job_id for update;
   if not found then
@@ -1158,6 +1203,7 @@ CREATE OR REPLACE FUNCTION private.worker_fail_job(p_msg_id bigint, p_job_id big
  SET search_path TO ''
 AS $function$
 begin
+  perform private.require_job_message(p_msg_id, p_job_id);
   perform 1 from public.slicing_jobs where id = p_job_id for update;
   if not found then
     perform pgmq.archive('slicing_jobs', p_msg_id);
@@ -1696,7 +1742,7 @@ CREATE TRIGGER quote_items_set_updated_at BEFORE UPDATE ON public.quote_items FO
 
 CREATE TRIGGER quotes_assign_number BEFORE INSERT ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.assign_quote_number();
 
-CREATE TRIGGER quotes_guard BEFORE UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.quotes_guard();
+CREATE TRIGGER quotes_guard BEFORE DELETE OR UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.quotes_guard();
 
 CREATE TRIGGER quotes_set_updated_at BEFORE UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
@@ -1749,7 +1795,7 @@ using (((bucket_id = 'branding'::text) AND ( SELECT private.is_staff() AS is_sta
   as permissive
   for delete
   to authenticated
-using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff)));
+using (((bucket_id = 'models'::text) AND private.can_change_model(name)));
 
 
 
@@ -1767,7 +1813,7 @@ using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff
   as permissive
   for update
   to authenticated
-using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff)))
+using (((bucket_id = 'models'::text) AND private.can_change_model(name)))
 with check (((bucket_id = 'models'::text) AND private.can_upload_model(name)));
 
 

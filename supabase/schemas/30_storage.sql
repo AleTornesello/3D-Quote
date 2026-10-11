@@ -1,5 +1,6 @@
 -- Storage policies for the models and branding buckets (the buckets themselves are rows, created by the
--- grants_and_setup migration). models: staff read and delete; uploads only into a draft quote's folder.
+-- grants_and_setup migration). models: staff read; uploads only into a draft quote's folder; files of quotes that
+-- have left draft can't be moved or deleted.
 -- branding: staff read, owners write.
 
 create policy "models: staff read" on storage.objects
@@ -10,11 +11,11 @@ create policy "models: staff upload to draft quotes" on storage.objects
   with check (bucket_id = 'models' and private.can_upload_model(name));
 create policy "models: staff update in draft quotes" on storage.objects
   for update to authenticated
-  using (bucket_id = 'models' and (select private.is_staff()))
+  using (bucket_id = 'models' and private.can_change_model(name))
   with check (bucket_id = 'models' and private.can_upload_model(name));
 create policy "models: staff delete" on storage.objects
   for delete to authenticated
-  using (bucket_id = 'models' and (select private.is_staff()));
+  using (bucket_id = 'models' and private.can_change_model(name));
 
 create policy "branding: staff read" on storage.objects
   for select to authenticated

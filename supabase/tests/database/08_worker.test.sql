@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(33);
 
 insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local');
 insert into public.staff (user_id, display_name, role) values ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner');
@@ -153,6 +153,39 @@ select is(
 select throws_ok(
   $$select public.worker_complete_job(1, 1, '{"print_time_s": 10}')$$,
   '22023', 'invalid_results', 'incomplete results are rejected'
+);
+
+-- A message must belong to the job it is reported for
+do $$ begin
+  perform private.enqueue_slicing_job(900001);
+  perform private.enqueue_slicing_job(900002);
+  perform * from public.worker_claim_job(600, 3);
+  perform * from public.worker_claim_job(600, 3);
+end $$;
+select throws_ok(
+  $$select public.worker_complete_job(
+      (select msg_id from pgmq.q_slicing_jobs
+       where (message->>'job_id')::bigint = (select max(id) from public.slicing_jobs where quote_item_id = 900001)),
+      (select max(id) from public.slicing_jobs where quote_item_id = 900002),
+      '{"print_time_s": 1, "filament_g": 1, "bbox_x_mm": 1, "bbox_y_mm": 1, "bbox_z_mm": 1}')$$,
+  '22023', 'job_message_mismatch', 'complete refuses a message that belongs to another job'
+);
+select throws_ok(
+  $$select public.worker_fail_job(
+      (select msg_id from pgmq.q_slicing_jobs
+       where (message->>'job_id')::bigint = (select max(id) from public.slicing_jobs where quote_item_id = 900001)),
+      (select max(id) from public.slicing_jobs where quote_item_id = 900002),
+      'wrong pairing', true)$$,
+  '22023', 'job_message_mismatch', 'fail refuses a message that belongs to another job'
+);
+select results_eq(
+  $$select j.status, count(m.msg_id)::int
+    from public.slicing_jobs j
+    left join pgmq.q_slicing_jobs m on (m.message->>'job_id')::bigint = j.id
+    where j.id in (select max(id) from public.slicing_jobs where quote_item_id in (900001, 900002) group by quote_item_id)
+    group by j.id, j.status order by j.id$$,
+  $$values ('running'::text, 1), ('running'::text, 1)$$,
+  'both jobs keep running with their own messages'
 );
 
 -- The item was deleted while its job ran

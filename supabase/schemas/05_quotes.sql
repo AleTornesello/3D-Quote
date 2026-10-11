@@ -69,13 +69,21 @@ create trigger quotes_assign_number
   before insert on public.quotes
   for each row execute function private.assign_quote_number();
 
--- Once a quote leaves draft, the only change allowed is sent → accepted / rejected / expired.
+-- Once a quote leaves draft, the only change allowed is sent → accepted / rejected / expired, and it can't be
+-- deleted (with its frozen items) by any role, the service role included.
 create or replace function private.quotes_guard()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
+  if tg_op = 'DELETE' then
+    if old.status <> 'draft' then
+      raise exception 'quote_not_draft';
+    end if;
+    return old;
+  end if;
+
   if old.status <> 'draft'
      and not (
        old.status = 'sent'
@@ -89,7 +97,7 @@ end;
 $$;
 
 create trigger quotes_guard
-  before update on public.quotes
+  before update or delete on public.quotes
   for each row execute function private.quotes_guard();
 
 create trigger quotes_set_updated_at

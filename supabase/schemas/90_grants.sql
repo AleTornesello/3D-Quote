@@ -62,4 +62,4 @@ grant execute on function
 to service_role;
 
 -- storage policy helper
-grant execute on function private.can_upload_model(text) to authenticated;
+grant execute on function private.can_upload_model(text), private.can_change_model(text) to authenticated;
