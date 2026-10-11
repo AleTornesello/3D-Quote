@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
         id={id}
         value={i18n.language}
         onChange={(event) => void setLanguage(event.target.value as Language)}
-        className="h-8 rounded-md border border-input bg-background px-2"
+        className="h-8 rounded-md border border-input bg-background px-2 pointer-coarse:h-11"
       >
         {LANGUAGES.map((lng) => (
           <option key={lng} value={lng}>

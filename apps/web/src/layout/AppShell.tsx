@@ -13,7 +13,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-svh lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="hidden border-r lg:block">
+      <aside className="hidden border-r lg:sticky lg:top-0 lg:block lg:h-svh lg:overflow-y-auto">
         <Navigation />
       </aside>
       <header className="flex items-center gap-2 border-b p-2 lg:hidden">
@@ -23,7 +23,7 @@ export function AppShell() {
               <Menu aria-hidden />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 p-0" closeLabel={t('nav.close')}>
             <SheetTitle className="sr-only">{t('nav.menu')}</SheetTitle>
             <Navigation onNavigate={() => setOpen(false)} />
           </SheetContent>

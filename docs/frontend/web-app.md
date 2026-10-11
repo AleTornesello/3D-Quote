@@ -45,10 +45,11 @@ apps/web/src/
 - **Supabase** is reached only through `useSupabase()`; never import a client directly. The client is provided by
   `AppProviders`, which is what lets tests inject a fake one.
 - **Server data** goes through TanStack Query (`useQuery` / `useMutation`) rather than ad-hoc `useEffect` fetches.
-- **UI components:** add them with the shadcn CLI, never by hand:
+- **UI components:** add them with the shadcn CLI installed in the workspace (not `@latest`, which may be a
+  newer major than the components already in the repo), never by hand:
 
   ```bash
-  npx shadcn@latest add <component> -c apps/web
+  npx shadcn add <component> -c apps/web
   ```
 
   If it asks to overwrite an existing component (e.g. `button.tsx` as a dependency), answer **no** unless you mean
@@ -70,7 +71,9 @@ apps/web/src/
 
 - **Role-based UI** (hiding Staff and owner-only actions) — needs the `staff` table.
 - **Language on the staff record** — the choice is kept in `localStorage` (`3dq.language`) until then.
-- **Password reset completion** — the reset email links to `/account`, which is still a placeholder.
+- **Password reset completion** — the reset email links to `<origin>/account`, which is still a placeholder.
+  That URL must be listed under Supabase → Authentication → URL Configuration → **Redirect URLs** for every
+  environment, or Supabase falls back to the Site URL.
 - **Bundle size** — the single JS chunk is ~700 kB (~210 kB gzip); split routes with lazy loading when real pages
   land.
 - **End-to-end tests** (Playwright).

@@ -1,5 +1,7 @@
 {
-  "app": { "name": "3D-Quote" },
+  "app": {
+    "name": "3D-Quote"
+  },
   "nav": {
     "main": "Navigazione principale",
     "menu": "Menu",
@@ -10,9 +12,14 @@
     "settings": "Impostazioni",
     "staff": "Personale",
     "account": "Account",
+    "close": "Chiudi",
     "logout": "Esci"
   },
-  "language": { "label": "Lingua", "it": "Italiano", "en": "English" },
+  "language": {
+    "label": "Lingua",
+    "it": "Italiano",
+    "en": "English"
+  },
   "pages": {
     "comingSoon": "In arrivo.",
     "notFound": {
@@ -30,7 +37,8 @@
       "submit": "Accedi",
       "submitting": "Accesso in corso…",
       "forgot": "Password dimenticata?",
-      "error": "Email o password non corretti."
+      "error": "Email o password non corretti.",
+      "unavailable": "Impossibile contattare il server. Controlla la connessione e riprova."
     },
     "forgot": {
       "title": "Recupera password",
@@ -44,6 +52,6 @@
   "config": {
     "title": "Supabase non configurato",
     "body": "Imposta le variabili mancanti in apps/web/.env.local (vedi apps/web/.env.example) e riavvia il server di sviluppo.",
-    "missing": "Variabili mancanti:"
+    "missing": "Variabili mancanti o non valide:"
   }
 }

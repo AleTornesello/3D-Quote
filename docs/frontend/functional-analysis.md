@@ -2,7 +2,7 @@
 
 - **Status:** Draft — awaiting review
 - **Date:** 2026-10-11
-- **App:** `apps/web/` (React + Vite + TypeScript, not scaffolded yet)
+- **App:** `apps/web/` (React + Vite + TypeScript; see the [developer guide](web-app.md))
 
 This document describes what the web app does, screen by screen, and the rules behind it. It does not prescribe
 components, libraries or visual design. Background: [product overview](../product/overview.md),

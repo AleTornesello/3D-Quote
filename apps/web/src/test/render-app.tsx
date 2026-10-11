@@ -4,11 +4,11 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/app/AppProviders'
 import { routes } from '@/app/routes'
 import { createQueryClient } from '@/lib/query-client'
-import { createFakeSupabase } from './fake-supabase'
+import { createFakeSupabase, type SignInFailure } from './fake-supabase'
 
 export function renderApp(
   path: string,
-  opts: { session?: Session | null; signInError?: string; pendingSession?: boolean } = {},
+  opts: { session?: Session | null; signInError?: SignInFailure; pendingSession?: boolean } = {},
 ) {
   const fake = createFakeSupabase(opts)
   const router = createMemoryRouter(routes, { initialEntries: [path] })

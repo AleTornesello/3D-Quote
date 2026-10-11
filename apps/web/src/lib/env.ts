@@ -6,9 +6,18 @@ function value(source: Record<string, unknown>, name: string): string | null {
   return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : null
 }
 
-/** Reads the Supabase settings from Vite env; empty strings count as missing. */
+function isHttpUrl(text: string): boolean {
+  try {
+    return ['http:', 'https:'].includes(new URL(text).protocol)
+  } catch {
+    return false
+  }
+}
+
+/** Reads the Supabase settings from Vite env; empty values and non-http(s) URLs count as missing. */
 export function readEnv(source: Record<string, unknown>): EnvResult {
-  const url = value(source, 'VITE_SUPABASE_URL')
+  const rawUrl = value(source, 'VITE_SUPABASE_URL')
+  const url = rawUrl && isHttpUrl(rawUrl) ? rawUrl : null
   const publishableKey = value(source, 'VITE_SUPABASE_PUBLISHABLE_KEY')
   if (url && publishableKey) return { ok: true, env: { url, publishableKey } }
   const missing: string[] = []

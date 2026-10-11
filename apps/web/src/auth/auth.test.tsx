@@ -34,10 +34,31 @@ test('logs in with email and password and lands on the remembered path', async (
 })
 
 test('shows an error and stays on login when sign-in fails', async () => {
-  const { router } = renderApp('/login', { signInError: 'Invalid login credentials' })
+  const { router } = renderApp('/login', { signInError: 'credentials' })
   await logIn()
   expect(await screen.findByRole('alert')).toHaveTextContent('Email o password non corretti.')
   expect(router.state.location.pathname).toBe('/login')
+})
+
+test('a network failure says the server could not be reached, not that the password is wrong', async () => {
+  renderApp('/login', { signInError: 'network' })
+  await logIn()
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Impossibile contattare il server. Controlla la connessione e riprova.',
+  )
+})
+
+test('a rejected sign-in call re-enables the form', async () => {
+  renderApp('/login', { signInError: 'reject' })
+  await logIn()
+  expect(await screen.findByRole('alert')).toHaveTextContent('Impossibile contattare il server.')
+  expect(screen.getByRole('button', { name: 'Accedi' })).toBeEnabled()
+})
+
+test('login shows loading, not the form, while the session loads', async () => {
+  renderApp('/login', { pendingSession: true })
+  expect(await screen.findByRole('status')).toHaveTextContent('Caricamento…')
+  expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
 })
 
 test('a signed-in user visiting login goes to quotes', async () => {

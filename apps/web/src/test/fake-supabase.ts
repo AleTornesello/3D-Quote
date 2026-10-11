@@ -20,9 +20,22 @@ export function fakeSession(email = 'staff@example.com'): Session {
   } as Session
 }
 
+/** How a fake sign-in fails: wrong credentials, a network error result, or a rejected promise. */
+export type SignInFailure = 'credentials' | 'network' | 'reject'
+
+const signInErrors = {
+  credentials: {
+    name: 'AuthApiError',
+    status: 400,
+    code: 'invalid_credentials',
+    message: 'Invalid login credentials',
+  },
+  network: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' },
+}
+
 /** A stand-in for supabase.auth with controllable outcomes. `pendingSession` keeps getSession unresolved. */
 export function createFakeSupabase(
-  opts: { session?: Session | null; signInError?: string; pendingSession?: boolean } = {},
+  opts: { session?: Session | null; signInError?: SignInFailure; pendingSession?: boolean } = {},
 ) {
   let current = opts.session ?? null
   const listeners = new Set<Listener>()
@@ -39,8 +52,9 @@ export function createFakeSupabase(
       return { data: { subscription: { unsubscribe: () => listeners.delete(listener) } } }
     }),
     signInWithPassword: vi.fn(async ({ email }: { email: string; password: string }) => {
+      if (opts.signInError === 'reject') throw new TypeError('Failed to fetch')
       if (opts.signInError) {
-        return { data: { session: null, user: null }, error: { message: opts.signInError } }
+        return { data: { session: null, user: null }, error: signInErrors[opts.signInError] }
       }
       current = fakeSession(email)
       emit('SIGNED_IN')
