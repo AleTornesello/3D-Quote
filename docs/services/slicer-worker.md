@@ -21,11 +21,11 @@ Sent to the `slicing_jobs` queue by the Edge Function that creates the quote ite
 
 ```json
 {
-  "job_id": "6f1c2d1e-…",
-  "quote_item_id": "a3b9e0f2-…",
-  "model_path": "models/<quote_id>/<quote_item_id>/bracket.stl",
-  "printer_id": "0d4e…",
-  "material_id": "9a7c…",
+  "job_id": 812,
+  "quote_item_id": 344,
+  "model_path": "127/344/bracket.stl",
+  "printer_id": 2,
+  "material_id": 5,
   "settings": {
     "layer_height_mm": 0.2,
     "infill_percent": 20,
@@ -34,7 +34,8 @@ Sent to the `slicing_jobs` queue by the Edge Function that creates the quote ite
 }
 ```
 
-The message carries ids, not printer or material details: the worker loads the current printer and material rows
+`model_path` is the object path inside the private `models` bucket. The message carries ids, not printer or
+material details: the worker loads the current printer and material rows
 when it runs, so it always uses the profiles stored in the database.
 
 ## Output (proposed)
