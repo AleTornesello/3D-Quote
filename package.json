@@ -5,11 +5,11 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @3d-quote/web",
-    "build": "npm run build --workspace @3d-quote/web",
-    "test": "npm run test --workspace @3d-quote/web",
-    "lint": "npm run lint --workspace @3d-quote/web",
-    "format": "npm run format --workspace @3d-quote/web",
-    "format:check": "npm run format:check --workspace @3d-quote/web"
+    "dev": "npm run dev --workspace @3d-quote/web --",
+    "build": "npm run build --workspace @3d-quote/web --",
+    "test": "npm run test --workspace @3d-quote/web --",
+    "lint": "npm run lint --workspace @3d-quote/web --",
+    "format": "npm run format --workspace @3d-quote/web --",
+    "format:check": "npm run format:check --workspace @3d-quote/web --"
   }
 }
