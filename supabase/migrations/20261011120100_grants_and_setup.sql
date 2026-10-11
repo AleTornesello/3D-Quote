@@ -62,6 +62,16 @@ grant execute on function
   private.mark_quote_rejected(bigint)
 to authenticated;
 
+-- worker functions: service role only
+grant execute on function
+  public.worker_claim_job(integer, integer),
+  private.worker_claim_job(integer, integer),
+  public.worker_complete_job(bigint, bigint, jsonb),
+  private.worker_complete_job(bigint, bigint, jsonb),
+  public.worker_fail_job(bigint, bigint, text, boolean),
+  private.worker_fail_job(bigint, bigint, text, boolean)
+to service_role;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
 

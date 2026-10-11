@@ -50,3 +50,13 @@ grant execute on function
   public.mark_quote_rejected(bigint),
   private.mark_quote_rejected(bigint)
 to authenticated;
+
+-- worker functions: service role only
+grant execute on function
+  public.worker_claim_job(integer, integer),
+  private.worker_claim_job(integer, integer),
+  public.worker_complete_job(bigint, bigint, jsonb),
+  private.worker_complete_job(bigint, bigint, jsonb),
+  public.worker_fail_job(bigint, bigint, text, boolean),
+  private.worker_fail_job(bigint, bigint, text, boolean)
+to service_role;
