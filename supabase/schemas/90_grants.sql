@@ -32,3 +32,21 @@ grant execute on function
   public.retry_slicing(bigint),
   private.retry_slicing(bigint)
 to authenticated;
+
+-- overrides, send check and outcomes
+grant execute on function
+  public.set_markup_override(bigint, numeric),
+  private.set_markup_override(bigint, numeric),
+  public.set_price_override(bigint, numeric, text),
+  private.set_price_override(bigint, numeric, text),
+  public.clear_price_override(bigint),
+  private.clear_price_override(bigint),
+  public.get_quote_send_blockers(bigint),
+  private.get_quote_send_blockers(bigint),
+  public.mark_quote_sent(bigint),
+  private.mark_quote_sent(bigint),
+  public.mark_quote_accepted(bigint),
+  private.mark_quote_accepted(bigint),
+  public.mark_quote_rejected(bigint),
+  private.mark_quote_rejected(bigint)
+to authenticated;
