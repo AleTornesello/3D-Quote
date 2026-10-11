@@ -22,6 +22,9 @@ uv sync         # Python workspace (services/*, libs/python/*) into .venv/
 Both commands must be run from the repository root: the root `package.json` and `pyproject.toml` define the
 workspaces, and there is one lockfile for each (`package-lock.json`, `uv.lock`).
 
+Then configure the web app: copy `apps/web/.env.example` to `apps/web/.env.local` and fill in the Supabase URL and
+publishable key (see the [web app guide](../frontend/web-app.md#running)).
+
 ## Repository layout
 
 See the table in the root [README](../../README.md). Documentation conventions are in the
@@ -34,7 +37,8 @@ See the table in the root [README](../../README.md). Documentation conventions a
 | `uv run --package slicer-worker <cmd>` | Run a command in the slicer-worker's environment |
 | `uv lock` | Re-resolve Python dependencies after editing any `pyproject.toml` |
 | `uv add --package slicer-worker <dep>` | Add a dependency to one Python service |
-| `npm run <script> --workspace apps/web` | Run a web app script — once the app is scaffolded |
+| `npm run dev` | Web app dev server (extra args reach Vite: `npm run dev -- --port 5199`) |
+| `npm run build` / `npm test` / `npm run lint` / `npm run format` | Build, test, lint, format the web app (forwarded to `@3d-quote/web`) |
 | `supabase start` | Start the local Supabase stack — once `supabase init` has been run |
 
 ## Adding a Python service
@@ -62,5 +66,5 @@ See the table in the root [README](../../README.md). Documentation conventions a
 ## Open questions
 
 - **Node version pinning:** `.nvmrc`, `engines` in `package.json`, or both.
-- **Lint and format tooling:** ruff for Python; ESLint + Prettier or Biome for TypeScript; whether a pre-commit
-  hook runs them.
+- **Python lint and format tooling:** ruff or another tool; whether a pre-commit hook runs the linters.
+  TypeScript is settled: ESLint + Prettier (see [ADR-0002](../architecture/adr/0002-frontend-stack.md)).
