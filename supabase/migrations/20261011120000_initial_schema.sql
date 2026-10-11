@@ -67,6 +67,43 @@ alter table "public"."materials" enable row level security;
 alter table "public"."printers" enable row level security;
 
 
+  create table "public"."quote_items" (
+    "id" bigint generated always as identity not null,
+    "quote_id" bigint not null,
+    "model_path" text not null,
+    "original_filename" text not null,
+    "description" text not null,
+    "printer_id" bigint,
+    "material_id" bigint,
+    "quantity" integer not null default 1,
+    "layer_height_mm" numeric(3,2) not null default 0.20,
+    "infill_percent" smallint not null default 20,
+    "supports" boolean not null default false,
+    "print_time_s" integer,
+    "filament_g" numeric(10,2),
+    "bbox_x_mm" numeric(6,1),
+    "bbox_y_mm" numeric(6,1),
+    "bbox_z_mm" numeric(6,1),
+    "material_cost" numeric(14,4),
+    "machine_cost" numeric(14,4),
+    "energy_cost" numeric(14,4),
+    "failure_cost" numeric(14,4),
+    "setup_fee" numeric(14,4),
+    "markup_amount" numeric(14,4),
+    "markup_pct" numeric(6,2),
+    "computed_total" numeric(12,2),
+    "override_total" numeric(12,2),
+    "override_reason" text,
+    "item_total" numeric(12,2) generated always as (COALESCE(override_total, computed_total)) stored,
+    "priced_at" timestamp with time zone,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now()
+      );
+
+
+alter table "public"."quote_items" enable row level security;
+
+
   create table "public"."quotes" (
     "id" bigint generated always as identity not null,
     "number" text not null,
@@ -113,6 +150,29 @@ alter table "public"."quotes" enable row level security;
 alter table "public"."settings" enable row level security;
 
 
+  create table "public"."slicing_jobs" (
+    "id" bigint generated always as identity not null,
+    "quote_item_id" bigint not null,
+    "status" text not null default 'queued'::text,
+    "attempts" smallint not null default 0,
+    "error" text,
+    "print_time_s" integer,
+    "filament_g" numeric(10,2),
+    "filament_mm" numeric(10,2),
+    "layer_count" integer,
+    "bbox_x_mm" numeric(6,1),
+    "bbox_y_mm" numeric(6,1),
+    "bbox_z_mm" numeric(6,1),
+    "slicer_version" text,
+    "queued_at" timestamp with time zone not null default now(),
+    "started_at" timestamp with time zone,
+    "finished_at" timestamp with time zone
+      );
+
+
+alter table "public"."slicing_jobs" enable row level security;
+
+
   create table "public"."staff" (
     "user_id" uuid not null,
     "display_name" text not null,
@@ -136,6 +196,16 @@ CREATE UNIQUE INDEX printers_name_key ON public.printers USING btree (name);
 
 CREATE UNIQUE INDEX printers_pkey ON public.printers USING btree (id);
 
+CREATE INDEX quote_items_material_id_idx ON public.quote_items USING btree (material_id);
+
+CREATE UNIQUE INDEX quote_items_model_path_key ON public.quote_items USING btree (model_path);
+
+CREATE UNIQUE INDEX quote_items_pkey ON public.quote_items USING btree (id);
+
+CREATE INDEX quote_items_printer_id_idx ON public.quote_items USING btree (printer_id);
+
+CREATE INDEX quote_items_quote_id_idx ON public.quote_items USING btree (quote_id);
+
 CREATE INDEX quotes_client_id_idx ON public.quotes USING btree (client_id);
 
 CREATE INDEX quotes_created_by_idx ON public.quotes USING btree (created_by);
@@ -150,6 +220,10 @@ CREATE INDEX quotes_sent_valid_until_idx ON public.quotes USING btree (valid_unt
 
 CREATE UNIQUE INDEX settings_pkey ON public.settings USING btree (id);
 
+CREATE UNIQUE INDEX slicing_jobs_pkey ON public.slicing_jobs USING btree (id);
+
+CREATE INDEX slicing_jobs_quote_item_id_idx ON public.slicing_jobs USING btree (quote_item_id, id DESC);
+
 CREATE UNIQUE INDEX staff_pkey ON public.staff USING btree (user_id);
 
 alter table "private"."quote_counters" add constraint "quote_counters_pkey" PRIMARY KEY using index "quote_counters_pkey";
@@ -160,9 +234,13 @@ alter table "public"."materials" add constraint "materials_pkey" PRIMARY KEY usi
 
 alter table "public"."printers" add constraint "printers_pkey" PRIMARY KEY using index "printers_pkey";
 
+alter table "public"."quote_items" add constraint "quote_items_pkey" PRIMARY KEY using index "quote_items_pkey";
+
 alter table "public"."quotes" add constraint "quotes_pkey" PRIMARY KEY using index "quotes_pkey";
 
 alter table "public"."settings" add constraint "settings_pkey" PRIMARY KEY using index "settings_pkey";
+
+alter table "public"."slicing_jobs" add constraint "slicing_jobs_pkey" PRIMARY KEY using index "slicing_jobs_pkey";
 
 alter table "public"."staff" add constraint "staff_pkey" PRIMARY KEY using index "staff_pkey";
 
@@ -220,6 +298,44 @@ alter table "public"."printers" add constraint "printers_power_w_check" CHECK ((
 
 alter table "public"."printers" validate constraint "printers_power_w_check";
 
+alter table "public"."quote_items" add constraint "quote_items_filament_g_check" CHECK ((filament_g >= (0)::numeric)) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_filament_g_check";
+
+alter table "public"."quote_items" add constraint "quote_items_infill_percent_check" CHECK (((infill_percent >= 0) AND (infill_percent <= 100))) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_infill_percent_check";
+
+alter table "public"."quote_items" add constraint "quote_items_layer_height_mm_check" CHECK ((layer_height_mm > (0)::numeric)) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_layer_height_mm_check";
+
+alter table "public"."quote_items" add constraint "quote_items_material_id_fkey" FOREIGN KEY (material_id) REFERENCES public.materials(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_material_id_fkey";
+
+alter table "public"."quote_items" add constraint "quote_items_model_path_key" UNIQUE using index "quote_items_model_path_key";
+
+alter table "public"."quote_items" add constraint "quote_items_override_check" CHECK (((override_total IS NULL) OR ((override_total >= (0)::numeric) AND (NULLIF(btrim(override_reason), ''::text) IS NOT NULL)))) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_override_check";
+
+alter table "public"."quote_items" add constraint "quote_items_print_time_s_check" CHECK ((print_time_s >= 0)) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_print_time_s_check";
+
+alter table "public"."quote_items" add constraint "quote_items_printer_id_fkey" FOREIGN KEY (printer_id) REFERENCES public.printers(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_printer_id_fkey";
+
+alter table "public"."quote_items" add constraint "quote_items_quantity_check" CHECK ((quantity > 0)) not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_quantity_check";
+
+alter table "public"."quote_items" add constraint "quote_items_quote_id_fkey" FOREIGN KEY (quote_id) REFERENCES public.quotes(id) ON DELETE CASCADE not valid;
+
+alter table "public"."quote_items" validate constraint "quote_items_quote_id_fkey";
+
 alter table "public"."quotes" add constraint "quotes_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE RESTRICT not valid;
 
 alter table "public"."quotes" validate constraint "quotes_client_id_fkey";
@@ -275,6 +391,18 @@ alter table "public"."settings" validate constraint "settings_quote_prefix_check
 alter table "public"."settings" add constraint "settings_setup_fee_check" CHECK ((setup_fee >= (0)::numeric)) not valid;
 
 alter table "public"."settings" validate constraint "settings_setup_fee_check";
+
+alter table "public"."slicing_jobs" add constraint "slicing_jobs_attempts_check" CHECK ((attempts >= 0)) not valid;
+
+alter table "public"."slicing_jobs" validate constraint "slicing_jobs_attempts_check";
+
+alter table "public"."slicing_jobs" add constraint "slicing_jobs_quote_item_id_fkey" FOREIGN KEY (quote_item_id) REFERENCES public.quote_items(id) ON DELETE CASCADE not valid;
+
+alter table "public"."slicing_jobs" validate constraint "slicing_jobs_quote_item_id_fkey";
+
+alter table "public"."slicing_jobs" add constraint "slicing_jobs_status_check" CHECK ((status = ANY (ARRAY['queued'::text, 'running'::text, 'succeeded'::text, 'failed'::text]))) not valid;
+
+alter table "public"."slicing_jobs" validate constraint "slicing_jobs_status_check";
 
 alter table "public"."staff" add constraint "staff_display_name_check" CHECK ((btrim(display_name) <> ''::text)) not valid;
 
@@ -349,6 +477,55 @@ AS $function$
     select 1 from public.staff
     where user_id = (select auth.uid()) and active
   );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION private.quote_items_guard()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_status text;
+begin
+  if tg_op = 'UPDATE' and new.quote_id <> old.quote_id then
+    raise exception 'quote_item_move_not_allowed';
+  end if;
+
+  select status into v_status from public.quotes where id = old.quote_id for share;
+  -- Not found: the quote itself is being deleted and this is the cascade.
+  if found and v_status <> 'draft' then
+    raise exception 'quote_not_draft';
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION private.quote_items_reprice_on_quantity()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if new.quantity is distinct from old.quantity then
+    new.material_cost := null;
+    new.machine_cost := null;
+    new.energy_cost := null;
+    new.failure_cost := null;
+    new.setup_fee := null;
+    new.markup_amount := null;
+    new.markup_pct := null;
+    new.computed_total := null;
+    new.priced_at := null;
+  end if;
+  return new;
+end;
 $function$
 ;
 
@@ -493,6 +670,24 @@ grant truncate on table "public"."printers" to "service_role";
 
 grant update on table "public"."printers" to "service_role";
 
+grant delete on table "public"."quote_items" to "authenticated";
+
+grant select on table "public"."quote_items" to "authenticated";
+
+grant delete on table "public"."quote_items" to "service_role";
+
+grant insert on table "public"."quote_items" to "service_role";
+
+grant references on table "public"."quote_items" to "service_role";
+
+grant select on table "public"."quote_items" to "service_role";
+
+grant trigger on table "public"."quote_items" to "service_role";
+
+grant truncate on table "public"."quote_items" to "service_role";
+
+grant update on table "public"."quote_items" to "service_role";
+
 grant delete on table "public"."quotes" to "authenticated";
 
 grant select on table "public"."quotes" to "authenticated";
@@ -526,6 +721,22 @@ grant trigger on table "public"."settings" to "service_role";
 grant truncate on table "public"."settings" to "service_role";
 
 grant update on table "public"."settings" to "service_role";
+
+grant select on table "public"."slicing_jobs" to "authenticated";
+
+grant delete on table "public"."slicing_jobs" to "service_role";
+
+grant insert on table "public"."slicing_jobs" to "service_role";
+
+grant references on table "public"."slicing_jobs" to "service_role";
+
+grant select on table "public"."slicing_jobs" to "service_role";
+
+grant trigger on table "public"."slicing_jobs" to "service_role";
+
+grant truncate on table "public"."slicing_jobs" to "service_role";
+
+grant update on table "public"."slicing_jobs" to "service_role";
 
 grant insert on table "public"."staff" to "authenticated";
 
@@ -657,6 +868,40 @@ with check (( SELECT private.is_owner() AS is_owner));
 
 
 
+  create policy "quote_items_delete"
+  on "public"."quote_items"
+  as permissive
+  for delete
+  to authenticated
+using ((( SELECT private.is_staff() AS is_staff) AND (EXISTS ( SELECT 1
+   FROM public.quotes q
+  WHERE ((q.id = quote_items.quote_id) AND (q.status = 'draft'::text))))));
+
+
+
+  create policy "quote_items_select"
+  on "public"."quote_items"
+  as permissive
+  for select
+  to authenticated
+using (( SELECT private.is_staff() AS is_staff));
+
+
+
+  create policy "quote_items_update"
+  on "public"."quote_items"
+  as permissive
+  for update
+  to authenticated
+using ((( SELECT private.is_staff() AS is_staff) AND (EXISTS ( SELECT 1
+   FROM public.quotes q
+  WHERE ((q.id = quote_items.quote_id) AND (q.status = 'draft'::text))))))
+with check ((( SELECT private.is_staff() AS is_staff) AND (EXISTS ( SELECT 1
+   FROM public.quotes q
+  WHERE ((q.id = quote_items.quote_id) AND (q.status = 'draft'::text))))));
+
+
+
   create policy "quotes_delete"
   on "public"."quotes"
   as permissive
@@ -713,6 +958,15 @@ with check (( SELECT private.is_owner() AS is_owner));
 
 
 
+  create policy "slicing_jobs_select"
+  on "public"."slicing_jobs"
+  as permissive
+  for select
+  to authenticated
+using (( SELECT private.is_staff() AS is_staff));
+
+
+
   create policy "staff_insert"
   on "public"."staff"
   as permissive
@@ -745,6 +999,12 @@ CREATE TRIGGER clients_set_updated_at BEFORE UPDATE ON public.clients FOR EACH R
 CREATE TRIGGER materials_set_updated_at BEFORE UPDATE ON public.materials FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 CREATE TRIGGER printers_set_updated_at BEFORE UPDATE ON public.printers FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
+
+CREATE TRIGGER quote_items_guard BEFORE DELETE OR UPDATE ON public.quote_items FOR EACH ROW EXECUTE FUNCTION private.quote_items_guard();
+
+CREATE TRIGGER quote_items_reprice_on_quantity BEFORE UPDATE ON public.quote_items FOR EACH ROW EXECUTE FUNCTION private.quote_items_reprice_on_quantity();
+
+CREATE TRIGGER quote_items_set_updated_at BEFORE UPDATE ON public.quote_items FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 CREATE TRIGGER quotes_assign_number BEFORE INSERT ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.assign_quote_number();
 

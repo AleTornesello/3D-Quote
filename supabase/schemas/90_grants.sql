@@ -19,3 +19,6 @@ grant insert, update, delete on public.printers, public.materials, public.client
 
 -- quotes (insert and update are column grants in the grants_and_setup migration)
 grant delete on public.quotes to authenticated;
+
+-- quote_items (update is a column grant in the grants_and_setup migration)
+grant delete on public.quote_items to authenticated;

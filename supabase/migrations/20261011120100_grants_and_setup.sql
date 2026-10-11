@@ -31,6 +31,9 @@ grant insert, update, delete on public.printers, public.materials, public.client
 -- quotes (insert and update are column grants in the grants_and_setup migration)
 grant delete on public.quotes to authenticated;
 
+-- quote_items (update is a column grant in the grants_and_setup migration)
+grant delete on public.quote_items to authenticated;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
 
@@ -42,6 +45,8 @@ grant update (
 
 grant insert (client_id, valid_until, notes), update (client_id, valid_until, notes)
   on public.quotes to authenticated;
+
+grant update (description, quantity) on public.quote_items to authenticated;
 
 -- The single settings row.
 insert into public.settings (id) values (1);
