@@ -19,8 +19,13 @@ the model with the shop's real printer and material settings, instead of estimat
 3. For each item they choose a printer, a material, the quantity and print settings (layer height, infill,
    supports).
 4. The system slices each model in the background and records print time and filament usage.
-5. A price is computed for each item from those metrics plus the material rate and the machine rate.
-6. The staff member reviews the quote, adjusts it if needed, and marks it as sent to the client.
+5. A price is computed for each item from those metrics plus material, machine and energy costs, a failure
+   allowance, a setup fee and a markup, with a minimum price per item.
+6. The staff member reviews the quote and marks it as sent; only the owner can override a computed price.
+7. The quote is exported as a PDF (Italian or English) and sent to the client outside the tool.
+
+Screen-by-screen detail, roles and the exact pricing formula are in the
+[web app functional analysis](../frontend/functional-analysis.md).
 
 ## Goals
 
@@ -46,12 +51,17 @@ the model with the shop's real printer and material settings, instead of estimat
 | Print time | Estimated machine time for one copy of the model, as reported by the slicer. |
 | Filament usage | Estimated material for one copy, in grams (and millimetres of filament). |
 | Material rate | What a material costs the shop, per kilogram. |
-| Machine rate | What an hour of printer time costs the shop (energy, wear, depreciation). |
+| Machine rate | What an hour of printer time costs the shop in wear and depreciation (energy is separate). |
+| Energy cost | Printer power × print time × energy price per kWh. |
+| Failure allowance | A percentage added to the production cost to cover failed prints. |
+| Setup fee | A fixed amount charged once per quote item for preparation and handling. |
+| Markup | The percentage added on top of the production cost; a shop default, overridable per quote by the owner. |
+| Operator / Owner | The two staff roles. Owners also manage rates, catalogue, staff, price overrides and deletions. |
 
 ## Open questions
 
-- **Pricing formula.** Beyond material and machine cost: markup, setup/handling fee, minimum price, an allowance
-  for failed prints, post-processing.
 - **Multi-colour / multi-material prints.** In scope for the first version or not.
-- **Quote output.** How a quote reaches the client: PDF export, email from the tool, or copy-paste.
-- **3D preview.** Whether the web app shows an in-browser preview of the model in the first version.
+- **Post-processing.** Whether finishing work (support removal beyond the setup fee, sanding, painting) is priced.
+
+Decided: pricing formula and PDF export are defined in the
+[functional analysis](../frontend/functional-analysis.md); an in-browser 3D preview is not in the first version.

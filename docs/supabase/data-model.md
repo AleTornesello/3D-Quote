@@ -13,6 +13,9 @@ erDiagram
     materials ||--o{ quote_items : "uses"
     quote_items ||--o{ slicing_jobs : "sliced by"
     staff ||--o{ quotes : "creates"
+    settings {
+        smallint id PK
+    }
 
     staff {
         uuid user_id PK
@@ -64,7 +67,13 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 | `user_id` | `uuid` PK | References `auth.users(id)`, `on delete cascade` |
 | `display_name` | `text` not null | |
 | `role` | `text` not null default `'operator'` | Check: `operator`, `owner` |
-| `created_at` | `timestamptz` | |
+| `language` | `text` not null default `'it'` | Check: `it`, `en`. UI language |
+| `active` | `boolean` not null default `true` | `false` once removed by an owner; the row is kept so past quotes still show their creator |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Removing a staff member sets `active = false` and bans the Auth user; it never deletes the Auth user, which would
+cascade to this row and break `quotes.created_by`. "Invited" vs "Active" in the UI comes from whether the Auth user
+has confirmed their invitation.
 
 ### `printers`
 
@@ -75,7 +84,8 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 | `model` | `text` not null | Manufacturer model, e.g. "Prusa MK4" |
 | `build_x_mm`, `build_y_mm`, `build_z_mm` | `numeric(6,1)` not null | Build volume |
 | `nozzle_diameter_mm` | `numeric(3,2)` not null default `0.40` | |
-| `hourly_rate` | `numeric(12,2)` not null | Machine cost per hour |
+| `hourly_rate` | `numeric(12,2)` not null | Machine cost per hour (wear, depreciation); energy is separate |
+| `power_w` | `integer` not null | Check: `> 0`. Average draw while printing, for energy cost |
 | `active` | `boolean` not null default `true` | Inactive printers can't be picked for new items |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -91,6 +101,27 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 | `cost_per_kg` | `numeric(12,2)` not null | |
 | `active` | `boolean` not null default `true` | |
 | `created_at`, `updated_at` | `timestamptz` | |
+
+### `settings`
+
+Shop-wide settings; exactly one row (`id = 1`, enforced by a check constraint). See
+[functional analysis §3.8](../frontend/functional-analysis.md#38-settings).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `smallint` PK | Check: `id = 1` |
+| `currency` | `text` not null default `'EUR'` | ISO 4217 |
+| `energy_price_kwh` | `numeric(8,4)` not null | |
+| `failure_allowance_pct` | `numeric(5,2)` not null default `0` | Check: `0..100` |
+| `setup_fee` | `numeric(12,2)` not null default `0` | Per item |
+| `default_markup_pct` | `numeric(6,2)` not null default `0` | Check: `>= 0` |
+| `minimum_item_price` | `numeric(12,2)` not null default `0` | |
+| `quote_prefix` | `text` not null default `'Q'` | Check: 1–10 letters/digits |
+| `default_validity_days` | `smallint` not null default `30` | Check: `1..365` |
+| `pdf_terms_it`, `pdf_terms_en` | `text` | |
+| `shop_name`, `shop_address`, `shop_vat_number`, `shop_email`, `shop_phone` | `text` | Printed on the PDF |
+| `shop_logo_path` | `text` | Object path in the private `branding` bucket |
+| `updated_at` | `timestamptz` | |
 
 ### `clients`
 
@@ -109,11 +140,14 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `bigint` identity PK | |
-| `client_id` | `bigint` not null FK → `clients` | Indexed |
+| `number` | `text` not null unique | e.g. `Q-2026-0042`; built from prefix, year and sequence at insert |
+| `number_year`, `number_seq` | `smallint`, `integer` not null | Unique together; the sequence restarts each year |
+| `client_id` | `bigint` not null FK → `clients` | Indexed. `on delete restrict`: clients with quotes can't be deleted |
 | `status` | `text` not null default `'draft'` | Check: `draft`, `sent`, `accepted`, `rejected`, `expired` |
 | `valid_until` | `date` | |
 | `notes` | `text` | Shown on the quote |
 | `created_by` | `uuid` not null FK → `staff(user_id)` | Indexed |
+| `markup_override_pct` | `numeric(6,2)` | Owner only; null = use `settings.default_markup_pct` |
 | `sent_at` | `timestamptz` | Set when status becomes `sent` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -125,15 +159,23 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 | `quote_id` | `bigint` not null FK → `quotes`, `on delete cascade` | Indexed |
 | `model_path` | `text` not null unique | Object path in the `models` bucket, uploaded before the item is created |
 | `original_filename` | `text` not null | |
-| `printer_id` | `bigint` not null FK → `printers` | Indexed |
-| `material_id` | `bigint` not null FK → `materials` | Indexed |
+| `description` | `text` not null | Defaults to the file name without extension; printed on the PDF |
+| `printer_id` | `bigint` FK → `printers` | Indexed. Null until chosen; slicing starts once printer and material are set |
+| `material_id` | `bigint` FK → `materials` | Indexed. Same |
 | `quantity` | `integer` not null default `1` | Check: `> 0` |
 | `layer_height_mm` | `numeric(3,2)` not null | |
 | `infill_percent` | `smallint` not null | Check: `0..100` |
 | `supports` | `boolean` not null default `false` | |
 | `print_time_s` | `integer` | From the latest succeeded slicing job; null until sliced |
 | `filament_g` | `numeric(10,2)` | Same |
-| `unit_price` | `numeric(12,2)` | Price for one copy; null until priced |
+| `bbox_x_mm`, `bbox_y_mm`, `bbox_z_mm` | `numeric(6,1)` | Same; checked against the printer's build volume |
+| `material_cost`, `machine_cost`, `energy_cost`, `failure_cost`, `setup_fee`, `markup_amount` | `numeric(14,4)` | Price breakdown, full precision ([pricing rules](../frontend/functional-analysis.md#5-pricing-rules)) |
+| `markup_pct` | `numeric(6,2)` | Markup % used for this computation |
+| `computed_total` | `numeric(12,2)` | After minimum price, rounded |
+| `override_total` | `numeric(12,2)` | Owner override; null when none |
+| `override_reason` | `text` | Required when `override_total` is set |
+| `item_total` | `numeric(12,2)` | `override_total` if set, else `computed_total`; null until priced |
+| `priced_at` | `timestamptz` | Last computation. Never changes once the quote is `sent` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 ### `slicing_jobs`
@@ -166,11 +208,17 @@ record of what happened (see [slicer-worker](../services/slicer-worker.md)).
 - Staff upload and read through Storage policies that use the same staff check as the tables; the worker downloads
   with the service role.
 
+- Private bucket **`branding`** for the shop logo; owner writes, staff read.
+
 ## Queues
 
 - pgmq queue **`slicing_jobs`**, created with Supabase Queues.
-- Messages are sent by the `create_quote_item` function (below), in the same transaction that inserts the
-  `quote_items` and `slicing_jobs` rows. Separate calls from an Edge Function would each be their own transaction.
+- Messages are sent only by the functions listed under [Access](#access), in the same transaction that inserts the
+  `slicing_jobs` row. Separate calls from an Edge Function would each be their own transaction.
+
+## Scheduled jobs
+
+- **Expire quotes** (pg_cron, daily): sets `status = 'expired'` on `sent` quotes whose `valid_until` is before today.
 - Message format: see [slicer-worker → Job message](../services/slicer-worker.md#job-message-proposed).
 
 ## Access
@@ -191,22 +239,28 @@ record of what happened (see [slicer-worker](../services/slicer-worker.md)).
   grant execute on function private.is_staff() to authenticated;
   ```
 
-- Staff can read and write all business tables. Only `owner` may change `printers`, `materials` and `staff`
-  (proposed).
+- `private.is_staff()` also requires `staff.active`. A similar `private.is_owner()` checks `role = 'owner'`.
+- Permissions follow the [functional analysis permission matrix](../frontend/functional-analysis.md#permission-matrix):
+  - all staff read everything and write `clients`, `quotes` and `quote_items` while the quote is `draft`;
+  - only owners write `printers`, `materials`, `settings` and `staff`, and delete `quotes` (draft only) and `clients`;
+  - rows of quotes that are no longer `draft` are read-only for everyone except through the status functions below.
 - Public sign-ups are disabled in Supabase Auth; staff accounts are created by invitation. Being `authenticated`
   alone grants nothing — a `staff` row is required.
 - The slicer-worker uses the service role, which bypasses RLS.
-- **`create_quote_item`** (proposed): a `security definer` function, `set search_path = ''`, called once via `rpc`
-  by the Edge Function. It checks `private.is_staff()` first and raises if false, then inserts the quote item and
-  its `slicing_jobs` row and calls `pgmq.send('slicing_jobs', …)` — all in one transaction. It needs
-  `security definer` because `authenticated` has no rights on pgmq. `execute` is granted to `authenticated`
-  only.
+- **Functions** (proposed). All are `security definer` with `set search_path = ''`, check `private.is_staff()` (or
+  `private.is_owner()`) first and raise if it fails, and are executable by `authenticated` only. `security definer`
+  is needed because `authenticated` has no rights on pgmq.
+  - `create_quote_item(...)`: inserts the item; if printer and material are set, also inserts a `slicing_jobs` row
+    and calls `pgmq.send` — one transaction.
+  - `update_quote_item_settings(...)`: changes printer, material or print settings, clears results and price, and
+    enqueues a new job the same way.
+  - `retry_slicing(item_id)`: enqueues a new job for an item whose last job failed.
+  - `set_price_override(item_id, total, reason)` / `clear_price_override(item_id)`: owner only, draft quotes only.
+  - `mark_quote_sent(quote_id)`: checks the send conditions from the functional analysis, then sets `sent` and
+    `sent_at`. `mark_quote_accepted` / `mark_quote_rejected` change `sent` quotes only.
 
 ## Open questions
 
-- **Price snapshots:** once a quote is `sent`, should printer and material rates be copied onto the items so later
-  rate changes don't alter it?
-- **Soft delete:** whether quotes and clients are deleted or archived.
-- **Currency:** single shop currency (assumed) or per-quote currency.
-- **Price breakdown:** whether `unit_price` alone is enough, or material cost, machine cost and markup should be
-  stored separately.
+- **Soft delete:** whether clients should be archivable (today they can only be deleted when they have no quotes).
+- **Where pricing runs:** the formula is fixed in the functional analysis; whether it is a SQL function or an Edge
+  Function is still open (see [architecture overview](../architecture/overview.md#open-questions)).

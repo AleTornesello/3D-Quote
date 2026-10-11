@@ -13,7 +13,7 @@ rates. Data, files, authentication and the API live on Supabase; slicing runs in
 | [Architecture decisions](architecture/adr/) | ADRs — why the stack and structure are what they are |
 | [slicer-worker](services/slicer-worker.md) | The Python slicing service: job contract, processing loop, configuration |
 | [Data model](supabase/data-model.md) | Draft Postgres schema, Storage layout, queues, access rules |
-| [Frontend](frontend/) | Web app docs — added when the app is scaffolded |
+| [Web app functional analysis](frontend/functional-analysis.md) | Roles, screens, quote lifecycle, pricing rules, PDF, i18n |
 | [Getting started](development/getting-started.md) | Prerequisites, local setup, common commands |
 | [Specs](superpowers/specs/) | Design specs written before implementation work |
 | [Plans](superpowers/plans/) | Implementation plans derived from the specs |
