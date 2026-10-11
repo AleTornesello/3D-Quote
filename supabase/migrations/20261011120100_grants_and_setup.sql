@@ -72,6 +72,9 @@ grant execute on function
   private.worker_fail_job(bigint, bigint, text, boolean)
 to service_role;
 
+-- storage policy helper
+grant execute on function private.can_upload_model(text) to authenticated;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
 
@@ -96,3 +99,35 @@ select pgmq.create('slicing_jobs');
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('models', 'models', false, 104857600, null),
   ('branding', 'branding', false, 1048576, array['image/png', 'image/jpeg', 'image/svg+xml']);
+
+-- Storage policies (storage.objects is managed by Supabase, so the schema diff skips it).
+create policy "models: staff read" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'models' and (select private.is_staff()));
+create policy "models: staff upload to draft quotes" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'models' and private.can_upload_model(name));
+create policy "models: staff update in draft quotes" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'models' and (select private.is_staff()))
+  with check (bucket_id = 'models' and private.can_upload_model(name));
+create policy "models: staff delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'models' and (select private.is_staff()));
+
+create policy "branding: staff read" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'branding' and (select private.is_staff()));
+create policy "branding: owner upload" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'branding' and (select private.is_owner()));
+create policy "branding: owner update" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'branding' and (select private.is_owner()))
+  with check (bucket_id = 'branding' and (select private.is_owner()));
+create policy "branding: owner delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'branding' and (select private.is_owner()));
+
+-- Daily at 00:15 UTC: sent quotes past their validity (Europe/Rome date) become expired.
+select cron.schedule('expire-quotes', '15 0 * * *', 'select private.expire_quotes()');

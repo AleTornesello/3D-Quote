@@ -565,3 +565,21 @@ begin
   return v_count;
 end;
 $$;
+
+-- Storage upload rule for the models bucket: the first folder must be the id of a draft quote.
+create or replace function private.can_upload_model(p_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_folder text := split_part(p_name, '/', 1);
+begin
+  if not private.is_staff() or v_folder !~ '^[0-9]{1,18}$' then
+    return false;
+  end if;
+  return exists (select 1 from public.quotes where id = v_folder::bigint and status = 'draft');
+end;
+$$;

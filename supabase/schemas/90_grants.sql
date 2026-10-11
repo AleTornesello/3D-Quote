@@ -60,3 +60,6 @@ grant execute on function
   public.worker_fail_job(bigint, bigint, text, boolean),
   private.worker_fail_job(bigint, bigint, text, boolean)
 to service_role;
+
+-- storage policy helper
+grant execute on function private.can_upload_model(text) to authenticated;

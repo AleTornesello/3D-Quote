@@ -454,6 +454,23 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION private.can_upload_model(p_name text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_folder text := split_part(p_name, '/', 1);
+begin
+  if not private.is_staff() or v_folder !~ '^[0-9]{1,18}$' then
+    return false;
+  end if;
+  return exists (select 1 from public.quotes where id = v_folder::bigint and status = 'draft');
+end;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION private.clear_price_override(p_item_id bigint)
  RETURNS void
  LANGUAGE plpgsql
