@@ -49,3 +49,15 @@ create policy clients_update on public.clients
   for update to authenticated using ((select private.is_staff())) with check ((select private.is_staff()));
 create policy clients_delete on public.clients
   for delete to authenticated using ((select private.is_owner()));
+
+-- quotes: staff create and edit drafts, owners delete drafts
+create policy quotes_select on public.quotes
+  for select to authenticated using ((select private.is_staff()));
+create policy quotes_insert on public.quotes
+  for insert to authenticated with check ((select private.is_staff()));
+create policy quotes_update on public.quotes
+  for update to authenticated
+  using ((select private.is_staff()) and status = 'draft')
+  with check ((select private.is_staff()) and status = 'draft');
+create policy quotes_delete on public.quotes
+  for delete to authenticated using ((select private.is_owner()) and status = 'draft');

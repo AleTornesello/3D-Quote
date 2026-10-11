@@ -28,6 +28,9 @@ grant execute on function private.is_staff(), private.is_owner() to authenticate
 -- printers, materials, clients
 grant insert, update, delete on public.printers, public.materials, public.clients to authenticated;
 
+-- quotes (insert and update are column grants in the grants_and_setup migration)
+grant delete on public.quotes to authenticated;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
 
@@ -36,6 +39,9 @@ grant update (
   quote_prefix, default_validity_days, pdf_terms_it, pdf_terms_en, shop_name, shop_address, shop_vat_number,
   shop_email, shop_phone, shop_logo_path
 ) on public.settings to authenticated;
+
+grant insert (client_id, valid_until, notes), update (client_id, valid_until, notes)
+  on public.quotes to authenticated;
 
 -- The single settings row.
 insert into public.settings (id) values (1);

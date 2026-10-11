@@ -8,6 +8,15 @@ create extension if not exists "pgmq" with schema "pgmq";
 create schema if not exists "private";
 
 
+  create table "private"."quote_counters" (
+    "year" smallint not null,
+    "last_seq" integer not null
+      );
+
+
+alter table "private"."quote_counters" enable row level security;
+
+
   create table "public"."clients" (
     "id" bigint generated always as identity not null,
     "name" text not null,
@@ -58,6 +67,26 @@ alter table "public"."materials" enable row level security;
 alter table "public"."printers" enable row level security;
 
 
+  create table "public"."quotes" (
+    "id" bigint generated always as identity not null,
+    "number" text not null,
+    "number_year" smallint not null,
+    "number_seq" integer not null,
+    "client_id" bigint not null,
+    "status" text not null default 'draft'::text,
+    "valid_until" date not null,
+    "notes" text,
+    "created_by" uuid not null default auth.uid(),
+    "markup_override_pct" numeric(6,2),
+    "sent_at" timestamp with time zone,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now()
+      );
+
+
+alter table "public"."quotes" enable row level security;
+
+
   create table "public"."settings" (
     "id" smallint not null default 1,
     "currency" text not null default 'EUR'::text,
@@ -97,6 +126,8 @@ alter table "public"."settings" enable row level security;
 
 alter table "public"."staff" enable row level security;
 
+CREATE UNIQUE INDEX quote_counters_pkey ON private.quote_counters USING btree (year);
+
 CREATE UNIQUE INDEX clients_pkey ON public.clients USING btree (id);
 
 CREATE UNIQUE INDEX materials_pkey ON public.materials USING btree (id);
@@ -105,15 +136,31 @@ CREATE UNIQUE INDEX printers_name_key ON public.printers USING btree (name);
 
 CREATE UNIQUE INDEX printers_pkey ON public.printers USING btree (id);
 
+CREATE INDEX quotes_client_id_idx ON public.quotes USING btree (client_id);
+
+CREATE INDEX quotes_created_by_idx ON public.quotes USING btree (created_by);
+
+CREATE UNIQUE INDEX quotes_number_key ON public.quotes USING btree (number);
+
+CREATE UNIQUE INDEX quotes_number_year_number_seq_key ON public.quotes USING btree (number_year, number_seq);
+
+CREATE UNIQUE INDEX quotes_pkey ON public.quotes USING btree (id);
+
+CREATE INDEX quotes_sent_valid_until_idx ON public.quotes USING btree (valid_until) WHERE (status = 'sent'::text);
+
 CREATE UNIQUE INDEX settings_pkey ON public.settings USING btree (id);
 
 CREATE UNIQUE INDEX staff_pkey ON public.staff USING btree (user_id);
+
+alter table "private"."quote_counters" add constraint "quote_counters_pkey" PRIMARY KEY using index "quote_counters_pkey";
 
 alter table "public"."clients" add constraint "clients_pkey" PRIMARY KEY using index "clients_pkey";
 
 alter table "public"."materials" add constraint "materials_pkey" PRIMARY KEY using index "materials_pkey";
 
 alter table "public"."printers" add constraint "printers_pkey" PRIMARY KEY using index "printers_pkey";
+
+alter table "public"."quotes" add constraint "quotes_pkey" PRIMARY KEY using index "quotes_pkey";
 
 alter table "public"."settings" add constraint "settings_pkey" PRIMARY KEY using index "settings_pkey";
 
@@ -173,6 +220,26 @@ alter table "public"."printers" add constraint "printers_power_w_check" CHECK ((
 
 alter table "public"."printers" validate constraint "printers_power_w_check";
 
+alter table "public"."quotes" add constraint "quotes_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id) ON DELETE RESTRICT not valid;
+
+alter table "public"."quotes" validate constraint "quotes_client_id_fkey";
+
+alter table "public"."quotes" add constraint "quotes_created_by_fkey" FOREIGN KEY (created_by) REFERENCES public.staff(user_id) not valid;
+
+alter table "public"."quotes" validate constraint "quotes_created_by_fkey";
+
+alter table "public"."quotes" add constraint "quotes_markup_override_pct_check" CHECK ((markup_override_pct >= (0)::numeric)) not valid;
+
+alter table "public"."quotes" validate constraint "quotes_markup_override_pct_check";
+
+alter table "public"."quotes" add constraint "quotes_number_key" UNIQUE using index "quotes_number_key";
+
+alter table "public"."quotes" add constraint "quotes_number_year_number_seq_key" UNIQUE using index "quotes_number_year_number_seq_key";
+
+alter table "public"."quotes" add constraint "quotes_status_check" CHECK ((status = ANY (ARRAY['draft'::text, 'sent'::text, 'accepted'::text, 'rejected'::text, 'expired'::text]))) not valid;
+
+alter table "public"."quotes" validate constraint "quotes_status_check";
+
 alter table "public"."settings" add constraint "settings_currency_check" CHECK ((currency ~ '^[A-Z]{3}$'::text)) not valid;
 
 alter table "public"."settings" validate constraint "settings_currency_check";
@@ -227,6 +294,38 @@ alter table "public"."staff" validate constraint "staff_user_id_fkey";
 
 set check_function_bodies = off;
 
+CREATE OR REPLACE FUNCTION private.assign_quote_number()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_year smallint := extract(year from private.shop_today())::smallint;
+  v_seq integer;
+  v_prefix text;
+  v_validity smallint;
+begin
+  insert into private.quote_counters as c (year, last_seq)
+  values (v_year, 1)
+  on conflict (year) do update set last_seq = c.last_seq + 1
+  returning c.last_seq into v_seq;
+
+  select quote_prefix, default_validity_days into v_prefix, v_validity
+  from public.settings
+  where id = 1;
+
+  new.number_year := v_year;
+  new.number_seq := v_seq;
+  new.number := v_prefix || '-' || v_year || '-' || lpad(v_seq::text, greatest(4, length(v_seq::text)), '0');
+  if new.valid_until is null then
+    new.valid_until := private.shop_today() + v_validity;
+  end if;
+  return new;
+end;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION private.is_owner()
  RETURNS boolean
  LANGUAGE sql
@@ -250,6 +349,25 @@ AS $function$
     select 1 from public.staff
     where user_id = (select auth.uid()) and active
   );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION private.quotes_guard()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if old.status <> 'draft'
+     and not (
+       old.status = 'sent'
+       and new.status in ('accepted', 'rejected', 'expired')
+       and (to_jsonb(new) - array['status', 'updated_at']) = (to_jsonb(old) - array['status', 'updated_at'])
+     ) then
+    raise exception 'quote_not_draft';
+  end if;
+  return new;
+end;
 $function$
 ;
 
@@ -374,6 +492,24 @@ grant trigger on table "public"."printers" to "service_role";
 grant truncate on table "public"."printers" to "service_role";
 
 grant update on table "public"."printers" to "service_role";
+
+grant delete on table "public"."quotes" to "authenticated";
+
+grant select on table "public"."quotes" to "authenticated";
+
+grant delete on table "public"."quotes" to "service_role";
+
+grant insert on table "public"."quotes" to "service_role";
+
+grant references on table "public"."quotes" to "service_role";
+
+grant select on table "public"."quotes" to "service_role";
+
+grant trigger on table "public"."quotes" to "service_role";
+
+grant truncate on table "public"."quotes" to "service_role";
+
+grant update on table "public"."quotes" to "service_role";
 
 grant select on table "public"."settings" to "authenticated";
 
@@ -521,6 +657,43 @@ with check (( SELECT private.is_owner() AS is_owner));
 
 
 
+  create policy "quotes_delete"
+  on "public"."quotes"
+  as permissive
+  for delete
+  to authenticated
+using ((( SELECT private.is_owner() AS is_owner) AND (status = 'draft'::text)));
+
+
+
+  create policy "quotes_insert"
+  on "public"."quotes"
+  as permissive
+  for insert
+  to authenticated
+with check (( SELECT private.is_staff() AS is_staff));
+
+
+
+  create policy "quotes_select"
+  on "public"."quotes"
+  as permissive
+  for select
+  to authenticated
+using (( SELECT private.is_staff() AS is_staff));
+
+
+
+  create policy "quotes_update"
+  on "public"."quotes"
+  as permissive
+  for update
+  to authenticated
+using ((( SELECT private.is_staff() AS is_staff) AND (status = 'draft'::text)))
+with check ((( SELECT private.is_staff() AS is_staff) AND (status = 'draft'::text)));
+
+
+
   create policy "settings_select"
   on "public"."settings"
   as permissive
@@ -572,6 +745,12 @@ CREATE TRIGGER clients_set_updated_at BEFORE UPDATE ON public.clients FOR EACH R
 CREATE TRIGGER materials_set_updated_at BEFORE UPDATE ON public.materials FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 CREATE TRIGGER printers_set_updated_at BEFORE UPDATE ON public.printers FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
+
+CREATE TRIGGER quotes_assign_number BEFORE INSERT ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.assign_quote_number();
+
+CREATE TRIGGER quotes_guard BEFORE UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.quotes_guard();
+
+CREATE TRIGGER quotes_set_updated_at BEFORE UPDATE ON public.quotes FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 CREATE TRIGGER settings_set_updated_at BEFORE UPDATE ON public.settings FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 

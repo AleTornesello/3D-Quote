@@ -16,3 +16,6 @@ grant execute on function private.is_staff(), private.is_owner() to authenticate
 
 -- printers, materials, clients
 grant insert, update, delete on public.printers, public.materials, public.clients to authenticated;
+
+-- quotes (insert and update are column grants in the grants_and_setup migration)
+grant delete on public.quotes to authenticated;
