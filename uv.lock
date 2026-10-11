@@ -1,0 +1,13 @@
+version = 1
+revision = 2
+requires-python = ">=3.12"
+
+[manifest]
+members = [
+    "slicer-worker",
+]
+
+[[package]]
+name = "slicer-worker"
+version = "0.1.0"
+source = { editable = "services/slicer-worker" }
