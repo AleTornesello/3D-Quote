@@ -1,0 +1,49 @@
+{
+  "app": { "name": "3D-Quote" },
+  "nav": {
+    "main": "Navigazione principale",
+    "menu": "Menu",
+    "quotes": "Preventivi",
+    "clients": "Clienti",
+    "printers": "Stampanti",
+    "materials": "Materiali",
+    "settings": "Impostazioni",
+    "staff": "Personale",
+    "account": "Account",
+    "logout": "Esci"
+  },
+  "language": { "label": "Lingua", "it": "Italiano", "en": "English" },
+  "pages": {
+    "comingSoon": "In arrivo.",
+    "notFound": {
+      "title": "Pagina non trovata",
+      "body": "La pagina che cerchi non esiste.",
+      "back": "Torna ai preventivi"
+    }
+  },
+  "auth": {
+    "loading": "Caricamento…",
+    "login": {
+      "title": "Accedi",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Accedi",
+      "submitting": "Accesso in corso…",
+      "forgot": "Password dimenticata?",
+      "error": "Email o password non corretti."
+    },
+    "forgot": {
+      "title": "Recupera password",
+      "body": "Inserisci la tua email: ti invieremo un link per reimpostare la password.",
+      "email": "Email",
+      "submit": "Invia link",
+      "sent": "Se l'indirizzo è registrato, riceverai a breve un'email con le istruzioni.",
+      "back": "Torna all'accesso"
+    }
+  },
+  "config": {
+    "title": "Supabase non configurato",
+    "body": "Imposta le variabili mancanti in apps/web/.env.local (vedi apps/web/.env.example) e riavvia il server di sviluppo.",
+    "missing": "Variabili mancanti:"
+  }
+}

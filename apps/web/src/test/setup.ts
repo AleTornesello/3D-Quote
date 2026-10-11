@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
+import { initI18n } from '@/i18n'
+
+beforeEach(() => {
+  window.localStorage.clear()
+  initI18n('it')
+})
 
 afterEach(() => cleanup())

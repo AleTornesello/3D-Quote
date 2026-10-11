@@ -1,0 +1,49 @@
+{
+  "app": { "name": "3D-Quote" },
+  "nav": {
+    "main": "Main navigation",
+    "menu": "Menu",
+    "quotes": "Quotes",
+    "clients": "Clients",
+    "printers": "Printers",
+    "materials": "Materials",
+    "settings": "Settings",
+    "staff": "Staff",
+    "account": "Account",
+    "logout": "Log out"
+  },
+  "language": { "label": "Language", "it": "Italiano", "en": "English" },
+  "pages": {
+    "comingSoon": "Coming soon.",
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you're looking for doesn't exist.",
+      "back": "Back to quotes"
+    }
+  },
+  "auth": {
+    "loading": "Loading…",
+    "login": {
+      "title": "Log in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "submitting": "Logging in…",
+      "forgot": "Forgot your password?",
+      "error": "Incorrect email or password."
+    },
+    "forgot": {
+      "title": "Reset password",
+      "body": "Enter your email and we'll send you a link to reset your password.",
+      "email": "Email",
+      "submit": "Send link",
+      "sent": "If that address is registered, you'll receive an email with instructions shortly.",
+      "back": "Back to log in"
+    }
+  },
+  "config": {
+    "title": "Supabase is not configured",
+    "body": "Set the missing variables in apps/web/.env.local (see apps/web/.env.example) and restart the dev server.",
+    "missing": "Missing variables:"
+  }
+}
