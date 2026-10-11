@@ -1,10 +1,7 @@
-import { Button } from '@/components/ui/button'
+import type { EnvResult } from '@/lib/env'
+import { ConfigErrorPage } from '@/pages/ConfigErrorPage'
 
-export default function App() {
-  return (
-    <main className="p-6">
-      <h1 className="text-2xl font-semibold">3D-Quote</h1>
-      <Button>OK</Button>
-    </main>
-  )
+export default function App({ env }: { env: EnvResult }) {
+  if (!env.ok) return <ConfigErrorPage missing={env.missing} />
+  return null
 }
