@@ -1,6 +1,6 @@
 -- Hand-written companion to the generated initial_schema migration. It holds what `supabase db diff` does not
--- capture from supabase/schemas/: default privileges, column privileges, data rows, the pgmq queue, storage
--- policies and the cron job. Keep docs/supabase/data-model.md in step with it.
+-- capture from supabase/schemas/: default privileges, function and column privileges, data rows (the settings row
+-- and the storage buckets), the pgmq queue and the cron job. Keep docs/supabase/data-model.md in step with it.
 
 -- New objects in public are not exposed to the Data API until granted.
 alter default privileges for role postgres in schema public
@@ -99,35 +99,6 @@ select pgmq.create('slicing_jobs');
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('models', 'models', false, 104857600, null),
   ('branding', 'branding', false, 1048576, array['image/png', 'image/jpeg', 'image/svg+xml']);
-
--- Storage policies (storage.objects is managed by Supabase, so the schema diff skips it).
-create policy "models: staff read" on storage.objects
-  for select to authenticated
-  using (bucket_id = 'models' and (select private.is_staff()));
-create policy "models: staff upload to draft quotes" on storage.objects
-  for insert to authenticated
-  with check (bucket_id = 'models' and private.can_upload_model(name));
-create policy "models: staff update in draft quotes" on storage.objects
-  for update to authenticated
-  using (bucket_id = 'models' and (select private.is_staff()))
-  with check (bucket_id = 'models' and private.can_upload_model(name));
-create policy "models: staff delete" on storage.objects
-  for delete to authenticated
-  using (bucket_id = 'models' and (select private.is_staff()));
-
-create policy "branding: staff read" on storage.objects
-  for select to authenticated
-  using (bucket_id = 'branding' and (select private.is_staff()));
-create policy "branding: owner upload" on storage.objects
-  for insert to authenticated
-  with check (bucket_id = 'branding' and (select private.is_owner()));
-create policy "branding: owner update" on storage.objects
-  for update to authenticated
-  using (bucket_id = 'branding' and (select private.is_owner()))
-  with check (bucket_id = 'branding' and (select private.is_owner()));
-create policy "branding: owner delete" on storage.objects
-  for delete to authenticated
-  using (bucket_id = 'branding' and (select private.is_owner()));
 
 -- Daily at 00:15 UTC: sent quotes past their validity (Europe/Rome date) become expired.
 select cron.schedule('expire-quotes', '15 0 * * *', 'select private.expire_quotes()');

@@ -1707,3 +1707,77 @@ CREATE TRIGGER staff_guard BEFORE DELETE OR UPDATE ON public.staff FOR EACH ROW 
 CREATE TRIGGER staff_set_updated_at BEFORE UPDATE ON public.staff FOR EACH ROW EXECUTE FUNCTION private.set_updated_at();
 
 
+  create policy "branding: owner delete"
+  on "storage"."objects"
+  as permissive
+  for delete
+  to authenticated
+using (((bucket_id = 'branding'::text) AND ( SELECT private.is_owner() AS is_owner)));
+
+
+
+  create policy "branding: owner update"
+  on "storage"."objects"
+  as permissive
+  for update
+  to authenticated
+using (((bucket_id = 'branding'::text) AND ( SELECT private.is_owner() AS is_owner)))
+with check (((bucket_id = 'branding'::text) AND ( SELECT private.is_owner() AS is_owner)));
+
+
+
+  create policy "branding: owner upload"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to authenticated
+with check (((bucket_id = 'branding'::text) AND ( SELECT private.is_owner() AS is_owner)));
+
+
+
+  create policy "branding: staff read"
+  on "storage"."objects"
+  as permissive
+  for select
+  to authenticated
+using (((bucket_id = 'branding'::text) AND ( SELECT private.is_staff() AS is_staff)));
+
+
+
+  create policy "models: staff delete"
+  on "storage"."objects"
+  as permissive
+  for delete
+  to authenticated
+using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff)));
+
+
+
+  create policy "models: staff read"
+  on "storage"."objects"
+  as permissive
+  for select
+  to authenticated
+using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff)));
+
+
+
+  create policy "models: staff update in draft quotes"
+  on "storage"."objects"
+  as permissive
+  for update
+  to authenticated
+using (((bucket_id = 'models'::text) AND ( SELECT private.is_staff() AS is_staff)))
+with check (((bucket_id = 'models'::text) AND private.can_upload_model(name)));
+
+
+
+  create policy "models: staff upload to draft quotes"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to authenticated
+with check (((bucket_id = 'models'::text) AND private.can_upload_model(name)));
+
+
+
