@@ -17,13 +17,14 @@ It does **not** compute prices, talk to the web app, or decide what to slice. Pr
 
 ## Job message (proposed)
 
-Sent to the `slicing_jobs` queue by the Edge Function that creates the quote item:
+Sent to the `slicing_jobs` queue by the `create_quote_item` Postgres function, in the same transaction that
+inserts the quote item and the job row (see [architecture overview](../architecture/overview.md#data-flow)):
 
 ```json
 {
   "job_id": 812,
   "quote_item_id": 344,
-  "model_path": "127/344/bracket.stl",
+  "model_path": "127/0b0f6c1e-5d1a-4c4e-9a43-2f0f3b8e7d21/bracket.stl",
   "printer_id": 2,
   "material_id": 5,
   "settings": {
@@ -34,7 +35,7 @@ Sent to the `slicing_jobs` queue by the Edge Function that creates the quote ite
 }
 ```
 
-`model_path` is the object path inside the private `models` bucket. The message carries ids, not printer or
+`model_path` is the object path inside the private `models` bucket (`{quote_id}/{upload_id}/{filename}`). The message carries ids, not printer or
 material details: the worker loads the current printer and material rows
 when it runs, so it always uses the profiles stored in the database.
 
@@ -55,14 +56,17 @@ Written to the `slicing_jobs` row and copied onto the `quote_items` row (see [da
 
 1. Read one message from `slicing_jobs` with a visibility timeout (`VISIBILITY_TIMEOUT_S`). If the queue is empty,
    wait `POLL_INTERVAL_S` and try again.
+   - If the message's `read_ct` is greater than `MAX_ATTEMPTS`, the previous attempts never reached step 7 (the
+     worker crashed or was killed, e.g. out of memory on a huge model). Mark the job `failed` with an error saying
+     so, archive the message, and do not process it. Without this check such a message is retried forever.
 2. Mark the job `running`, record `started_at` and the attempt number.
 3. Download the model into a temporary directory.
 4. Load the printer and material rows and build the slicer profile from them plus the job's settings.
 5. Run the slicer CLI (`SLICER_BIN`) in the temporary directory and parse its output.
 6. On success: write the results, mark the job `succeeded`, record `finished_at`, delete the message.
 7. On error: record the error message on the job.
-   - If the message's read count is below `MAX_ATTEMPTS`, leave it — it reappears after the visibility timeout and
-     is retried.
+   - If the message's `read_ct` is below `MAX_ATTEMPTS`, set the job status back to `queued` and leave the message —
+     it reappears after the visibility timeout and is retried.
    - Otherwise mark the job `failed` and archive the message.
 8. Always remove the temporary directory.
 
@@ -84,9 +88,11 @@ All configuration comes from environment variables. Defaults are proposed.
 | `MAX_ATTEMPTS` | no | `3` | Reads before a job is marked `failed` and archived |
 | `POLL_INTERVAL_S` | no | `5` | Wait between reads when the queue is empty |
 
-## HTTP surface
+## HTTP surface (proposed)
 
-Only `GET /healthz` (FastAPI), returning `200` when the process is up and can reach the database. It exists for
+Whether the worker needs an HTTP server at all is an open question (see
+[architecture overview](../architecture/overview.md#open-questions)). If it does, the proposal is only `GET /healthz`
+(FastAPI), returning `200` when the process is up and can reach the database. It exists for
 container health checks; the worker takes no work over HTTP.
 
 ## Running locally

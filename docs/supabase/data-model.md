@@ -123,7 +123,7 @@ Who may use the tool. A row links a Supabase Auth user to staff access.
 |---|---|---|
 | `id` | `bigint` identity PK | |
 | `quote_id` | `bigint` not null FK → `quotes`, `on delete cascade` | Indexed |
-| `model_path` | `text` not null | Object path in the `models` bucket |
+| `model_path` | `text` not null unique | Object path in the `models` bucket, uploaded before the item is created |
 | `original_filename` | `text` not null | |
 | `printer_id` | `bigint` not null FK → `printers` | Indexed |
 | `material_id` | `bigint` not null FK → `materials` | Indexed |
@@ -159,14 +159,18 @@ record of what happened (see [slicer-worker](../services/slicer-worker.md)).
 ## Storage
 
 - Private bucket **`models`**.
-- Object path: `<quote_id>/<quote_item_id>/<original_filename>`.
+- Object path: `<quote_id>/<upload_id>/<original_filename>`, where `upload_id` is a UUID generated in the browser.
+  The file is uploaded before the quote item exists, so the item id can't be part of the key.
+- Objects that no `quote_items.model_path` points to (upload finished, item never created) are orphans; a periodic
+  cleanup removes them (proposed).
 - Staff upload and read through Storage policies that use the same staff check as the tables; the worker downloads
   with the service role.
 
 ## Queues
 
 - pgmq queue **`slicing_jobs`**, created with Supabase Queues.
-- Messages are sent by the Edge Function in the same transaction that inserts the `slicing_jobs` row.
+- Messages are sent by the `create_quote_item` function (below), in the same transaction that inserts the
+  `quote_items` and `slicing_jobs` rows. Separate calls from an Edge Function would each be their own transaction.
 - Message format: see [slicer-worker → Job message](../services/slicer-worker.md#job-message-proposed).
 
 ## Access
@@ -180,6 +184,11 @@ record of what happened (see [slicer-worker](../services/slicer-worker.md)).
   language sql stable security definer set search_path = '' as $$
     select exists (select 1 from public.staff where user_id = (select auth.uid()));
   $$;
+
+  -- Policies run as `authenticated`, which needs to reach the private schema to call the helper.
+  grant usage on schema private to authenticated;
+  revoke execute on function private.is_staff() from public, anon;
+  grant execute on function private.is_staff() to authenticated;
   ```
 
 - Staff can read and write all business tables. Only `owner` may change `printers`, `materials` and `staff`
@@ -187,6 +196,11 @@ record of what happened (see [slicer-worker](../services/slicer-worker.md)).
 - Public sign-ups are disabled in Supabase Auth; staff accounts are created by invitation. Being `authenticated`
   alone grants nothing — a `staff` row is required.
 - The slicer-worker uses the service role, which bypasses RLS.
+- **`create_quote_item`** (proposed): a `security definer` function, `set search_path = ''`, called once via `rpc`
+  by the Edge Function. It checks `private.is_staff()` first and raises if false, then inserts the quote item and
+  its `slicing_jobs` row and calls `pgmq.send('slicing_jobs', …)` — all in one transaction. It needs
+  `security definer` because `authenticated` has no rights on pgmq. `execute` is granted to `authenticated`
+  only.
 
 ## Open questions
 
