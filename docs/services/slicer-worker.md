@@ -1,7 +1,8 @@
 # slicer-worker
 
 - **Location:** `services/slicer-worker/` (uv workspace member `slicer-worker`, package `slicer_worker`)
-- **Status:** Skeleton — the package exists but the worker is not implemented yet. Contracts below are proposed.
+- **Status:** Skeleton — the package exists but the worker is not implemented yet. Its database side (job message,
+  output and the `worker_*` functions) is implemented; the HTTP surface and configuration defaults are proposed.
 
 ## Responsibility
 
@@ -15,10 +16,11 @@ The slicer-worker turns a model file into print metrics. It:
 It does **not** compute prices, talk to the web app, or decide what to slice. Pricing happens in Supabase (see
 [architecture overview](../architecture/overview.md)).
 
-## Job message (proposed)
+## Job message
 
-Sent to the `slicing_jobs` queue by the `create_quote_item` Postgres function, in the same transaction that
-inserts the quote item and the job row (see [architecture overview](../architecture/overview.md#data-flow)):
+Sent to the `slicing_jobs` queue by `private.enqueue_slicing_job` (called from `create_quote_item`,
+`update_quote_item_settings` and `retry_slicing`), in the same transaction that inserts the job row (see
+[architecture overview](../architecture/overview.md#data-flow)):
 
 ```json
 {
@@ -39,9 +41,11 @@ inserts the quote item and the job row (see [architecture overview](../architect
 material details: the worker loads the current printer and material rows
 when it runs, so it always uses the profiles stored in the database.
 
-## Output (proposed)
+## Output
 
-Written to the `slicing_jobs` row and copied onto the `quote_items` row (see [data model](../supabase/data-model.md)):
+Passed as `results` to `worker_complete_job`, which writes it to the `slicing_jobs` row and copies `print_time_s`,
+`filament_g` and the bbox onto the `quote_items` row. `print_time_s`, `filament_g` and the bbox are required (see
+[data model](../supabase/data-model.md)):
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -54,20 +58,19 @@ Written to the `slicing_jobs` row and copied onto the `quote_items` row (see [da
 
 ## Processing loop
 
-1. Read one message from `slicing_jobs` with a visibility timeout (`VISIBILITY_TIMEOUT_S`). If the queue is empty,
-   wait `POLL_INTERVAL_S` and try again.
-   - If the message's `read_ct` is greater than `MAX_ATTEMPTS`, the previous attempts never reached step 7 (the
-     worker crashed or was killed, e.g. out of memory on a huge model). Mark the job `failed` with an error saying
-     so, archive the message, and do not process it. Without this check such a message is retried forever.
-2. Mark the job `running`, record `started_at` and the attempt number.
+1. Call `worker_claim_job(VISIBILITY_TIMEOUT_S, MAX_ATTEMPTS)` (RPC, service role). It reads one message and marks
+   its job `running` with `started_at` and the attempt number. Messages already read more than `MAX_ATTEMPTS` times
+   (the worker died on every attempt) are failed and archived inside the function, which then reads the next one.
+   No row means the queue is empty: wait `POLL_INTERVAL_S` and try again.
+2. (Done by step 1.)
 3. Download the model into a temporary directory.
 4. Load the printer and material rows and build the slicer profile from them plus the job's settings.
 5. Run the slicer CLI (`SLICER_BIN`) in the temporary directory and parse its output.
-6. On success: write the results, mark the job `succeeded`, record `finished_at`, delete the message.
-7. On error: record the error message on the job.
-   - If the message's `read_ct` is below `MAX_ATTEMPTS`, set the job status back to `queued` and leave the message —
-     it reappears after the visibility timeout and is retried.
-   - Otherwise mark the job `failed` and archive the message.
+6. On success: `worker_complete_job(msg_id, job_id, results)` stores the results, copies them onto the item if this
+   is still the item's newest job, and deletes the message — one transaction.
+7. On error: `worker_fail_job(msg_id, job_id, error, final)` with `final = read_ct >= MAX_ATTEMPTS`. Not final: the
+   job goes back to `queued` and the message reappears after the visibility timeout. Final: the job is `failed` and
+   the message archived.
 8. Always remove the temporary directory.
 
 A job that runs longer than the visibility timeout would become visible to another reader, so the timeout must be

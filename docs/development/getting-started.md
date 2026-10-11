@@ -7,7 +7,7 @@
 | Node.js + npm | Node ≥ 22 | Web app (npm workspaces) |
 | [uv](https://docs.astral.sh/uv/) | ≥ 0.8 | Python workspace, virtualenv and lockfile |
 | Python | ≥ 3.12 | Python services — uv can install it: `uv python install 3.12` |
-| [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | latest | Local Supabase stack, migrations, Edge Functions |
+| [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | ≥ 2.81.3 (on Windows: `scoop install supabase/supabase` from Supabase's bucket) | Local Supabase stack, migrations, Edge Functions |
 | Docker | any recent | Runs the local Supabase stack and, later, the worker image |
 
 ## First setup
@@ -25,6 +25,52 @@ workspaces, and there is one lockfile for each (`package-lock.json`, `uv.lock`).
 Then configure the web app: copy `apps/web/.env.example` to `apps/web/.env.local` and fill in the Supabase URL and
 publishable key (see the [web app guide](../frontend/web-app.md#running)).
 
+## Local Supabase
+
+Docker must be running. From the repository root:
+
+```bash
+supabase start          # first run pulls the images; prints URLs and keys
+supabase db reset       # rebuild the database from supabase/migrations and supabase/seed.sql
+supabase test db        # pgTAP tests in supabase/tests/database
+supabase status         # URLs and keys again
+```
+
+The stack uses the default local ports (54321–54324). Another project's local Supabase stack holds the same ports:
+stop it first with `supabase stop --project-id <its project id>`; its data is kept.
+
+Fill `apps/web/.env.local` from `supabase status`:
+- `VITE_SUPABASE_URL` is the API URL;
+- `VITE_SUPABASE_PUBLISHABLE_KEY` is the publishable (or anon) key.
+
+Seed logins, local only, password `password123`:
+
+| Email | Role |
+|---|---|
+| `owner@3dquote.local` | owner |
+| `operator@3dquote.local` | operator |
+
+### Changing the schema
+
+1. Edit the files in `supabase/schemas/`. They are the source of truth; files load in name order.
+2. Run `supabase db diff -f <change_name>` and review the generated migration.
+3. If the change needs data rows, column grants, function grants, cron jobs or queues, add them with
+   `supabase migration new <change_name>_setup`. Function grants also go in `supabase/schemas/90_grants.sql`, which
+   mirrors every grant so the diff stays empty.
+4. Run `supabase db reset`, then `supabase test db`, `supabase db diff` (expect no changes) and
+   `supabase db advisors --local`.
+
+See [ADR-0003](../architecture/adr/0003-database-schema-and-security.md) for why the workflow is split.
+
+### First owner on a cloud project
+
+Public sign-ups are disabled. Once you've been invited and have set your password, run this once in the SQL editor:
+
+```sql
+insert into public.staff (user_id, display_name, role)
+select id, 'Your Name', 'owner' from auth.users where email = 'you@example.com';
+```
+
 ## Repository layout
 
 See the table in the root [README](../../README.md). Documentation conventions are in the
@@ -39,7 +85,7 @@ See the table in the root [README](../../README.md). Documentation conventions a
 | `uv add --package slicer-worker <dep>` | Add a dependency to one Python service |
 | `npm run dev` | Web app dev server (extra args reach Vite: `npm run dev -- --port 5199`) |
 | `npm run build` / `npm test` / `npm run lint` / `npm run format` | Build, test, lint, format the web app (forwarded to `@3d-quote/web`) |
-| `supabase start` | Start the local Supabase stack — once `supabase init` has been run |
+| `supabase start` / `supabase db reset` / `supabase test db` | Local Supabase stack, rebuild the database, run the pgTAP tests |
 
 ## Adding a Python service
 

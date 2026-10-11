@@ -93,7 +93,7 @@ stateDiagram-v2
 ## Open questions
 
 - **Slicer CLI:** PrusaSlicer or OrcaSlicer — affects profile format and output parsing.
-- **Where pricing runs:** an Edge Function or a SQL function (could be triggered when slicing succeeds).
+- **When pricing runs:** pricing is an Edge Function (decided 2026-10-11, not built yet); still open is whether it is called by the web app after each change or triggered when a slice succeeds.
 - **Worker hosting:** which container platform, and always-on vs. scale-to-zero.
 - **Status updates:** Supabase Realtime subscription vs. polling from the web app.
 - **Worker HTTP surface:** whether anything beyond `/healthz` is needed (e.g. a manual re-run endpoint), or whether
