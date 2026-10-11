@@ -34,6 +34,16 @@ grant delete on public.quotes to authenticated;
 -- quote_items (update is a column grant in the grants_and_setup migration)
 grant delete on public.quote_items to authenticated;
 
+-- item functions
+grant execute on function
+  public.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
+  private.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
+  public.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
+  private.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
+  public.retry_slicing(bigint),
+  private.retry_slicing(bigint)
+to authenticated;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
 
@@ -50,3 +60,11 @@ grant update (description, quantity) on public.quote_items to authenticated;
 
 -- The single settings row.
 insert into public.settings (id) values (1);
+
+-- Slicing queue (Supabase Queues / pgmq).
+select pgmq.create('slicing_jobs');
+
+-- Storage buckets. models: STL/3MF types vary between browsers, so only the size is limited.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
+  ('models', 'models', false, 104857600, null),
+  ('branding', 'branding', false, 1048576, array['image/png', 'image/jpeg', 'image/svg+xml']);

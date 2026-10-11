@@ -22,3 +22,13 @@ grant delete on public.quotes to authenticated;
 
 -- quote_items (update is a column grant in the grants_and_setup migration)
 grant delete on public.quote_items to authenticated;
+
+-- item functions
+grant execute on function
+  public.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
+  private.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
+  public.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
+  private.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
+  public.retry_slicing(bigint),
+  private.retry_slicing(bigint)
+to authenticated;
