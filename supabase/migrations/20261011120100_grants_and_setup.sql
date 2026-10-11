@@ -25,5 +25,17 @@ grant usage on schema private to authenticated, service_role;
 grant insert on public.staff to authenticated;
 grant execute on function private.is_staff(), private.is_owner() to authenticated;
 
+-- printers, materials, clients
+grant insert, update, delete on public.printers, public.materials, public.clients to authenticated;
+
 -- Column-level write grants: authenticated may update only these columns.
 grant update (display_name, language, role, active) on public.staff to authenticated;
+
+grant update (
+  currency, energy_price_kwh, failure_allowance_pct, setup_fee, default_markup_pct, minimum_item_price,
+  quote_prefix, default_validity_days, pdf_terms_it, pdf_terms_en, shop_name, shop_address, shop_vat_number,
+  shop_email, shop_phone, shop_logo_path
+) on public.settings to authenticated;
+
+-- The single settings row.
+insert into public.settings (id) values (1);
