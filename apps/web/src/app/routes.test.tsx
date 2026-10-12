@@ -5,10 +5,7 @@ import { fakeSession } from '@/test/fake-supabase'
 import { operatorStaff } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
 
-const pages = [
-  ['/quotes', 'Preventivi'],
-  ['/account', 'Account'],
-] as const
+const pages = [['/quotes', 'Preventivi']] as const
 
 test.each(pages)('%s shows its translated title', async (path, title) => {
   renderApp(path, { session: fakeSession() })

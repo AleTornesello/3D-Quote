@@ -3,6 +3,7 @@ import { Navigate, type RouteObject } from 'react-router'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { RequireOwner } from '@/auth/RequireOwner'
 import { AppShell } from '@/layout/AppShell'
+import { AccountPage } from '@/pages/AccountPage'
 import { ClientDetailPage } from '@/pages/ClientDetailPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
@@ -45,7 +46,7 @@ export const routes: RouteObject[] = [
           })),
           { path: 'clients/:id', element: <ClientDetailPage /> },
           { path: 'quotes/new', element: <SectionPage titleKey="quotes.new" /> },
-          { path: 'account', element: <SectionPage titleKey="nav.account" /> },
+          { path: 'account', element: <AccountPage /> },
         ],
       },
     ],

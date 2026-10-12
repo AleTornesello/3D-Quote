@@ -8,7 +8,7 @@ test('requests a reset email and always shows the same confirmation', async () =
   await userEvent.type(await screen.findByLabelText('Email'), 'anna@example.com')
   await userEvent.click(screen.getByRole('button', { name: 'Invia link' }))
   expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('anna@example.com', {
-    redirectTo: `${window.location.origin}/account`,
+    redirectTo: `${window.location.origin}/account?reset=1`,
   })
   expect(await screen.findByRole('status')).toHaveTextContent(
     "Se l'indirizzo è registrato, riceverai a breve un'email con le istruzioni.",

@@ -258,5 +258,22 @@
       "owner": "Titolare",
       "operator": "Operatore"
     }
+  },
+  "account": {
+    "profile": {
+      "title": "Profilo",
+      "name": "Nome visualizzato",
+      "language": "Lingua dell'interfaccia"
+    },
+    "password": {
+      "title": "Password",
+      "new": "Nuova password",
+      "confirm": "Conferma password",
+      "submit": "Cambia password",
+      "changed": "Password aggiornata.",
+      "resetBanner": "Scegli una nuova password.",
+      "weak": "La password è troppo debole.",
+      "same": "La nuova password deve essere diversa da quella attuale."
+    }
   }
 }

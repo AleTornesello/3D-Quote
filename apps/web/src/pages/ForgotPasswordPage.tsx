@@ -17,7 +17,7 @@ export function ForgotPasswordPage() {
     const email = String(new FormData(event.currentTarget).get('email'))
     // The result is deliberately ignored: the page never reveals whether an address exists.
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/account`,
+      redirectTo: `${window.location.origin}/account?reset=1`,
     })
     setSent(true)
   }

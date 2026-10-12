@@ -258,5 +258,22 @@
       "owner": "Owner",
       "operator": "Operator"
     }
+  },
+  "account": {
+    "profile": {
+      "title": "Profile",
+      "name": "Display name",
+      "language": "Interface language"
+    },
+    "password": {
+      "title": "Password",
+      "new": "New password",
+      "confirm": "Confirm password",
+      "submit": "Change password",
+      "changed": "Password updated.",
+      "resetBanner": "Choose a new password.",
+      "weak": "That password is too weak.",
+      "same": "The new password must be different from the current one."
+    }
   }
 }
