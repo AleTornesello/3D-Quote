@@ -232,6 +232,16 @@
       "vat": "Partita IVA",
       "email": "Email",
       "phone": "Telefono"
+    },
+    "logo": {
+      "label": "Logo",
+      "alt": "Logo del negozio",
+      "upload": "Carica logo",
+      "remove": "Rimuovi logo",
+      "none": "Nessun logo.",
+      "hint": "PNG, JPG o SVG, massimo 1 MB.",
+      "badType": "Usa un file PNG, JPG o SVG.",
+      "tooBig": "Il file supera 1 MB."
     }
   }
 }

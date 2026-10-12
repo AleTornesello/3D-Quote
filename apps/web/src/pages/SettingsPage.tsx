@@ -15,6 +15,7 @@ import { useLeaveGuard } from '@/components/use-leave-guard'
 import { toAppError } from '@/data/errors'
 import { useSaveSettings, useSettings, type Settings } from '@/data/settings'
 import { useFormat } from '@/lib/use-format'
+import { LogoField } from './settings/LogoField'
 import {
   changedSettings,
   settingsSchema,
@@ -134,6 +135,7 @@ function SettingsEditor({ settings }: { settings: Settings }) {
         {field('shop_vat_number', 'settings.shop.vat')}
         {field('shop_email', 'settings.shop.email')}
         {field('shop_phone', 'settings.shop.phone')}
+        <LogoField path={settings.shop_logo_path} editable />
       </SettingsCard>
       {formError && (
         <p role="alert" className="text-sm text-destructive">
@@ -208,6 +210,7 @@ function SettingsView({ settings }: { settings: Settings }) {
           <ReadOnlyField label={t('settings.shop.email')} value={settings.shop_email} />
           <ReadOnlyField label={t('settings.shop.phone')} value={settings.shop_phone} />
         </dl>
+        <LogoField path={settings.shop_logo_path} editable={false} />
       </SettingsCard>
     </div>
   )

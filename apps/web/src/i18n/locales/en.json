@@ -232,6 +232,16 @@
       "vat": "VAT number",
       "email": "Email",
       "phone": "Phone"
+    },
+    "logo": {
+      "label": "Logo",
+      "alt": "Shop logo",
+      "upload": "Upload logo",
+      "remove": "Remove logo",
+      "none": "No logo.",
+      "hint": "PNG, JPG or SVG, up to 1 MB.",
+      "badType": "Use a PNG, JPG or SVG file.",
+      "tooBig": "The file is larger than 1 MB."
     }
   }
 }
