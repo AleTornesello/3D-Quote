@@ -84,7 +84,26 @@
     "passwordMismatch": "Le password non coincidono."
   },
   "common": {
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "loading": "Caricamento…",
+    "save": "Salva",
+    "saved": "Salvato.",
+    "cancel": "Annulla",
+    "close": "Chiudi",
+    "delete": "Elimina",
+    "deactivateInstead": "Disattiva invece",
+    "yes": "Sì",
+    "no": "No",
+    "actions": "Azioni",
+    "editItem": "Modifica {{name}}",
+    "deleteItem": "Elimina {{name}}",
+    "deleteBody": "L'operazione non si può annullare.",
+    "unsaved": {
+      "title": "Modifiche non salvate",
+      "body": "Le modifiche andranno perse.",
+      "stay": "Continua a modificare",
+      "discard": "Scarta"
+    }
   },
   "access": {
     "none": {

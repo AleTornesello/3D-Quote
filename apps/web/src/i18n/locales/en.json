@@ -84,7 +84,26 @@
     "passwordMismatch": "The passwords don't match."
   },
   "common": {
-    "retry": "Retry"
+    "retry": "Retry",
+    "loading": "Loading…",
+    "save": "Save",
+    "saved": "Saved.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "deactivateInstead": "Deactivate instead",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "editItem": "Edit {{name}}",
+    "deleteItem": "Delete {{name}}",
+    "deleteBody": "This can't be undone.",
+    "unsaved": {
+      "title": "Unsaved changes",
+      "body": "Your changes will be lost.",
+      "stay": "Keep editing",
+      "discard": "Discard"
+    }
   },
   "access": {
     "none": {
