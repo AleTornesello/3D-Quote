@@ -1,6 +1,9 @@
+import { supabaseCorsHeaders } from './supabase.ts'
+
+// The allowed headers come from supabase-js, so headers it adds later (retries, tracing) keep passing the preflight.
 export const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': supabaseCorsHeaders['Access-Control-Allow-Headers'],
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
