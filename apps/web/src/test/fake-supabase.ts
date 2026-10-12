@@ -1,4 +1,5 @@
-import type { AuthChangeEvent, Session, SupabaseClient } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import type { AppSupabaseClient } from '@/lib/supabase'
 import { vi } from 'vitest'
 
 type Listener = (event: AuthChangeEvent, session: Session | null) => void
@@ -68,5 +69,5 @@ export function createFakeSupabase(
     }),
   }
 
-  return { client: { auth } as unknown as SupabaseClient, auth }
+  return { client: { auth } as unknown as AppSupabaseClient, auth }
 }

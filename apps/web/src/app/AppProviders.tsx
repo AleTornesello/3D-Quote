@@ -1,15 +1,14 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { AuthProvider } from '@/auth/AuthProvider'
-import { SupabaseContext } from '@/lib/supabase'
+import { SupabaseContext, type AppSupabaseClient } from '@/lib/supabase'
 
 export function AppProviders({
   client,
   queryClient,
   children,
 }: {
-  client: SupabaseClient
+  client: AppSupabaseClient
   queryClient: QueryClient
   children: ReactNode
 }) {

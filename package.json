@@ -10,6 +10,8 @@
     "test": "npm run test --workspace @3d-quote/web --",
     "lint": "npm run lint --workspace @3d-quote/web --",
     "format": "npm run format --workspace @3d-quote/web --",
-    "format:check": "npm run format:check --workspace @3d-quote/web --"
+    "format:check": "npm run format:check --workspace @3d-quote/web --",
+    "gen:types": "npm run gen:types --workspace @3d-quote/web --",
+    "check:types-fresh": "npm run check:types-fresh --workspace @3d-quote/web --"
   }
 }
