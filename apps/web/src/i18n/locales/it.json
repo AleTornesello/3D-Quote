@@ -117,5 +117,32 @@
       "title": "Non disponibile per il tuo ruolo",
       "body": "Questa sezione è riservata ai titolari."
     }
+  },
+  "printers": {
+    "empty": "Nessuna stampante.",
+    "new": "Nuova stampante",
+    "edit": "Modifica stampante",
+    "fields": {
+      "name": "Nome",
+      "model": "Modello",
+      "buildX": "Volume X (mm)",
+      "buildY": "Volume Y (mm)",
+      "buildZ": "Volume Z (mm)",
+      "nozzle": "Ugello (mm)",
+      "hourlyRate": "Costo orario",
+      "power": "Potenza (W)",
+      "active": "Attiva"
+    },
+    "columns": {
+      "buildVolume": "Volume di stampa",
+      "nozzle": "Ugello",
+      "power": "Potenza"
+    },
+    "volumeValue": "{{x}} × {{y}} × {{z}} mm",
+    "rateValue": "{{value}}/h",
+    "toggleActive": "Attiva/disattiva {{name}}",
+    "duplicateName": "Esiste già una stampante con questo nome.",
+    "deleteTitle": "Eliminare la stampante {{name}}?",
+    "inUse": "La stampante è usata in alcuni preventivi: puoi disattivarla invece di eliminarla."
   }
 }

@@ -6,11 +6,13 @@ import { AppShell } from '@/layout/AppShell'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { PrintersPage } from '@/pages/PrintersPage'
 import { SectionPage } from '@/pages/SectionPage'
 import { SECTIONS } from './sections'
 
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
 const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
+  '/printers': <PrintersPage />,
   '/staff': (
     <RequireOwner>
       <SectionPage titleKey="nav.staff" />

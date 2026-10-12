@@ -1,0 +1,142 @@
+import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useStaff } from '@/auth/staff-context'
+import { DataTable, type Column } from '@/components/DataTable'
+import { DeleteCatalogItemDialog } from '@/components/DeleteCatalogItemDialog'
+import { PageHeader } from '@/components/PageHeader'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { toAppError } from '@/data/errors'
+import { useDeletePrinter, usePrinters, useSavePrinter, type Printer } from '@/data/printers'
+import { useFormat } from '@/lib/use-format'
+import { PrinterSheet } from './printers/PrinterSheet'
+
+export function PrintersPage() {
+  const { t } = useTranslation()
+  const { isOwner } = useStaff()
+  const format = useFormat()
+  const printers = usePrinters()
+  const save = useSavePrinter()
+  const remove = useDeletePrinter()
+  const [editing, setEditing] = useState<Printer | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<Printer | null>(null)
+
+  const columns: Column<Printer>[] = [
+    {
+      key: 'name',
+      header: t('printers.fields.name'),
+      cell: (p) => <span className="font-medium">{p.name}</span>,
+    },
+    { key: 'model', header: t('printers.fields.model'), cell: (p) => p.model },
+    {
+      key: 'volume',
+      header: t('printers.columns.buildVolume'),
+      cell: (p) =>
+        t('printers.volumeValue', {
+          x: format.number(p.build_x_mm),
+          y: format.number(p.build_y_mm),
+          z: format.number(p.build_z_mm),
+        }),
+    },
+    {
+      key: 'nozzle',
+      header: t('printers.columns.nozzle'),
+      cell: (p) => `${format.number(p.nozzle_diameter_mm, 2)} mm`,
+    },
+    {
+      key: 'rate',
+      header: t('printers.fields.hourlyRate'),
+      cell: (p) => t('printers.rateValue', { value: format.currency(p.hourly_rate) }),
+    },
+    {
+      key: 'power',
+      header: t('printers.columns.power'),
+      cell: (p) => `${format.number(p.power_w)} W`,
+    },
+    {
+      key: 'active',
+      header: t('printers.fields.active'),
+      cell: (p) =>
+        isOwner ? (
+          <Switch
+            checked={p.active}
+            aria-label={t('printers.toggleActive', { name: p.name })}
+            onCheckedChange={(active) => save.mutate({ id: p.id, values: { active } })}
+          />
+        ) : (
+          t(p.active ? 'common.yes' : 'common.no')
+        ),
+    },
+  ]
+  if (isOwner) {
+    columns.push({
+      key: 'actions',
+      header: <span className="sr-only">{t('common.actions')}</span>,
+      className: 'text-right',
+      cell: (p) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('common.editItem', { name: p.name })}
+            onClick={() => setEditing(p)}
+          >
+            <Pencil aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('common.deleteItem', { name: p.name })}
+            onClick={() => setDeleting(p)}
+          >
+            <Trash2 aria-hidden />
+          </Button>
+        </div>
+      ),
+    })
+  }
+
+  return (
+    <section>
+      <PageHeader
+        title={t('nav.printers')}
+        actions={
+          isOwner && (
+            <Button onClick={() => setEditing('new')}>
+              <Plus aria-hidden />
+              {t('printers.new')}
+            </Button>
+          )
+        }
+      />
+      {save.isError && (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {t(toAppError(save.error).messageKey)}
+        </p>
+      )}
+      <DataTable
+        query={printers}
+        columns={columns}
+        rowKey={(p) => p.id}
+        caption={t('nav.printers')}
+        empty={t('printers.empty')}
+      />
+      {editing && (
+        <PrinterSheet
+          printer={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {deleting && (
+        <DeleteCatalogItemDialog
+          title={t('printers.deleteTitle', { name: deleting.name })}
+          inUseMessage={t('printers.inUse')}
+          onDelete={() => remove.mutateAsync(deleting.id)}
+          onDeactivate={() => save.mutateAsync({ id: deleting.id, values: { active: false } })}
+          onClose={() => setDeleting(null)}
+        />
+      )}
+    </section>
+  )
+}

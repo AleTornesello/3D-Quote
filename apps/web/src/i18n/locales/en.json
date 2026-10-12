@@ -117,5 +117,32 @@
       "title": "Not available for your role",
       "body": "This section is for owners only."
     }
+  },
+  "printers": {
+    "empty": "No printers yet.",
+    "new": "New printer",
+    "edit": "Edit printer",
+    "fields": {
+      "name": "Name",
+      "model": "Model",
+      "buildX": "Build X (mm)",
+      "buildY": "Build Y (mm)",
+      "buildZ": "Build Z (mm)",
+      "nozzle": "Nozzle (mm)",
+      "hourlyRate": "Hourly rate",
+      "power": "Power (W)",
+      "active": "Active"
+    },
+    "columns": {
+      "buildVolume": "Build volume",
+      "nozzle": "Nozzle",
+      "power": "Power"
+    },
+    "volumeValue": "{{x}} × {{y}} × {{z}} mm",
+    "rateValue": "{{value}}/h",
+    "toggleActive": "Toggle {{name}} active",
+    "duplicateName": "A printer with this name already exists.",
+    "deleteTitle": "Delete printer {{name}}?",
+    "inUse": "This printer is used by quote items — deactivate it instead."
   }
 }
