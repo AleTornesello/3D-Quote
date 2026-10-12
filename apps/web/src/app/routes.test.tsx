@@ -7,7 +7,6 @@ import { renderApp } from '@/test/render-app'
 
 const pages = [
   ['/quotes', 'Preventivi'],
-  ['/settings', 'Impostazioni'],
   ['/staff', 'Personale'],
   ['/account', 'Account'],
 ] as const

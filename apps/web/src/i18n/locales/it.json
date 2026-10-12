@@ -206,5 +206,32 @@
       "rejected": "Rifiutato",
       "expired": "Scaduto"
     }
+  },
+  "settings": {
+    "pricing": {
+      "title": "Prezzi",
+      "energy": "Costo energia per kWh",
+      "energyValue": "{{value}} {{currency}}/kWh",
+      "failure": "Margine per stampe fallite (%)",
+      "setupFee": "Costo di avvio",
+      "markup": "Ricarico predefinito (%)",
+      "minimum": "Prezzo minimo per articolo",
+      "currency": "Valuta"
+    },
+    "quotes": {
+      "title": "Preventivi",
+      "prefix": "Prefisso numero",
+      "validity": "Validità predefinita (giorni)",
+      "termsIt": "Condizioni nel PDF (italiano)",
+      "termsEn": "Condizioni nel PDF (inglese)"
+    },
+    "shop": {
+      "title": "Dati del negozio",
+      "name": "Nome del negozio",
+      "address": "Indirizzo",
+      "vat": "Partita IVA",
+      "email": "Email",
+      "phone": "Telefono"
+    }
   }
 }

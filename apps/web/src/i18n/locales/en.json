@@ -206,5 +206,32 @@
       "rejected": "Rejected",
       "expired": "Expired"
     }
+  },
+  "settings": {
+    "pricing": {
+      "title": "Pricing",
+      "energy": "Energy price per kWh",
+      "energyValue": "{{value}} {{currency}}/kWh",
+      "failure": "Failure allowance (%)",
+      "setupFee": "Setup fee",
+      "markup": "Default markup (%)",
+      "minimum": "Minimum item price",
+      "currency": "Currency"
+    },
+    "quotes": {
+      "title": "Quotes",
+      "prefix": "Number prefix",
+      "validity": "Default validity (days)",
+      "termsIt": "PDF terms (Italian)",
+      "termsEn": "PDF terms (English)"
+    },
+    "shop": {
+      "title": "Shop details",
+      "name": "Shop name",
+      "address": "Address",
+      "vat": "VAT number",
+      "email": "Email",
+      "phone": "Phone"
+    }
   }
 }

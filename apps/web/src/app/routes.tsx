@@ -11,6 +11,7 @@ import { MaterialsPage } from '@/pages/MaterialsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrintersPage } from '@/pages/PrintersPage'
 import { SectionPage } from '@/pages/SectionPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { SECTIONS } from './sections'
 
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
@@ -18,6 +19,7 @@ const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
   '/clients': <ClientsPage />,
   '/materials': <MaterialsPage />,
   '/printers': <PrintersPage />,
+  '/settings': <SettingsPage />,
   '/staff': (
     <RequireOwner>
       <SectionPage titleKey="nav.staff" />
