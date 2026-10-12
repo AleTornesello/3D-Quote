@@ -205,7 +205,7 @@ export class FakeDb {
         404,
       )
     }
-    return result(handler(args), null, 200)
+    return result(await handler(args), null, 200)
   }
 
   readonly storage = {

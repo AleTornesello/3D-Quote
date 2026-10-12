@@ -95,6 +95,11 @@ describe('rpc() and storage', () => {
     expect((await db.rpc('missing')).error?.code).toBe('PGRST202')
   })
 
+  test('rpc awaits async handlers', async () => {
+    const db = new FakeDb({}, { list_staff: async () => [{ user_id: 'u' }] })
+    expect((await db.rpc('list_staff')).data).toEqual([{ user_id: 'u' }])
+  })
+
   test('storage records uploads, removals and signed URLs', async () => {
     const db = new FakeDb()
     const bucket = db.storage.from('branding')
