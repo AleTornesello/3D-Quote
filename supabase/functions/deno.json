@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "fmt": {
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 100
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "lock": false
+}

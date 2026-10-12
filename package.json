@@ -12,6 +12,8 @@
     "format": "npm run format --workspace @3d-quote/web --",
     "format:check": "npm run format:check --workspace @3d-quote/web --",
     "gen:types": "npm run gen:types --workspace @3d-quote/web --",
-    "check:types-fresh": "npm run check:types-fresh --workspace @3d-quote/web --"
+    "check:types-fresh": "npm run check:types-fresh --workspace @3d-quote/web --",
+    "functions:check": "deno check --config supabase/functions/deno.json supabase/functions && deno lint --config supabase/functions/deno.json supabase/functions && deno fmt --check --config supabase/functions/deno.json supabase/functions",
+    "functions:test": "deno test --config supabase/functions/deno.json --allow-net --allow-env --allow-read --allow-run=supabase supabase/functions/tests"
   }
 }
