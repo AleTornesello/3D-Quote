@@ -59,6 +59,7 @@ Seed logins, local only, password `password123`:
    mirrors every grant so the diff stays empty.
 4. Run `supabase db reset`, then `supabase test db`, `supabase db diff` (expect no changes) and
    `supabase db advisors --local`.
+5. If tables, columns or functions changed, run `npm run gen:types` and commit `apps/web/src/lib/database.types.ts`.
 
 See [ADR-0003](../architecture/adr/0003-database-schema-and-security.md) for why the workflow is split.
 

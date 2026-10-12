@@ -1,7 +1,7 @@
 # Web App: Catalog & Settings — Design
 
 - **Date:** 2026-10-12
-- **Status:** Draft — awaiting review
+- **Status:** Implemented
 - **Branch:** `develop`
 
 ## Goal

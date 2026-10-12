@@ -321,6 +321,7 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 
 | Function | Who | Does |
 |---|---|---|
+| `list_staff() → table(user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz)` | owner | Every staff row with the login email from `auth.users` (which the API can't read), ordered by display name. Raises `owner_required` for anyone else. |
 | `create_quote_item(quote_id bigint, model_path text, original_filename text, description text, printer_id bigint default null, material_id bigint default null, quantity integer default 1, layer_height_mm numeric default 0.20, infill_percent integer default 20, supports boolean default false) → bigint` | staff | Checks the quote is a draft, `model_path` starts with `<quote_id>/`, the object exists in `models`, and the chosen printer and material are active. Inserts the item; if printer and material are set, enqueues a job. Returns the item id. |
 | `update_quote_item_settings(item_id bigint, printer_id bigint, material_id bigint, layer_height_mm numeric, infill_percent integer, supports boolean) → void` | staff | Replaces all slicing inputs. If any differ: clears results and price breakdown (override kept) and enqueues a job if printer and material are set. No change → no job. A printer or material that changes must be active. |
 | `retry_slicing(item_id bigint) → bigint` | staff | Draft quote, item's newest job `failed` → enqueues a new job, returns its id |
