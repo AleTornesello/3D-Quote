@@ -135,7 +135,7 @@ scope) and never fails the user's action:
 |---|---|
 | Upload finished, `create_quote_item` failed | The object is removed at once |
 | Remove item | Delete the row, then remove its object |
-| Delete quote (owner, draft) | Delete the quote (items cascade), then list `<quote_id>/` recursively and remove every object |
+| Delete quote (owner, draft) | Read the items' `model_path`s, delete the quote (items cascade), then remove those objects |
 
 The storage rules already allow each step: the draft folder is changeable, and so is the folder of a deleted quote.
 
@@ -177,7 +177,7 @@ Click a row to open `/quotes/:id`.
 | `page` | 1-based | `.range((page − 1) × 25, page × 25 − 1)` with `count: 'exact'` |
 
 - Changing the search, a filter or the sort resets `page` to 1. Unknown or malformed params fall back to their
-  defaults; a page past the end shows the last page.
+  defaults; a page past the end (PostgREST answers `PGRST103`) goes back to page 1.
 - **Clear filters** removes `q`, `status`, `client`, `from` and `to`.
 - Footer: "1–25 of 312" with Previous and Next.
 - `DataTable` gains two opt-in props: sortable column headers (`aria-sort`, a button in the header) and a pagination
@@ -240,7 +240,7 @@ quote. A cleared markup field sends `null`.
   - While any item is queued or slicing the button is disabled with the hint "Wait for slicing to finish".
   - `quote_not_sendable` (a change landed in between) reloads the blockers in the open dialog.
 - **Mark accepted / Mark rejected**: a confirmation dialog, then `mark_quote_accepted` / `mark_quote_rejected`.
-- **Duplicate**: calls `duplicate-quote`, then navigates to the new quote with a toast "Created `<number>`".
+- **Duplicate**: calls `duplicate-quote`, then navigates to the new quote with a toast "Copy created".
 - **Delete** (owner, draft): `ConfirmDeleteDialog` naming the number; deletes the quote, removes its files, navigates
   to `/quotes`.
 
@@ -329,7 +329,7 @@ same axis. The card then shows "Doesn't fit on `<printer name>`" with a warning 
 | `data/clients.ts` (addition) | `useClientOptions()`: `id, name, company` of every client, ordered by name, for the list's client filter |
 | `data/edge-functions.ts` | `invokeFunction(supabase, name, body)` |
 | `data/model-upload.ts` | `ModelUploaderProvider`, `useModelUploader()` |
-| `data/quote-rules.ts` | `slicingState`, `fitsPrinter`, `validateModelFile`, `needsPricing`, `parseQuoteListParams`, `toQuoteListSearch` |
+| `data/quote-rules.ts` | `slicingState`, `fitsPrinter`, `validateModelFile`, `unpricedItems`, `defaultCatalogChoice`, `parseQuoteListParams`, `toQuoteListSearch` |
 
 - `useQuote(id)` selects `*, client:clients(id, name, company), creator:staff(display_name)`.
 - `useQuoteItems(quoteId)` selects `*, job:slicing_jobs(id, status, error, queued_at, started_at, finished_at)`,
@@ -368,15 +368,16 @@ The quote row itself is not live; it refetches on window focus and after every a
 
 `useAutoPrice(quote, items)`:
 
-- `needsPricing(quote, items)` is true when the quote is `draft` and some item has a printer, a material,
-  `print_time_s` and no `priced_at`.
-- When it becomes true the editor calls `price-quote`. Only one call per quote runs at a time; a trigger during a
+- `unpricedItems(items)` are the items with a printer, a material, `print_time_s` and no `priced_at`.
+- When a draft has any, the editor calls `price-quote`. Only one call per quote runs at a time; a trigger during a
   call queues exactly one more call after it.
 - After a call the items are refetched. If an item that needed pricing still does and the answer had `skipped > 0`,
   the hook calls once more; if it still does after that, it stops for those items (identified by id and
   `updated_at`) and their cards show "Price not calculated". A later change to such an item (new `updated_at`)
   makes it eligible again.
-- Explicit triggers always call, whatever `needsPricing` says: quantity saved, markup saved, **Recalculate prices**.
+- **Recalculate prices** always calls, whatever the items look like. A saved quantity or markup needs no explicit
+  call: both writes clear the items' `priced_at` and change their `updated_at`, so the automatic rule prices them and
+  makes a given-up item eligible again.
 - A failed call shows a toast with Retry. `notDraft` refetches the quote instead.
 
 ## Errors
@@ -420,7 +421,7 @@ grams and millimetres use `useFormat()` numbers.
 
 **Unit tests**
 - `quote-rules.test.ts`: every `slicingState` row (including `slow` at 10 minutes and the elapsed time); `fitsPrinter`
-  per axis; `validateModelFile` (extension case, empty, 100 MB boundary); `needsPricing`; `parseQuoteListParams`
+  per axis; `validateModelFile` (extension case, empty, 100 MB boundary); `unpricedItems`; `parseQuoteListParams`
   round-trips with `toQuoteListSearch` and falls back on bad input.
 - `errors.test.ts`: every new row of the [errors](#errors) table.
 - `format.test.ts`: `shopToday()` around midnight UTC.
