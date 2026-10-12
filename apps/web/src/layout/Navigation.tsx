@@ -2,7 +2,7 @@ import { CircleUser, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { SECTIONS } from '@/app/sections'
-import { useAuth } from '@/auth/auth-context'
+import { useStaff } from '@/auth/staff-context'
 import { Button } from '@/components/ui/button'
 import { useSupabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -16,26 +16,26 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
-  const auth = useAuth()
+  const staff = useStaff()
   const supabase = useSupabase()
 
   return (
     <nav aria-label={t('nav.main')} className="flex h-full flex-col gap-4 p-3">
       <div className="px-3 pt-2 text-lg font-semibold">{t('app.name')}</div>
       <ul className="grid gap-1">
-        {SECTIONS.map(({ path, labelKey, icon: Icon }) => (
-          <li key={path}>
-            <NavLink to={path} onClick={onNavigate} className={linkClass}>
-              <Icon className="size-4" aria-hidden />
-              {t(labelKey)}
-            </NavLink>
-          </li>
-        ))}
+        {SECTIONS.filter((section) => !section.ownerOnly || staff.isOwner).map(
+          ({ path, labelKey, icon: Icon }) => (
+            <li key={path}>
+              <NavLink to={path} onClick={onNavigate} className={linkClass}>
+                <Icon className="size-4" aria-hidden />
+                {t(labelKey)}
+              </NavLink>
+            </li>
+          ),
+        )}
       </ul>
       <div className="mt-auto grid gap-2 border-t pt-4">
-        {auth.status === 'signedIn' && (
-          <p className="truncate px-3 text-sm text-muted-foreground">{auth.session.user.email}</p>
-        )}
+        <p className="truncate px-3 text-sm text-muted-foreground">{staff.displayName}</p>
         <div className="px-3">
           <LanguageSwitcher />
         </div>

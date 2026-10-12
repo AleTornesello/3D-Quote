@@ -18,7 +18,8 @@
   "language": {
     "label": "Lingua",
     "it": "Italiano",
-    "en": "English"
+    "en": "English",
+    "saveFailed": "Lingua cambiata solo su questo dispositivo: salvataggio non riuscito."
   },
   "pages": {
     "comingSoon": "In arrivo.",
@@ -81,5 +82,21 @@
     "quotePrefix": "Da 1 a 10 lettere o cifre.",
     "passwordLength": "Almeno 6 caratteri.",
     "passwordMismatch": "Le password non coincidono."
+  },
+  "common": {
+    "retry": "Riprova"
+  },
+  "access": {
+    "none": {
+      "title": "Nessun accesso",
+      "body": "Il tuo account non ha accesso a 3D-Quote: chiedi al titolare."
+    },
+    "loadError": {
+      "title": "Impossibile caricare il profilo"
+    },
+    "ownerOnly": {
+      "title": "Non disponibile per il tuo ruolo",
+      "body": "Questa sezione è riservata ai titolari."
+    }
   }
 }

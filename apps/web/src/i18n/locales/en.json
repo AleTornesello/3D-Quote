@@ -18,7 +18,8 @@
   "language": {
     "label": "Language",
     "it": "Italiano",
-    "en": "English"
+    "en": "English",
+    "saveFailed": "Language changed on this device only: saving it failed."
   },
   "pages": {
     "comingSoon": "Coming soon.",
@@ -81,5 +82,21 @@
     "quotePrefix": "1 to 10 letters or digits.",
     "passwordLength": "At least 6 characters.",
     "passwordMismatch": "The passwords don't match."
+  },
+  "common": {
+    "retry": "Retry"
+  },
+  "access": {
+    "none": {
+      "title": "No access",
+      "body": "Your account has no access to 3D-Quote — ask the owner."
+    },
+    "loadError": {
+      "title": "Couldn't load your profile"
+    },
+    "ownerOnly": {
+      "title": "Not available for your role",
+      "body": "This section is for owners only."
+    }
   }
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from './auth-context'
+import { StaffProvider } from './StaffProvider'
 
 /** Layout route: renders children only with a session; otherwise sends the user to /login. */
 export function RequireAuth() {
@@ -18,5 +19,9 @@ export function RequireAuth() {
   if (auth.status === 'signedOut') {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   }
-  return <Outlet />
+  return (
+    <StaffProvider userId={auth.session.user.id}>
+      <Outlet />
+    </StaffProvider>
+  )
 }

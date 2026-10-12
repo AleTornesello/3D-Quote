@@ -1,11 +1,22 @@
+import type { ReactElement } from 'react'
 import { Navigate, type RouteObject } from 'react-router'
 import { RequireAuth } from '@/auth/RequireAuth'
+import { RequireOwner } from '@/auth/RequireOwner'
 import { AppShell } from '@/layout/AppShell'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { SectionPage } from '@/pages/SectionPage'
 import { SECTIONS } from './sections'
+
+/** Sections with a real page; the others still show the "coming soon" placeholder. */
+const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
+  '/staff': (
+    <RequireOwner>
+      <SectionPage titleKey="nav.staff" />
+    </RequireOwner>
+  ),
+}
 
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
@@ -20,7 +31,7 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to="/quotes" replace /> },
           ...SECTIONS.map(({ path, labelKey }) => ({
             path: path.slice(1),
-            element: <SectionPage titleKey={labelKey} />,
+            element: SECTION_PAGES[path] ?? <SectionPage titleKey={labelKey} />,
           })),
           { path: 'account', element: <SectionPage titleKey="nav.account" /> },
         ],
