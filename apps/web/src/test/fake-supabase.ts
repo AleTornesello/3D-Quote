@@ -1,6 +1,7 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { vi } from 'vitest'
+import { FakeDb } from './fake-db'
 
 type Listener = (event: AuthChangeEvent, session: Session | null) => void
 
@@ -36,7 +37,12 @@ const signInErrors = {
 
 /** A stand-in for supabase.auth with controllable outcomes. `pendingSession` keeps getSession unresolved. */
 export function createFakeSupabase(
-  opts: { session?: Session | null; signInError?: SignInFailure; pendingSession?: boolean } = {},
+  opts: {
+    session?: Session | null
+    signInError?: SignInFailure
+    pendingSession?: boolean
+    db?: FakeDb
+  } = {},
 ) {
   let current = opts.session ?? null
   const listeners = new Set<Listener>()
@@ -62,6 +68,11 @@ export function createFakeSupabase(
       return { data: { session: current, user: current.user }, error: null }
     }),
     resetPasswordForEmail: vi.fn(async () => ({ data: {}, error: null })),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    updateUser: vi.fn(async (_attributes: { password?: string }) => ({
+      data: { user: current?.user ?? null },
+      error: null as null | { code: string; message: string },
+    })),
     signOut: vi.fn(async () => {
       current = null
       emit('SIGNED_OUT')
@@ -69,5 +80,12 @@ export function createFakeSupabase(
     }),
   }
 
-  return { client: { auth } as unknown as AppSupabaseClient, auth }
+  const db = opts.db ?? new FakeDb()
+  const client = {
+    auth,
+    from: (table: string) => db.from(table),
+    rpc: (fn: string, args?: unknown) => db.rpc(fn, args),
+    storage: db.storage,
+  }
+  return { client: client as unknown as AppSupabaseClient, auth, db }
 }
