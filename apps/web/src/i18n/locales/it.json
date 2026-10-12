@@ -243,5 +243,20 @@
       "badType": "Usa un file PNG, JPG o SVG.",
       "tooBig": "Il file supera 1 MB."
     }
+  },
+  "staff": {
+    "note": "Per invitare o rimuovere persone si usa ancora la dashboard di Supabase.",
+    "empty": "Nessun membro del personale.",
+    "roleFor": "Ruolo di {{name}}",
+    "columns": {
+      "name": "Nome",
+      "email": "Email",
+      "role": "Ruolo",
+      "active": "Attivo"
+    },
+    "roles": {
+      "owner": "Titolare",
+      "operator": "Operatore"
+    }
   }
 }

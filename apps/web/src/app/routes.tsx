@@ -12,6 +12,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrintersPage } from '@/pages/PrintersPage'
 import { SectionPage } from '@/pages/SectionPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { StaffPage } from '@/pages/StaffPage'
 import { SECTIONS } from './sections'
 
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
@@ -22,7 +23,7 @@ const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
   '/settings': <SettingsPage />,
   '/staff': (
     <RequireOwner>
-      <SectionPage titleKey="nav.staff" />
+      <StaffPage />
     </RequireOwner>
   ),
 }
