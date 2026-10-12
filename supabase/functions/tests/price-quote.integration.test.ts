@@ -141,6 +141,33 @@ Deno.test('skips an item that changed after it was read', async () => {
   assertEquals(row.computed_total, null)
 })
 
+Deno.test('a markup change while the quote is being read is not priced with the old markup', async () => {
+  const admin = await adminClient()
+  const { printerId, materialId, clientId } = await createCatalog(admin)
+  const quoteId = await createQuote(admin, clientId)
+  const item = await createItem(admin, quoteId, { printerId, materialId, sliced: true })
+  let changed = false
+  // Lands the owner's markup change right after the first read of the quote.
+  const racing = await adminClient(async (input, init) => {
+    const response = await fetch(input, init)
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (!changed && url.pathname.endsWith('/rest/v1/quotes') && (init?.method ?? 'GET') === 'GET') {
+      changed = true
+      await must(admin.from('quotes').update({ markup_override_pct: 10 }).eq('id', quoteId))
+      // As set_markup_override does: clearing every item's breakdown changes its updated_at.
+      await must(admin.from('quote_items').update({ markup_pct: null }).eq('quote_id', quoteId))
+    }
+    return response
+  })
+
+  const result = await writePrices(racing, await loadPricingSnapshot(racing, quoteId))
+
+  assert(changed)
+  assertEquals(result, { priced: 0, skipped: 1 })
+  const row = await must<Row>(admin.from('quote_items').select(COLUMNS).eq('id', item.id).single())
+  assertEquals(row.computed_total, null)
+})
+
 Deno.test('refuses a quote that is not a draft', async () => {
   const admin = await adminClient()
   const { printerId, materialId, clientId } = await createCatalog(admin)

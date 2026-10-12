@@ -28,6 +28,10 @@ Prices every item of the draft that has a printer, a material and slice results,
 between reading and writing is skipped too, so call it again after your own change has landed. Price overrides are
 never touched. Inactive printers and materials are still priced with their rates.
 
+The quote's markup and its items are read in one statement, so a markup change during a call is caught by the
+guarded write. Settings are read separately: a Recalculate that answers `skipped > 0` for items with results should
+be called again, because another call priced them first, possibly with older settings.
+
 ## `duplicate-quote`
 
 Body `{ "quote_id": 42 }` → `201 { "quote_id": 57 }`.

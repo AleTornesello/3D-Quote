@@ -43,9 +43,14 @@ async function localStack(): Promise<LocalStack> {
 
 const noSession = { auth: { persistSession: false, autoRefreshToken: false } }
 
-export async function adminClient(): Promise<SupabaseClient> {
+/** A service-role client; `fetchImpl` lets a test act between the requests a function makes. */
+export async function adminClient(fetchImpl?: typeof fetch): Promise<SupabaseClient> {
   const { apiUrl, secretKey } = await localStack()
-  return createClient(apiUrl, secretKey, noSession)
+  return createClient(
+    apiUrl,
+    secretKey,
+    fetchImpl ? { ...noSession, global: { fetch: fetchImpl } } : noSession,
+  )
 }
 
 export async function signIn(email: string, password = PASSWORD): Promise<string> {

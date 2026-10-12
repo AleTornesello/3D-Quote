@@ -5,6 +5,7 @@ import { type Decimal, type PriceInput, priceItem } from './pricing.ts'
 interface QuoteRow {
   status: string
   markup_override_pct: Decimal | null
+  quote_items: ItemRow[]
 }
 
 interface SettingsRow {
@@ -41,15 +42,6 @@ export async function loadPricingSnapshot(
   admin: SupabaseClient,
   quoteId: number,
 ): Promise<PricingSnapshot> {
-  const { data: quote, error } = await admin
-    .from('quotes')
-    .select('status, markup_override_pct')
-    .eq('id', quoteId)
-    .maybeSingle()
-  if (error) throw error
-  if (!quote) throw new HttpError(404, 'quote_not_found')
-  if ((quote as QuoteRow).status !== 'draft') throw new HttpError(409, 'quote_not_draft')
-
   const { data: settings, error: settingsError } = await admin
     .from('settings')
     .select(
@@ -59,20 +51,26 @@ export async function loadPricingSnapshot(
     .single()
   if (settingsError) throw settingsError
 
-  const { data: items, error: itemsError } = await admin
-    .from('quote_items')
+  // One statement, so the markup and the items' updated_at come from the same snapshot: a markup change after it
+  // clears every item (set_markup_override), which the guarded write then sees.
+  const { data, error } = await admin
+    .from('quotes')
     .select(
-      'id, updated_at, quantity, print_time_s, filament_g, printer:printers(hourly_rate, power_w), material:materials(cost_per_kg)',
+      'status, markup_override_pct, quote_items(id, updated_at, quantity, print_time_s, filament_g, printer:printers(hourly_rate, power_w), material:materials(cost_per_kg))',
     )
-    .eq('quote_id', quoteId)
-    .order('id')
-  if (itemsError) throw itemsError
+    .eq('id', quoteId)
+    .order('id', { referencedTable: 'quote_items' })
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new HttpError(404, 'quote_not_found')
+  const quote = data as unknown as QuoteRow
+  if (quote.status !== 'draft') throw new HttpError(409, 'quote_not_draft')
 
   const s = settings as SettingsRow
-  const markupPct = (quote as QuoteRow).markup_override_pct ?? s.default_markup_pct
+  const markupPct = quote.markup_override_pct ?? s.default_markup_pct
   return {
     quoteId,
-    items: (items as unknown as ItemRow[]).map((item) => ({
+    items: quote.quote_items.map((item) => ({
       id: item.id,
       updatedAt: item.updated_at,
       input: item.printer && item.material && item.print_time_s !== null && item.filament_g !== null
