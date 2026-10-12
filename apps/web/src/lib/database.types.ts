@@ -534,6 +534,14 @@ export type Database = {
       mark_quote_rejected: { Args: { quote_id: number }; Returns: undefined }
       mark_quote_sent: { Args: { quote_id: number }; Returns: undefined }
       retry_slicing: { Args: { item_id: number }; Returns: number }
+      service_copy_quote_items: {
+        Args: { files: Json; new_id: number; source_id: number }
+        Returns: undefined
+      }
+      service_create_quote_copy: {
+        Args: { created_by: string; source_id: number }
+        Returns: number
+      }
       set_markup_override: { Args: { pct: number; quote_id: number }; Returns: undefined }
       set_price_override: {
         Args: { item_id: number; reason: string; total: number }

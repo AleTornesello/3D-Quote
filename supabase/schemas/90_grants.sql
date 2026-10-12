@@ -62,5 +62,13 @@ grant execute on function
   private.worker_fail_job(bigint, bigint, text, boolean)
 to service_role;
 
+-- duplicate-quote service functions: service role only
+grant execute on function
+  public.service_create_quote_copy(bigint, uuid),
+  private.service_create_quote_copy(bigint, uuid),
+  public.service_copy_quote_items(bigint, bigint, jsonb),
+  private.service_copy_quote_items(bigint, bigint, jsonb)
+to service_role;
+
 -- storage policy helper
 grant execute on function private.can_upload_model(text), private.can_change_model(text) to authenticated;
