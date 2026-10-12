@@ -8,6 +8,7 @@
 | [uv](https://docs.astral.sh/uv/) | ≥ 0.8 | Python workspace, virtualenv and lockfile |
 | Python | ≥ 3.12 | Python services — uv can install it: `uv python install 3.12` |
 | [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | ≥ 2.81.3 (on Windows: `scoop install supabase/supabase` from Supabase's bucket) | Local Supabase stack, migrations, Edge Functions |
+| [Deno](https://deno.com) | ≥ 2 (on Windows: `scoop install deno`) | Edge Function checks and tests (`supabase/functions`) |
 | Docker | any recent | Runs the local Supabase stack and, later, the worker image |
 
 ## First setup
@@ -87,6 +88,7 @@ See the table in the root [README](../../README.md). Documentation conventions a
 | `npm run dev` | Web app dev server (extra args reach Vite: `npm run dev -- --port 5199`) |
 | `npm run build` / `npm test` / `npm run lint` / `npm run format` | Build, test, lint, format the web app (forwarded to `@3d-quote/web`) |
 | `supabase start` / `supabase db reset` / `supabase test db` | Local Supabase stack, rebuild the database, run the pgTAP tests |
+| `npm run functions:check` / `npm run functions:test` | Type-check, lint and format-check the Edge Functions / run their tests (integration tests need `supabase start`) |
 
 ## Adding a Python service
 

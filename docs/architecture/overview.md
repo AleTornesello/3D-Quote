@@ -11,7 +11,7 @@ reads and writes goes through Supabase; the worker is the only component that ru
 | Database | Supabase Postgres (`supabase/migrations/`) | Postgres + pgmq | All business data (see [data model](../supabase/data-model.md)) and the slicing job queue. |
 | File storage | Supabase Storage | Private bucket `models` | Uploaded model files. |
 | Auth | Supabase Auth | Email login | Staff accounts. Row Level Security limits data to authenticated staff. |
-| Edge Functions | `supabase/functions/` | Deno + TypeScript | Server-side actions the browser shouldn't do alone: create a quote item and enqueue its slicing job; possibly compute prices (Edge Function or SQL — open question). |
+| Edge Functions | `supabase/functions/` | Deno + TypeScript | Server-side actions that need the service role: pricing a draft (`price-quote`) and duplicating a quote (`duplicate-quote`). See [Edge Functions](../supabase/edge-functions.md). |
 | slicer-worker | `services/slicer-worker/` | Python (uv), headless slicer CLI | Consume slicing jobs, run the slicer, write print time and filament usage back. See [slicer-worker](../services/slicer-worker.md). |
 
 ## Data flow
@@ -41,7 +41,8 @@ sequenceDiagram
     Worker->>Worker: run slicer CLI, parse output
     Worker->>DB: write results, job status "succeeded"<br/>pgmq.delete(message)
     DB-->>Web: status change (Realtime or polling)
-    Web->>DB: compute price for the item (Edge Function or SQL function — open question)
+    Web->>Fn: price-quote(quote_id)
+    Fn->>DB: write each item's price breakdown (service role)
 ```
 
 The model is uploaded **before** the quote item exists, so its storage key can't contain the item id (ids are
@@ -93,7 +94,6 @@ stateDiagram-v2
 ## Open questions
 
 - **Slicer CLI:** PrusaSlicer or OrcaSlicer — affects profile format and output parsing.
-- **When pricing runs:** pricing is an Edge Function (decided 2026-10-11, not built yet); still open is whether it is called by the web app after each change or triggered when a slice succeeds.
 - **Worker hosting:** which container platform, and always-on vs. scale-to-zero.
 - **Status updates:** Supabase Realtime subscription vs. polling from the web app.
 - **Worker HTTP surface:** whether anything beyond `/healthz` is needed (e.g. a manual re-run endpoint), or whether

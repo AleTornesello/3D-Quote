@@ -354,6 +354,15 @@ different `job_id`:
 | `worker_complete_job(msg_id bigint, job_id bigint, results jsonb) → void` | Requires `print_time_s`, `filament_g` and the bbox in `results` (`invalid_results`). Stores the results on the job, marks it `succeeded`, deletes the message. Copies `print_time_s`, `filament_g` and the bbox onto the item only if this is the item's newest job and the quote is a draft. A deleted job: archives the message. |
 | `worker_fail_job(msg_id bigint, job_id bigint, error text, final boolean) → void` | Records `error`. `final`: job `failed` with `finished_at`, message archived. Otherwise back to `queued`; the message reappears after its visibility timeout. |
 
+**Service functions** (`service_role`, used by the [`duplicate-quote` Edge Function](edge-functions.md)):
+
+| Function | Does |
+|---|---|
+| `service_create_quote_copy(source_id bigint, created_by uuid) → bigint` | Inserts a draft with the source's client, notes and markup override; the trigger assigns the number and default validity. Raises `quote_not_found`. |
+| `service_copy_quote_items(source_id bigint, new_id bigint, files jsonb) → void` | `files` is `[{item_id, model_path}]`, one per source item, each path under `<new_id>/` and already in `models`. Copies settings, results and price overrides (not the breakdown); a sliced item gets a `succeeded` job, an unsliced one with printer and material is queued. Raises `quote_not_draft`, `invalid_copy`, `invalid_model_path`, `model_not_found`. |
+
+Item prices are written by the [`price-quote` Edge Function](edge-functions.md) with the service role.
+
 ## Errors
 
 Functions and triggers raise these exact messages; the web app maps them to translated text. Changing one is a
@@ -364,7 +373,7 @@ breaking change.
 | `42501` | `not_staff`, `owner_required` |
 | `P0001` | `last_owner`, `quote_not_draft`, `quote_not_sent`, `quote_not_sendable`, `retry_not_allowed`, `quote_item_move_not_allowed` |
 | `P0002` | `quote_not_found`, `item_not_found`, `model_not_found` |
-| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch` |
+| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch`, `invalid_copy` |
 
 ## Open questions
 
