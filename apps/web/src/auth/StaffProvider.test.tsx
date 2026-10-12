@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
 import { NETWORK_FAILURE } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
@@ -52,4 +52,19 @@ test('owners see Staff in the sidebar', async () => {
   renderApp('/quotes', { session })
   const nav = await screen.findByRole('navigation', { name: 'Navigazione principale' })
   expect(within(nav).getByRole('link', { name: 'Personale' })).toBeInTheDocument()
+})
+
+test('a failed background refetch keeps the app on screen', async () => {
+  const { db, queryClient } = renderApp('/quotes', { session })
+  expect(await screen.findByRole('heading', { level: 1, name: 'Preventivi' })).toBeInTheDocument()
+  db.failNext('staff', NETWORK_FAILURE)
+  await act(() => queryClient.invalidateQueries({ queryKey: ['staff'] }))
+  expect(queryClient.getQueryState(['staff', 'own', 'user-1'])?.status).toBe('error')
+  // Query notifications reach React on a timer; let them render before asserting.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(screen.getByRole('heading', { level: 1, name: 'Preventivi' })).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: 'Navigazione principale' })).toBeInTheDocument()
+  expect(
+    screen.queryByRole('heading', { name: 'Impossibile caricare il profilo' }),
+  ).not.toBeInTheDocument()
 })

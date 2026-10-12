@@ -41,7 +41,7 @@ export function StaffProvider({ userId, children }: { userId: string; children: 
       </p>
     )
   }
-  if (own.isError) {
+  if (own.isError && own.data === undefined) {
     return (
       <main className="mx-auto grid max-w-lg gap-4 p-6">
         <h1 className="text-2xl font-semibold">{t('access.loadError.title')}</h1>

@@ -34,11 +34,12 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
   )
   const fake = createFakeSupabase({ ...opts, db })
   const router = createMemoryRouter(routes, { initialEntries: [path] })
+  const queryClient = createQueryClient({ retry: false })
   const user = userEvent.setup()
   render(
-    <AppProviders client={fake.client} queryClient={createQueryClient({ retry: false })}>
+    <AppProviders client={fake.client} queryClient={queryClient}>
       <RouterProvider router={router} />
     </AppProviders>,
   )
-  return { ...fake, router, user }
+  return { ...fake, router, user, queryClient }
 }
