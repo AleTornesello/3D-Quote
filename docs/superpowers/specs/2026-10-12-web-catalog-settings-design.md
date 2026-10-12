@@ -35,7 +35,7 @@ The screens follow the [functional analysis](../../frontend/functional-analysis.
 |---|---|
 | Types | `supabase gen types typescript --local` → `apps/web/src/lib/database.types.ts`, committed |
 | Data access | One module per entity in `src/data/`, exporting TanStack Query hooks; pages never call Supabase directly |
-| Forms | `react-hook-form` + `zod` + shadcn form components |
+| Forms | `react-hook-form` + `zod` + shadcn `field` components |
 | Create and edit | A side sheet over the list (Clients detail edits in the page) |
 | Test double | A chainable fake query builder in `src/test/fake-supabase.ts` |
 | Staff emails | New `public.list_staff()` RPC, owner-only |
@@ -57,7 +57,8 @@ the existing pattern: a `security invoker` wrapper in `public` over a `security 
   The grant goes in `supabase/schemas/90_grants.sql` and in the hand-written migration.
 - Two new migrations, both dated after `20261011120100`:
   - `<ts>_list_staff.sql`, generated with `supabase db diff`;
-  - `<ts+100>_list_staff_grants.sql`, hand-written, holding the function grants.
+  - `<ts+100>_list_staff_setup.sql` (`supabase migration new list_staff_setup`, following the repo's `_setup`
+    convention), hand-written, holding the function grants.
 
   The existing migrations stay unchanged, because they are already applied on the cloud project.
 - New pgTAP file `supabase/tests/database/10_list_staff.test.sql`:
@@ -118,6 +119,7 @@ How the hooks behave:
 | `23514` or `22P02` | `invalid` | |
 | `42501` | `forbidden` | |
 | `P0001` with message `last_owner` | `lastOwner` | |
+| `PGRST116` (no row returned) | `notFound` | Saves end in `.select().single()`, so an update that RLS silently filters out is not mistaken for success; deletes with 0 rows raise it too |
 | `TypeError` / fetch failure | `network` | |
 | anything else | `unknown` | |
 
@@ -129,7 +131,7 @@ says "used by quote items — deactivate it instead".
 - `StaffProvider` (`src/auth/StaffProvider.tsx`) renders inside `RequireAuth` and loads the user's own `staff` row with
   `useOwnStaff(session.user.id)`.
 - RLS returns no row for users with no staff record and for inactive staff. The provider has three states:
-  - **loading:** a full-page skeleton;
+  - **loading:** the same "Loading…" status line `RequireAuth` shows while the session loads;
   - **no access:** the page "Your account has no access to 3D-Quote — ask the owner", with only a Log out button;
   - **ready:** `useStaff()` returns `{ userId, displayName, role, isOwner, language }`.
 - If loading fails, the provider shows a full-page error with Retry. A network error must not appear as "no access".
@@ -169,8 +171,11 @@ says "used by quote items — deactivate it instead".
 
 ### Shared UI
 
-- **New shadcn components** (via `npx shadcn add … -c apps/web`): `form`, `table`, `dialog`, `alert-dialog`, `select`,
-  `switch`, `textarea`, `badge`, `skeleton`, `alert`, `sonner` (toasts).
+- **New shadcn components** (via `npx shadcn add … -c apps/web`): `field`, `table`, `alert-dialog`, `native-select`,
+  `switch`, `textarea`, `badge`, `skeleton`, `alert`.
+  - `field` replaces `form`, which is empty in the radix-nova registry.
+  - `native-select` replaces the Radix `select`: it works with the phone's own picker and with `register`.
+  - There are no toasts: `sonner` needs `next-themes`, so confirmations are inline status messages.
 - **App components** in `src/components/`:
   - `DataTable`: loading skeleton, empty state, error with Retry;
   - `ConfirmDeleteDialog`: names the item;
