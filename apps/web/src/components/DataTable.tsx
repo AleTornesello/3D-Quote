@@ -45,33 +45,44 @@ export function DataTable<T>({
       </div>
     )
   }
-  if (query.isError) return <QueryError error={query.error} onRetry={() => void query.refetch()} />
+  const retry = () => void query.refetch()
+  // A failed background refetch keeps the cached rows and shows the error above them.
+  if (query.data === undefined) return <QueryError error={query.error} onRetry={retry} />
+  const error = query.isError ? <QueryError error={query.error} onRetry={retry} /> : null
   if (query.data.length === 0) {
-    return <p className="rounded-md border p-6 text-center text-muted-foreground">{empty}</p>
+    return (
+      <>
+        {error}
+        <p className="rounded-md border p-6 text-center text-muted-foreground">{empty}</p>
+      </>
+    )
   }
   return (
-    <Table>
-      <TableCaption className="sr-only">{caption}</TableCaption>
-      <TableHeader>
-        <TableRow>
-          {columns.map((column) => (
-            <TableHead key={column.key} className={column.className}>
-              {column.header}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {query.data.map((row) => (
-          <TableRow key={rowKey(row)}>
+    <>
+      {error}
+      <Table>
+        <TableCaption className="sr-only">{caption}</TableCaption>
+        <TableHeader>
+          <TableRow>
             {columns.map((column) => (
-              <TableCell key={column.key} className={column.className}>
-                {column.cell(row)}
-              </TableCell>
+              <TableHead key={column.key} className={column.className}>
+                {column.header}
+              </TableHead>
             ))}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {query.data.map((row) => (
+            <TableRow key={rowKey(row)}>
+              {columns.map((column) => (
+                <TableCell key={column.key} className={column.className}>
+                  {column.cell(row)}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
   )
 }

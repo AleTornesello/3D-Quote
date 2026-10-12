@@ -1,5 +1,5 @@
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
@@ -55,6 +55,24 @@ test('DataTable shows a failed load with Retry', async () => {
   expect(await screen.findByRole('cell', { name: 'MK4' })).toBeInTheDocument()
 })
 
+test('DataTable keeps cached rows when a background refetch fails', async () => {
+  const load = vi
+    .fn<() => Promise<Item[]>>()
+    .mockResolvedValueOnce([{ id: 1, name: 'MK4' }])
+    .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  const client = createQueryClient({ retry: false })
+  render(
+    <QueryClientProvider client={client}>
+      <List load={load} />
+    </QueryClientProvider>,
+  )
+  expect(await screen.findByRole('cell', { name: 'MK4' })).toBeInTheDocument()
+  await act(() => client.invalidateQueries({ queryKey: ['items'] }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Impossibile contattare il server.')
+  expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument()
+  expect(screen.getByRole('cell', { name: 'MK4' })).toBeInTheDocument()
+})
+
 function SheetHarness({ dirty }: { dirty: boolean }) {
   const [open, setOpen] = useState(true)
   if (!open) return <p>Closed</p>
@@ -75,6 +93,7 @@ test('FormSheet asks before discarding changes', async () => {
   render(<SheetHarness dirty />)
   await userEvent.keyboard('{Escape}')
   const confirm = await screen.findByRole('alertdialog', { name: 'Modifiche non salvate' })
+  expect(within(confirm).getByRole('button', { name: 'Continua a modificare' })).toHaveFocus()
   await userEvent.click(within(confirm).getByRole('button', { name: 'Continua a modificare' }))
   expect(screen.getByRole('dialog', { name: 'Edit' })).toBeInTheDocument()
 
