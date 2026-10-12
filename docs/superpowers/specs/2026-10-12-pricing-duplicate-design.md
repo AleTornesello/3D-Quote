@@ -78,8 +78,9 @@ supabase/functions/
 
 `POST /functions/v1/price-quote` with `{ "quote_id": <bigint> }`.
 
-1. A body without a positive integer `quote_id` → **400 `invalid_request`**.
-2. No token or an invalid one → **401 `not_authenticated`**. No active staff row → **403 `not_staff`**.
+1. No token or an invalid one → **401 `not_authenticated`**. No active staff row → **403 `not_staff`**. The caller
+   is checked before the body is read.
+2. A method other than `POST`, or a body without a positive integer `quote_id` → **400 `invalid_request`**.
 3. Load the quote → missing: **404 `quote_not_found`**; status not `draft`: **409 `quote_not_draft`**.
 4. Load `settings` and the quote's items joined to their printer and material.
 5. Each item with a printer, a material, `print_time_s` and `filament_g` is priced with:
@@ -105,8 +106,8 @@ The work of steps 3–7 is `priceQuote(client, quoteId)` in `_shared/price-quote
 
 1. Steps 1–2 of `price-quote`. Load the source quote in any status → missing: **404 `quote_not_found`**.
 2. `service_create_quote_copy(source_id, caller)` → `new_id`.
-3. Copy each item's file, in item id order, to `<new_id>/<uuid>/<original_filename>` with Storage `copy` (no
-   download).
+3. Copy each item's file, in item id order, to `<new_id>/<uuid>/<file name>` with Storage `copy` (no download).
+   The file name is the last segment of the source `model_path`, which is already a valid storage key.
 4. `service_copy_quote_items(source_id, new_id, files)` inserts the items and their jobs in one transaction.
 5. If step 3 or 4 fails: remove the objects already copied, delete the new quote (allowed: it's a draft; its items
    cascade), log the cause, and answer **500 `duplicate_failed`**. Nothing is left half-copied.
@@ -127,8 +128,9 @@ generated one.
 | `service_copy_quote_items(source_id bigint, new_id bigint, files jsonb) → void` | `files` is `[{ "item_id": …, "model_path": … }]`, one entry per source item. It checks that the target is a draft quote (`quote_not_draft`), that the entries match the source's items exactly (`invalid_copy`), that each path starts with `<new_id>/` (`invalid_model_path`), and that each object exists in `models` (`model_not_found`). It then copies each item, in id order: description, file name, printer, material, quantity, layer height, infill, supports, results (`print_time_s`, `filament_g`, bbox) and `override_total` / `override_reason`. The price breakdown is not copied. |
 
 Jobs for the copied items:
-- source item with results → one `succeeded` job copying the source's newest succeeded job (results,
-  `slicer_version`, `attempts`), with `queued_at`, `started_at` and `finished_at` set to `now()`;
+- source item with results → one `succeeded` job with the item's results, plus `filament_mm`, `layer_count`,
+  `slicer_version` and `attempts` from the source's newest succeeded job (when there is one), and `queued_at`,
+  `started_at` and `finished_at` set to `now()`;
 - source item without results, with a printer and a material → `private.enqueue_slicing_job` (row and message);
 - otherwise → no job.
 
@@ -149,7 +151,8 @@ existing meaning. Mapping them in `toAppError` is part of the web quotes spec.
 - the minimum price wins when the total falls below it;
 - the setup fee is the same for quantity 1 and 10;
 - a markup override is used instead of the default;
-- 1 000 s of print time is priced exactly (a value floats get wrong is pinned).
+- a fraction of an hour is priced exactly: 1 200 s (⅓ h) at 0.03/h plus 50 % is 0.015, which rounds to 0.02
+  where floats give 0.01.
 
 **Integration (`supabase/functions/tests/*.integration.test.ts`)**, against `supabase start`. They sign in as the
 seeded owner and operator, create an authenticated non-staff user through the admin API (removed afterwards) and set
