@@ -10,8 +10,14 @@ insert into public.staff (user_id, display_name, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'Test Operator', 'operator');
 insert into public.clients (id, name) overriding system value values (900001, 'Test Client');
--- Clean numbering state; last year reached 57, which must not carry over.
+-- Clean numbering state; last year reached 57, which must not carry over. Sent quotes left in a local database
+-- (e.g. by the Edge Function tests) can't be deleted through the guards, so they are lifted for this reset only;
+-- everything rolls back at the end.
+alter table public.quotes disable trigger quotes_guard;
+alter table public.quote_items disable trigger quote_items_guard;
 delete from public.quotes;
+alter table public.quotes enable trigger quotes_guard;
+alter table public.quote_items enable trigger quote_items_guard;
 delete from private.quote_counters;
 insert into private.quote_counters (year, last_seq)
   values (extract(year from (now() at time zone 'Europe/Rome'))::smallint - 1, 57);
