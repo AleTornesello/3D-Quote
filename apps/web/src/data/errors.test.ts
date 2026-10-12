@@ -6,6 +6,7 @@ describe('toAppError', () => {
     [{ code: '23503', message: 'fk' }, 'inUse'],
     [{ code: '23514', message: 'check' }, 'invalid'],
     [{ code: '22P02', message: 'invalid input syntax' }, 'invalid'],
+    [{ code: '22003', message: 'numeric field overflow' }, 'invalid'],
     [{ code: '42501', message: 'owner_required' }, 'forbidden'],
     [{ code: 'P0001', message: 'last_owner' }, 'lastOwner'],
     [{ code: 'PGRST116', message: 'Cannot coerce the result to a single JSON object' }, 'notFound'],

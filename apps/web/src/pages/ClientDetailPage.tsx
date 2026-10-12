@@ -40,11 +40,16 @@ export function ClientDetailPage() {
       </p>
     )
   }
-  if (client.isError) {
+  if (client.isError && client.data === undefined) {
     return <QueryError error={client.error} onRetry={() => void client.refetch()} />
   }
   if (!client.data) return <NotFoundMessage />
-  return <ClientDetail key={client.data.id} client={client.data} />
+  return (
+    <>
+      {client.isError && <QueryError error={client.error} onRetry={() => void client.refetch()} />}
+      <ClientDetail key={client.data.id} client={client.data} />
+    </>
+  )
 }
 
 function ClientDetail({ client }: { client: Client }) {

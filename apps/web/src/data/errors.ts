@@ -42,6 +42,7 @@ export function toAppError(error: unknown): AppError {
       return new AppError('inUse', { cause: error })
     case '23514':
     case '22P02':
+    case '22003':
       return new AppError('invalid', { cause: error })
     case '42501':
       return new AppError('forbidden', { cause: error })

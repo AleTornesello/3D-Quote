@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { STORAGE_KEY } from '@/i18n'
 import { NETWORK_FAILURE } from '@/test/fake-db'
@@ -46,4 +46,30 @@ test('a failed save keeps the new language and says so', async () => {
     'Language changed on this device only',
   )
   expect(screen.getByRole('heading', { level: 1, name: 'Quotes' })).toBeInTheDocument()
+})
+
+test('switching to English and straight back saves the last choice', async () => {
+  const { db } = renderApp('/quotes', { session: fakeSession() })
+  const nav = await screen.findByRole('navigation', { name: 'Navigazione principale' })
+  const select = within(nav).getByLabelText('Lingua')
+  // Both changes land before the first save resolves.
+  fireEvent.change(select, { target: { value: 'en' } })
+  fireEvent.change(select, { target: { value: 'it' } })
+  expect(await screen.findByRole('heading', { level: 1, name: 'Preventivi' })).toBeInTheDocument()
+  await waitFor(() => {
+    const updates = db.calls('staff').filter((call) => call.op === 'update')
+    expect(updates.at(-1)?.values).toEqual({ language: 'it' })
+  })
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(screen.getByRole('heading', { level: 1, name: 'Preventivi' })).toBeInTheDocument()
+})
+
+test('a later successful switch clears the failed-save notice', async () => {
+  const { db, user } = renderApp('/quotes', { session: fakeSession() })
+  const nav = await screen.findByRole('navigation', { name: 'Navigazione principale' })
+  db.failNext('staff', NETWORK_FAILURE)
+  await user.selectOptions(within(nav).getByLabelText('Lingua'), 'en')
+  expect(await within(nav).findByRole('alert')).toBeInTheDocument()
+  await user.selectOptions(within(nav).getByLabelText('Language'), 'it')
+  await waitFor(() => expect(within(nav).queryByRole('alert')).not.toBeInTheDocument())
 })

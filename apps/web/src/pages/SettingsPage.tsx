@@ -35,12 +35,21 @@ export function SettingsPage() {
         {t('common.loading')}
       </p>
     )
-  } else if (settings.isError) {
+  } else if (settings.data === undefined) {
     content = <QueryError error={settings.error} onRetry={() => void settings.refetch()} />
-  } else if (isOwner) {
-    content = <SettingsEditor settings={settings.data} />
   } else {
-    content = <SettingsView settings={settings.data} />
+    content = (
+      <>
+        {settings.isError && (
+          <QueryError error={settings.error} onRetry={() => void settings.refetch()} />
+        )}
+        {isOwner ? (
+          <SettingsEditor settings={settings.data} />
+        ) : (
+          <SettingsView settings={settings.data} />
+        )}
+      </>
+    )
   }
 
   return (

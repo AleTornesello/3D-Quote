@@ -1,6 +1,7 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
+import { NETWORK_FAILURE } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
 import { operatorStaff, settingsRow } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
@@ -150,4 +151,17 @@ test('operators see the logo without upload controls', async () => {
   expect(await screen.findByRole('img', { name: 'Logo del negozio' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Carica logo')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Rimuovi logo' })).not.toBeInTheDocument()
+})
+
+test('a failed background refetch keeps the unsaved edits and offers Retry', async () => {
+  const { db, queryClient, user } = renderApp('/settings', { session })
+  const fee = await screen.findByLabelText('Costo di avvio')
+  await user.clear(fee)
+  await user.type(fee, '4,5')
+  db.failNext('settings', NETWORK_FAILURE)
+  await act(() => queryClient.refetchQueries({ queryKey: ['settings'] }))
+  // Query notifications reach React on a timer; let them render before asserting.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(screen.getByLabelText('Costo di avvio')).toHaveValue('4,5')
+  expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument()
 })

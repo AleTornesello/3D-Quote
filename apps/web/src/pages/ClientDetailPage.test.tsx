@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
+import { NETWORK_FAILURE } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
 import { clientRow, operatorStaff, quoteRow } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
@@ -117,4 +118,19 @@ test('New quote for this client opens the quote placeholder with the client', as
     await screen.findByRole('heading', { level: 1, name: 'Nuovo preventivo' }),
   ).toBeInTheDocument()
   expect(router.state.location.search).toBe('?client=1')
+})
+
+test('a failed background refetch keeps the unsaved edits and offers Retry', async () => {
+  const { db, queryClient, user } = renderApp('/clients/1', {
+    session,
+    tables: { clients: [mario()] },
+  })
+  const phone = await screen.findByLabelText('Telefono')
+  await user.type(phone, '9')
+  db.failNext('clients', NETWORK_FAILURE)
+  await act(() => queryClient.refetchQueries({ queryKey: ['clients'] }))
+  // Query notifications reach React on a timer; let them render before asserting.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(screen.getByLabelText('Telefono')).toHaveValue('+39 333 12345679')
+  expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument()
 })
