@@ -13,6 +13,7 @@ grant usage on schema private to authenticated, service_role;
 -- staff
 grant insert on public.staff to authenticated;
 grant execute on function private.is_staff(), private.is_owner() to authenticated;
+grant execute on function public.list_staff(), private.list_staff() to authenticated;
 
 -- printers, materials, clients
 grant insert, update, delete on public.printers, public.materials, public.clients to authenticated;
