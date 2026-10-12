@@ -168,5 +168,22 @@
     "toggleActive": "Attiva/disattiva {{name}}",
     "deleteTitle": "Eliminare il materiale {{name}}?",
     "inUse": "Il materiale è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
+  },
+  "clients": {
+    "empty": "Nessun cliente.",
+    "noMatches": "Nessun cliente corrisponde alla ricerca.",
+    "search": "Cerca per nome, azienda o email",
+    "new": "Nuovo cliente",
+    "fields": {
+      "name": "Nome",
+      "company": "Azienda",
+      "email": "Email",
+      "phone": "Telefono",
+      "notes": "Note interne"
+    },
+    "columns": {
+      "quotes": "Preventivi",
+      "lastQuote": "Ultimo preventivo"
+    }
   }
 }

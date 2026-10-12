@@ -3,6 +3,7 @@ import { Navigate, type RouteObject } from 'react-router'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { RequireOwner } from '@/auth/RequireOwner'
 import { AppShell } from '@/layout/AppShell'
+import { ClientsPage } from '@/pages/ClientsPage'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MaterialsPage } from '@/pages/MaterialsPage'
@@ -13,6 +14,7 @@ import { SECTIONS } from './sections'
 
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
 const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
+  '/clients': <ClientsPage />,
   '/materials': <MaterialsPage />,
   '/printers': <PrintersPage />,
   '/staff': (

@@ -168,5 +168,22 @@
     "toggleActive": "Toggle {{name}} active",
     "deleteTitle": "Delete material {{name}}?",
     "inUse": "This material is used by quote items — deactivate it instead."
+  },
+  "clients": {
+    "empty": "No clients yet.",
+    "noMatches": "No clients match your search.",
+    "search": "Search by name, company or email",
+    "new": "New client",
+    "fields": {
+      "name": "Name",
+      "company": "Company",
+      "email": "Email",
+      "phone": "Phone",
+      "notes": "Internal notes"
+    },
+    "columns": {
+      "quotes": "Quotes",
+      "lastQuote": "Last quote"
+    }
   }
 }
