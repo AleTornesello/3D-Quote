@@ -5,6 +5,7 @@ import { RequireOwner } from '@/auth/RequireOwner'
 import { AppShell } from '@/layout/AppShell'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { MaterialsPage } from '@/pages/MaterialsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrintersPage } from '@/pages/PrintersPage'
 import { SectionPage } from '@/pages/SectionPage'
@@ -12,6 +13,7 @@ import { SECTIONS } from './sections'
 
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
 const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
+  '/materials': <MaterialsPage />,
   '/printers': <PrintersPage />,
   '/staff': (
     <RequireOwner>

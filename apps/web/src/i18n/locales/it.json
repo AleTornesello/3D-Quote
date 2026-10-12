@@ -144,5 +144,29 @@
     "duplicateName": "Esiste già una stampante con questo nome.",
     "deleteTitle": "Eliminare la stampante {{name}}?",
     "inUse": "La stampante è usata in alcuni preventivi: puoi disattivarla invece di eliminarla."
+  },
+  "materials": {
+    "empty": "Nessun materiale.",
+    "new": "Nuovo materiale",
+    "edit": "Modifica materiale",
+    "fields": {
+      "name": "Nome",
+      "type": "Tipo",
+      "color": "Colore",
+      "costPerKg": "Costo al kg",
+      "density": "Densità (g/cm³)",
+      "active": "Attivo"
+    },
+    "columns": {
+      "density": "Densità"
+    },
+    "types": {
+      "other": "Altro"
+    },
+    "costValue": "{{value}}/kg",
+    "densityValue": "{{value}} g/cm³",
+    "toggleActive": "Attiva/disattiva {{name}}",
+    "deleteTitle": "Eliminare il materiale {{name}}?",
+    "inUse": "Il materiale è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
   }
 }

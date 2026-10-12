@@ -8,7 +8,6 @@ import { renderApp } from '@/test/render-app'
 const pages = [
   ['/quotes', 'Preventivi'],
   ['/clients', 'Clienti'],
-  ['/materials', 'Materiali'],
   ['/settings', 'Impostazioni'],
   ['/staff', 'Personale'],
   ['/account', 'Account'],

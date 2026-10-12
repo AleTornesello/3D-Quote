@@ -144,5 +144,29 @@
     "duplicateName": "A printer with this name already exists.",
     "deleteTitle": "Delete printer {{name}}?",
     "inUse": "This printer is used by quote items — deactivate it instead."
+  },
+  "materials": {
+    "empty": "No materials yet.",
+    "new": "New material",
+    "edit": "Edit material",
+    "fields": {
+      "name": "Name",
+      "type": "Type",
+      "color": "Colour",
+      "costPerKg": "Cost per kg",
+      "density": "Density (g/cm³)",
+      "active": "Active"
+    },
+    "columns": {
+      "density": "Density"
+    },
+    "types": {
+      "other": "Other"
+    },
+    "costValue": "{{value}}/kg",
+    "densityValue": "{{value}} g/cm³",
+    "toggleActive": "Toggle {{name}} active",
+    "deleteTitle": "Delete material {{name}}?",
+    "inUse": "This material is used by quote items — deactivate it instead."
   }
 }
