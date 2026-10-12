@@ -184,6 +184,27 @@
     "columns": {
       "quotes": "Quotes",
       "lastQuote": "Last quote"
+    },
+    "inUse": "This client has quotes and can't be deleted.",
+    "detail": {
+      "quotes": "Client's quotes",
+      "noQuotes": "No quotes yet.",
+      "newQuote": "New quote for this client",
+      "number": "Number",
+      "status": "Status",
+      "created": "Created",
+      "validUntil": "Valid until",
+      "deleteTitle": "Delete client {{name}}?"
+    }
+  },
+  "quotes": {
+    "new": "New quote",
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "expired": "Expired"
     }
   }
 }

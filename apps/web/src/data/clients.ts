@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Tables, TablesInsert } from '@/lib/database.types'
 import { useSupabase } from '@/lib/supabase'
-import { toAppError } from './errors'
+import { AppError, toAppError } from './errors'
 import { queryKeys } from './query-keys'
 
 export type Client = Tables<'clients'>
@@ -58,5 +58,58 @@ export function useSaveClient() {
       return data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+  })
+}
+
+export type ClientQuote = Pick<
+  Tables<'quotes'>,
+  'id' | 'number' | 'status' | 'created_at' | 'valid_until'
+>
+
+/** One client, or null when it doesn't exist. `id` null (an invalid URL) disables the query. */
+export function useClient(id: number | null) {
+  const supabase = useSupabase()
+  return useQuery({
+    queryKey: queryKeys.client(id ?? 0),
+    enabled: id !== null,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', id as number)
+        .maybeSingle()
+      if (error) throw toAppError(error)
+      return data
+    },
+  })
+}
+
+export function useClientQuotes(clientId: number) {
+  const supabase = useSupabase()
+  return useQuery({
+    queryKey: queryKeys.clientQuotes(clientId),
+    queryFn: async (): Promise<ClientQuote[]> => {
+      const { data, error } = await supabase
+        .from('quotes')
+        .select('id, number, status, created_at, valid_until')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+      if (error) throw toAppError(error)
+      return data
+    },
+  })
+}
+
+export function useDeleteClient() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { data, error } = await supabase.from('clients').delete().eq('id', id).select('id')
+      if (error) throw toAppError(error)
+      if (data.length === 0) throw new AppError('notFound')
+    },
+    // Only the lists: refetching the deleted client's own page would flash "not found" before leaving it.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.clientLists }),
   })
 }

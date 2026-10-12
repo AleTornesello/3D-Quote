@@ -184,6 +184,27 @@
     "columns": {
       "quotes": "Preventivi",
       "lastQuote": "Ultimo preventivo"
+    },
+    "inUse": "Il cliente ha dei preventivi e non può essere eliminato.",
+    "detail": {
+      "quotes": "Preventivi del cliente",
+      "noQuotes": "Nessun preventivo.",
+      "newQuote": "Nuovo preventivo per questo cliente",
+      "number": "Numero",
+      "status": "Stato",
+      "created": "Creato",
+      "validUntil": "Valido fino al",
+      "deleteTitle": "Eliminare il cliente {{name}}?"
+    }
+  },
+  "quotes": {
+    "new": "Nuovo preventivo",
+    "status": {
+      "draft": "Bozza",
+      "sent": "Inviato",
+      "accepted": "Accettato",
+      "rejected": "Rifiutato",
+      "expired": "Scaduto"
     }
   }
 }
