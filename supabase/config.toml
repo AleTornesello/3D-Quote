@@ -417,3 +417,6 @@ enabled = false
 # The functions check the caller's JWT themselves (auth.getUser), so their 401s carry CORS headers and a code.
 [functions.price-quote]
 verify_jwt = false
+
+[functions.duplicate-quote]
+verify_jwt = false
