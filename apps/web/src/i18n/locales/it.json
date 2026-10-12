@@ -53,5 +53,33 @@
     "title": "Supabase non configurato",
     "body": "Imposta le variabili mancanti in apps/web/.env.local (vedi apps/web/.env.example) e riavvia il server di sviluppo.",
     "missing": "Variabili mancanti o non valide:"
+  },
+  "errors": {
+    "duplicate": "Esiste già un elemento con questo valore.",
+    "inUse": "È ancora in uso e non può essere eliminato.",
+    "invalid": "Alcuni valori non sono validi.",
+    "forbidden": "Non hai i permessi per questa operazione.",
+    "lastOwner": "Deve esserci almeno un titolare.",
+    "notFound": "L'elemento non esiste più o non puoi modificarlo.",
+    "network": "Impossibile contattare il server. Controlla la connessione e riprova.",
+    "unknown": "Qualcosa è andato storto. Riprova."
+  },
+  "validation": {
+    "required": "Campo obbligatorio.",
+    "tooLong": "Troppo lungo.",
+    "number": "Inserisci un numero.",
+    "integer": "Inserisci un numero intero.",
+    "decimals1": "Al massimo 1 decimale.",
+    "decimals2": "Al massimo 2 decimali.",
+    "decimals4": "Al massimo 4 decimali.",
+    "positive": "Deve essere maggiore di zero.",
+    "nonNegative": "Non può essere negativo.",
+    "percent": "Deve essere tra 0 e 100.",
+    "validityDays": "Deve essere tra 1 e 365 giorni.",
+    "email": "Inserisci un indirizzo email valido.",
+    "currency": "Usa un codice di 3 lettere, es. EUR.",
+    "quotePrefix": "Da 1 a 10 lettere o cifre.",
+    "passwordLength": "Almeno 6 caratteri.",
+    "passwordMismatch": "Le password non coincidono."
   }
 }

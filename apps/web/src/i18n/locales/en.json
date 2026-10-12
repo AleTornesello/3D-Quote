@@ -53,5 +53,33 @@
     "title": "Supabase is not configured",
     "body": "Set the missing variables in apps/web/.env.local (see apps/web/.env.example) and restart the dev server.",
     "missing": "Missing or invalid variables:"
+  },
+  "errors": {
+    "duplicate": "An item with this value already exists.",
+    "inUse": "It's still in use and can't be deleted.",
+    "invalid": "Some values aren't valid.",
+    "forbidden": "You don't have permission to do this.",
+    "lastOwner": "There must be at least one owner.",
+    "notFound": "This item no longer exists or you can't change it.",
+    "network": "Couldn't reach the server. Check your connection and try again.",
+    "unknown": "Something went wrong. Try again."
+  },
+  "validation": {
+    "required": "Required.",
+    "tooLong": "Too long.",
+    "number": "Enter a number.",
+    "integer": "Enter a whole number.",
+    "decimals1": "At most 1 decimal place.",
+    "decimals2": "At most 2 decimal places.",
+    "decimals4": "At most 4 decimal places.",
+    "positive": "Must be greater than zero.",
+    "nonNegative": "Can't be negative.",
+    "percent": "Must be between 0 and 100.",
+    "validityDays": "Must be between 1 and 365 days.",
+    "email": "Enter a valid email address.",
+    "currency": "Use a 3-letter code, e.g. EUR.",
+    "quotePrefix": "1 to 10 letters or digits.",
+    "passwordLength": "At least 6 characters.",
+    "passwordMismatch": "The passwords don't match."
   }
 }
