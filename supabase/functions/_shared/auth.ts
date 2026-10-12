@@ -1,4 +1,4 @@
-import type { SupabaseClient } from './supabase.ts'
+import { isAuthApiError, type SupabaseClient } from './supabase.ts'
 import { HttpError } from './http.ts'
 
 /** The caller's user id, if the bearer token is a valid session of an active staff member. */
@@ -7,9 +7,15 @@ export async function requireStaff(req: Request, admin: SupabaseClient): Promise
   if (!token) throw new HttpError(401, 'not_authenticated')
 
   const { data, error } = await admin.auth.getUser(token)
-  // An Auth outage is not the caller's fault: let it surface as a 500.
-  if (error && (error.status ?? 0) >= 500) throw error
-  if (error || !data.user) throw new HttpError(401, 'not_authenticated')
+  if (error) {
+    // Only Auth's verdict on the token means "not authenticated". An outage or a rate limit surfaces as a 500, so
+    // the web app doesn't sign the user out over it.
+    if (isAuthApiError(error) && [400, 401, 403, 404].includes(error.status)) {
+      throw new HttpError(401, 'not_authenticated')
+    }
+    throw error
+  }
+  if (!data.user) throw new HttpError(401, 'not_authenticated')
 
   const { data: staff, error: staffError } = await admin
     .from('staff')
