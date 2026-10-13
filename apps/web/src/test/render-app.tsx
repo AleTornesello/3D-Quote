@@ -8,7 +8,7 @@ import type { Tables } from '@/lib/database.types'
 import { createQueryClient } from '@/lib/query-client'
 import { FakeDb, type FunctionHandler, type Row } from './fake-db'
 import { createFakeSupabase, type SignInFailure } from './fake-supabase'
-import { ownerStaff, settingsRow } from './fixtures'
+import { ownerStaff, quoteRow, settingsRow } from './fixtures'
 
 export type RenderAppOptions = {
   session?: Session | null
@@ -35,6 +35,27 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
     opts.rpc,
     opts.functions,
   )
+  db.configure({
+    defaults: {
+      // Column defaults and the numbering trigger.
+      quotes: () => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...defaults } = quoteRow()
+        return defaults
+      },
+    },
+    embeds: {
+      quotes: (row, fake) => {
+        const client = fake.table('clients').find((c) => c.id === row.client_id)
+        const creator = fake.table('staff').find((s) => s.user_id === row.created_by)
+        return {
+          client: client ? { id: client.id, name: client.name, company: client.company } : null,
+          creator: { display_name: creator?.display_name ?? '' },
+        }
+      },
+      quote_items: () => ({ job: [] }),
+    },
+  })
   const fake = createFakeSupabase({ ...opts, db })
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const queryClient = createQueryClient({ retry: false })

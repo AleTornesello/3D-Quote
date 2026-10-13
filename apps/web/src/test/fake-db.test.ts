@@ -161,3 +161,18 @@ describe('rpc() and storage', () => {
     ])
   })
 })
+
+test('configure() fills insert defaults and embeds rows on select', async () => {
+  const db = new FakeDb({ clients: [{ id: 1, name: 'Mario' }] }).configure({
+    defaults: { quotes: () => ({ status: 'draft' }) },
+    embeds: {
+      quotes: (row, fake) => ({
+        client: fake.table('clients').find((c) => c.id === row.client_id),
+      }),
+    },
+  })
+  await db.from('quotes').insert({ client_id: 1 })
+  const { data } = await db.from('quotes').select('*').single()
+  expect(data).toEqual({ id: 1, status: 'draft', client_id: 1, client: { id: 1, name: 'Mario' } })
+  expect(db.calls('quotes')[0]).toEqual({ op: 'insert', filters: [], values: { client_id: 1 } })
+})

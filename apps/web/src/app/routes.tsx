@@ -11,6 +11,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { MaterialsPage } from '@/pages/MaterialsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrintersPage } from '@/pages/PrintersPage'
+import { QuoteEditorPage } from '@/pages/QuoteEditorPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { SectionPage } from '@/pages/SectionPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -48,6 +49,7 @@ export const routes: RouteObject[] = [
           })),
           { path: 'clients/:id', element: <ClientDetailPage /> },
           { path: 'quotes/new', element: <QuotesPage creating /> },
+          { path: 'quotes/:id', element: <QuoteEditorPage /> },
           { path: 'account', element: <AccountPage /> },
         ],
       },

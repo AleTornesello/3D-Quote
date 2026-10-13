@@ -1,3 +1,4 @@
+import type { ItemJob } from '@/data/quote-rules'
 import type { Tables } from '@/lib/database.types'
 
 const CREATED = '2026-01-01T09:00:00Z'
@@ -134,5 +135,59 @@ export function quoteListRow(overrides: Record<string, unknown> = {}) {
     item_count: 1,
     total: 39.24,
     ...overrides,
+  }
+}
+
+export function jobRow(overrides: Partial<ItemJob> = {}): ItemJob {
+  return {
+    id: nextId++,
+    status: 'queued',
+    error: null,
+    queued_at: '2026-10-13T09:59:00Z',
+    started_at: null,
+    finished_at: null,
+    ...overrides,
+  }
+}
+
+/** A quote item as the items query returns it; `job` is the newest slicing job (embedded as a 0–1 array). */
+export function quoteItemRow(
+  overrides: Partial<Tables<'quote_items'>> & { job?: ItemJob | null } = {},
+) {
+  const { job = null, ...rest } = overrides
+  const id = rest.id ?? nextId++
+  return {
+    id,
+    quote_id: 7,
+    model_path: `7/u${id}/staffa.stl`,
+    original_filename: 'staffa.stl',
+    description: 'Staffa',
+    printer_id: null,
+    material_id: null,
+    quantity: 1,
+    layer_height_mm: 0.2,
+    infill_percent: 20,
+    supports: false,
+    print_time_s: null,
+    filament_g: null,
+    bbox_x_mm: null,
+    bbox_y_mm: null,
+    bbox_z_mm: null,
+    material_cost: null,
+    machine_cost: null,
+    energy_cost: null,
+    failure_cost: null,
+    setup_fee: null,
+    markup_amount: null,
+    markup_pct: null,
+    computed_total: null,
+    override_total: null,
+    override_reason: null,
+    item_total: null,
+    priced_at: null,
+    created_at: CREATED,
+    updated_at: CREATED,
+    ...rest,
+    job: job ? [job] : [],
   }
 }

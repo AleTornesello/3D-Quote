@@ -1,8 +1,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { TablesInsert } from '@/lib/database.types'
+import type { Tables, TablesInsert } from '@/lib/database.types'
 import { useSupabase } from '@/lib/supabase'
 import { sanitizeSearch } from './clients'
-import { toAppError } from './errors'
+import type { ClientOption } from './clients'
+import { invokeFunction } from './edge-functions'
+import { AppError, toAppError } from './errors'
 import { queryKeys } from './query-keys'
 import type { QuoteListParams, QuoteSort, QuoteStatus } from './quote-rules'
 
@@ -110,5 +112,131 @@ export function useSetMarkupOverride() {
       if (error) throw toAppError(error)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
+  })
+}
+export type Quote = Tables<'quotes'> & {
+  client: ClientOption
+  creator: { display_name: string }
+}
+
+/** One quote with its client and creator, or null when it doesn't exist. `id` null disables the query. */
+export function useQuote(id: number | null) {
+  const supabase = useSupabase()
+  return useQuery({
+    queryKey: queryKeys.quote(id ?? 0),
+    enabled: id !== null,
+    queryFn: async (): Promise<Quote | null> => {
+      const { data, error } = await supabase
+        .from('quotes')
+        .select('*, client:clients(id, name, company), creator:staff(display_name)')
+        .eq('id', id as number)
+        .maybeSingle()
+      if (error) throw toAppError(error)
+      return data as Quote | null
+    },
+  })
+}
+
+/** Draft only: RLS hides other quotes from updates, so no row back means the quote left draft. */
+export function useUpdateQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, values }: { id: number; values: Partial<QuoteValues> }) => {
+      const { data, error } = await supabase.from('quotes').update(values).eq('id', id).select('id')
+      if (error) throw toAppError(error)
+      if (data.length === 0) throw new AppError('notDraft')
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+      ]),
+  })
+}
+
+/** Owner, draft only. Removes the items' files afterwards, on a best-effort basis. */
+export function useDeleteQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const items = await supabase.from('quote_items').select('model_path').eq('quote_id', id)
+      if (items.error) throw toAppError(items.error)
+      const { data, error } = await supabase.from('quotes').delete().eq('id', id).select('id')
+      if (error) throw toAppError(error)
+      if (data.length === 0) throw new AppError('notFound')
+      const paths = items.data.map((item) => item.model_path)
+      // A file left behind is an orphan for the cleanup job, not a reason to report the delete as failed.
+      if (paths.length > 0) await supabase.storage.from('models').remove(paths)
+    },
+    // Only the lists: refetching the deleted quote would flash "not found" before leaving the page.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+      ]),
+  })
+}
+
+export type SendBlocker = { quote_item_id: number | null; code: string }
+
+/** Why the quote can't be sent yet; empty means it can. Always fetched fresh when the dialog opens. */
+export function useSendBlockers(quoteId: number, enabled: boolean) {
+  const supabase = useSupabase()
+  return useQuery({
+    queryKey: queryKeys.sendBlockers(quoteId),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async (): Promise<SendBlocker[]> => {
+      const { data, error } = await supabase.rpc('get_quote_send_blockers', { quote_id: quoteId })
+      if (error) throw toAppError(error)
+      // quote_item_id is null for quote-level blockers, though the generated type says number.
+      return data as SendBlocker[]
+    },
+  })
+}
+
+export type QuoteOutcome = 'sent' | 'accepted' | 'rejected'
+
+export function useMarkQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ quoteId, outcome }: { quoteId: number; outcome: QuoteOutcome }) => {
+      const args = { quote_id: quoteId }
+      const { error } =
+        outcome === 'sent'
+          ? await supabase.rpc('mark_quote_sent', args)
+          : outcome === 'accepted'
+            ? await supabase.rpc('mark_quote_accepted', args)
+            : await supabase.rpc('mark_quote_rejected', args)
+      if (error) throw toAppError(error)
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+      ]),
+  })
+}
+
+/** Copies the quote into a new priced draft (Edge Function). Resolves to the copy's id. */
+export function useDuplicateQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (quoteId: number): Promise<number> => {
+      const result = await invokeFunction<{ quote_id: number }>(supabase, 'duplicate-quote', {
+        quote_id: quoteId,
+      })
+      return result.quote_id
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+      ]),
   })
 }

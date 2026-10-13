@@ -178,7 +178,11 @@ class FakeQuery implements PromiseLike<Result> {
     let affected: Row[]
     if (this.op === 'insert') {
       const list = (Array.isArray(this.values) ? this.values : [this.values]) as Row[]
-      affected = list.map((values) => ({ id: this.db.nextId(this.tableName), ...values }))
+      affected = list.map((values) => ({
+        id: this.db.nextId(this.tableName),
+        ...this.db.defaultsFor(this.tableName),
+        ...values,
+      }))
       rows.push(...affected)
     } else if (this.op === 'update') {
       affected = matching()
@@ -211,7 +215,7 @@ class FakeQuery implements PromiseLike<Result> {
       affected = affected.slice(this.window[0], this.window[1] + 1)
     }
 
-    const data = affected.map((row) => ({ ...row }))
+    const data = affected.map((row) => this.db.withEmbeds(this.tableName, row))
     if (this.op !== 'select' && !this.returning) return result(null, null, 204)
     if (this.mode === 'many') return result(data, null, 200, this.counting ? total : null)
     if (data.length === 1) return result(data[0], null, 200)
@@ -237,6 +241,8 @@ export class FakeDb {
   private readonly storageLog: { bucket: string; call: StorageCall }[] = []
   private readonly functions: Record<string, FunctionHandler>
   private readonly functionLog: { name: string; body: unknown }[] = []
+  private defaults: Record<string, () => Row> = {}
+  private embeds: Record<string, (row: Row, db: FakeDb) => Row> = {}
 
   constructor(
     tables: Record<string, Row[]> = {},
@@ -248,6 +254,34 @@ export class FakeDb {
     )
     this.rpcs = rpcs
     this.functions = functions
+  }
+
+  /**
+   * What the real database adds: column defaults and trigger values on insert, and embedded resources on select
+   * (only fields the row doesn't already carry, so seeded embeds win).
+   */
+  configure(options: {
+    defaults?: Record<string, () => Row>
+    embeds?: Record<string, (row: Row, db: FakeDb) => Row>
+  }) {
+    Object.assign(this.defaults, options.defaults)
+    Object.assign(this.embeds, options.embeds)
+    return this
+  }
+
+  /** @internal used by FakeQuery */
+  defaultsFor(table: string): Row {
+    return this.defaults[table]?.() ?? {}
+  }
+
+  /** @internal used by FakeQuery */
+  withEmbeds(table: string, row: Row): Row {
+    const embed = this.embeds[table]
+    if (!embed) return { ...row }
+    const extra = Object.fromEntries(
+      Object.entries(embed(row, this)).filter(([key]) => !(key in row)),
+    )
+    return { ...row, ...extra }
   }
 
   from(table: string) {

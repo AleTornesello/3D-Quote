@@ -257,6 +257,42 @@
       "markup": "Ricarico personalizzato (%)",
       "markupHint": "Se vuoto si usa il ricarico predefinito.",
       "create": "Crea preventivo"
+    },
+    "editor": {
+      "client": "Cliente",
+      "createdBy": "Creato da {{name}} il {{date}}",
+      "markup": "Ricarico",
+      "markupDefault": "{{pct}} % (predefinito)",
+      "markupOverride": "{{pct}} % (personalizzato)",
+      "editDetails": "Modifica dati",
+      "detailsTitle": "Dati del preventivo",
+      "markSent": "Segna come inviato",
+      "markAccepted": "Segna come accettato",
+      "markRejected": "Segna come rifiutato",
+      "duplicate": "Duplica",
+      "duplicated": "Copia creata.",
+      "waitSlicing": "Attendi la fine dello slicing.",
+      "items": "Articoli",
+      "send": {
+        "title": "Segnare {{number}} come inviato?",
+        "body": "I prezzi verranno bloccati e il preventivo non sarà più modificabile.",
+        "checking": "Controllo in corso…",
+        "blockedTitle": "{{number}} non può ancora essere inviato",
+        "blockedBody": "Prima sistema questi punti:"
+      },
+      "blockers": {
+        "not_draft": "Il preventivo non è più una bozza.",
+        "no_items": "Il preventivo non ha articoli.",
+        "valid_until_past": "La data di validità è passata.",
+        "missing_printer_or_material": "{{item}}: scegli stampante e materiale.",
+        "not_sliced": "{{item}}: lo slicing non è completato.",
+        "not_priced": "{{item}}: il prezzo non è calcolato.",
+        "does_not_fit": "{{item}}: non entra in {{printer}}."
+      },
+      "acceptTitle": "Segnare {{number}} come accettato?",
+      "rejectTitle": "Segnare {{number}} come rifiutato?",
+      "outcomeBody": "Lo stato non potrà più essere cambiato.",
+      "deleteTitle": "Eliminare {{number}}?"
     }
   },
   "settings": {

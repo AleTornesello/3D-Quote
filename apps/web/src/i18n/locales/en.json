@@ -257,6 +257,42 @@
       "markup": "Markup override (%)",
       "markupHint": "When empty, the default markup applies.",
       "create": "Create quote"
+    },
+    "editor": {
+      "client": "Client",
+      "createdBy": "Created by {{name}} on {{date}}",
+      "markup": "Markup",
+      "markupDefault": "{{pct}} % (default)",
+      "markupOverride": "{{pct}} % (override)",
+      "editDetails": "Edit details",
+      "detailsTitle": "Quote details",
+      "markSent": "Mark as sent",
+      "markAccepted": "Mark accepted",
+      "markRejected": "Mark rejected",
+      "duplicate": "Duplicate",
+      "duplicated": "Copy created.",
+      "waitSlicing": "Wait for slicing to finish.",
+      "items": "Items",
+      "send": {
+        "title": "Mark {{number}} as sent?",
+        "body": "Prices will be frozen and the quote can no longer be changed.",
+        "checking": "Checking…",
+        "blockedTitle": "{{number}} can't be sent yet",
+        "blockedBody": "Fix these first:"
+      },
+      "blockers": {
+        "not_draft": "The quote is no longer a draft.",
+        "no_items": "The quote has no items.",
+        "valid_until_past": "The valid-until date has passed.",
+        "missing_printer_or_material": "{{item}}: choose printer and material.",
+        "not_sliced": "{{item}}: slicing hasn't finished.",
+        "not_priced": "{{item}}: price not calculated.",
+        "does_not_fit": "{{item}}: doesn't fit on {{printer}}."
+      },
+      "acceptTitle": "Mark {{number}} as accepted?",
+      "rejectTitle": "Mark {{number}} as rejected?",
+      "outcomeBody": "The status can't be changed afterwards.",
+      "deleteTitle": "Delete {{number}}?"
     }
   },
   "settings": {
