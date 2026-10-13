@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import type { Tables, TablesInsert } from '@/lib/database.types'
 import { useCallback } from 'react'
 import { useSupabase } from '@/lib/supabase'
@@ -35,6 +41,20 @@ const SORT_COLUMN: Record<Exclude<QuoteSort, 'number'>, string> = {
   created: 'created_at',
   valid_until: 'valid_until',
   total: 'total',
+}
+
+/** The quote's status changed under an action: reload it, its items, its send blockers and the lists. */
+function refreshChangedQuote(queryClient: QueryClient, quoteId: number) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.quote(quoteId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.sendBlockers(quoteId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+  ])
+}
+
+function isNotDraft(error: unknown) {
+  return error instanceof AppError && error.kind === 'notDraft'
 }
 
 export function useQuotesList(params: QuoteListParams) {
@@ -113,6 +133,9 @@ export function useSetMarkupOverride() {
       if (error) throw toAppError(error)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
+    onError: (error, { quoteId }) => {
+      if (isNotDraft(error)) void refreshChangedQuote(queryClient, quoteId)
+    },
   })
 }
 export type Quote = Tables<'quotes'> & {
@@ -153,6 +176,9 @@ export function useUpdateQuote() {
         queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
       ]),
+    onError: (error, { id }) => {
+      if (isNotDraft(error)) void refreshChangedQuote(queryClient, id)
+    },
   })
 }
 
@@ -166,10 +192,17 @@ export function useDeleteQuote() {
       if (items.error) throw toAppError(items.error)
       const { data, error } = await supabase.from('quotes').delete().eq('id', id).select('id')
       if (error) throw toAppError(error)
-      if (data.length === 0) throw new AppError('notFound')
+      // RLS hides non-drafts from deletes; the usual cause is that someone has just sent it.
+      if (data.length === 0) throw new AppError('notDraft')
       const paths = items.data.map((item) => item.model_path)
       // A file left behind is an orphan for the cleanup job, not a reason to report the delete as failed.
-      if (paths.length > 0) await supabase.storage.from('models').remove(paths)
+      if (paths.length > 0) {
+        try {
+          await supabase.storage.from('models').remove(paths)
+        } catch {
+          // Already deleted: see above.
+        }
+      }
     },
     // Only the lists: refetching the deleted quote would flash "not found" before leaving the page.
     onSuccess: () =>
@@ -177,6 +210,9 @@ export function useDeleteQuote() {
         queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
       ]),
+    onError: (error, id) => {
+      if (isNotDraft(error)) void refreshChangedQuote(queryClient, id)
+    },
   })
 }
 
@@ -220,6 +256,9 @@ export function useMarkQuote() {
         queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
       ]),
+    // quote_not_draft, quote_not_sent, quote_not_sendable: the status changed under us; anything else is cheap to
+    // reload too.
+    onError: (_error, { quoteId }) => void refreshChangedQuote(queryClient, quoteId),
   })
 }
 

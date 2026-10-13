@@ -56,6 +56,8 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
       },
       quote_items: () => ({ job: [] }),
     },
+    // RLS: staff update and delete drafts only.
+    writable: { quotes: (row) => row.status === 'draft' },
   })
   const fake = createFakeSupabase({ ...opts, db })
   const router = createMemoryRouter(routes, { initialEntries: [path] })

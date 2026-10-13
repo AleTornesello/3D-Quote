@@ -230,6 +230,67 @@ test('owners change the markup from Edit details', async () => {
   expect(db.calls('quotes').filter((call) => call.op === 'update')).toEqual([])
 })
 
+const NOT_DRAFT = 'Il preventivo non è più una bozza e non si può modificare.'
+
+test('Edit details on a quote that has meanwhile been sent explains why and turns read-only', async () => {
+  const { db, user } = renderEditor()
+  await user.click(await screen.findByRole('button', { name: 'Modifica dati' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Dati del preventivo' })
+  await user.type(within(sheet).getByLabelText('Note'), 'Nuove note')
+  db.table('quotes')[0].status = 'sent'
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+  expect(await within(sheet).findByText(NOT_DRAFT)).toBeInTheDocument()
+  // The sheet is modal, so the page behind it only shows up with hidden elements included.
+  await waitFor(() => expect(screen.getByText('Inviato')).toBeInTheDocument())
+  expect(
+    screen.queryByRole('button', { name: 'Modifica dati', hidden: true }),
+  ).not.toBeInTheDocument()
+})
+
+test('Mark accepted on a quote someone else already closed shows its new status', async () => {
+  const { db, user } = renderEditor({ quote: { status: 'sent' } })
+  await user.click(await screen.findByRole('button', { name: 'Segna come accettato' }))
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Segnare Q-2026-0007 come accettato?',
+  })
+  db.table('quotes')[0].status = 'accepted'
+  db.failNext('mark_quote_accepted', { code: 'P0001', message: 'quote_not_sent' })
+  await user.click(within(dialog).getByRole('button', { name: 'Segna come accettato' }))
+  expect(
+    await within(dialog).findByText('Solo un preventivo inviato può essere accettato o rifiutato.'),
+  ).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByText('Accettato')).toBeInTheDocument())
+})
+
+test('deleting a draft that has meanwhile been sent explains why and keeps its files', async () => {
+  const { db, user, router } = renderEditor({
+    items: [quoteItemRow({ id: 31, model_path: '7/u31/staffa.stl' })],
+  })
+  await user.click(await screen.findByRole('button', { name: 'Elimina' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0007?' })
+  db.table('quotes')[0].status = 'sent'
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  expect(await within(dialog).findByText(NOT_DRAFT)).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByText('Inviato')).toBeInTheDocument())
+  expect(router.state.location.pathname).toBe('/quotes/7')
+  expect(db.storageCalls('models')).toEqual([])
+})
+
+test('a delete still succeeds when removing its files throws', async () => {
+  const { db, user, router } = renderEditor({
+    items: [quoteItemRow({ id: 31, model_path: '7/u31/staffa.stl' })],
+  })
+  const bucket = db.storage.from
+  vi.spyOn(db.storage, 'from').mockImplementation((name) => ({
+    ...bucket(name),
+    remove: () => Promise.reject(new TypeError('Failed to fetch')),
+  }))
+  await user.click(await screen.findByRole('button', { name: 'Elimina' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0007?' })
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/quotes'))
+})
+
 test('an unknown or malformed id shows not found', async () => {
   renderApp('/quotes/999', { session })
   expect(await screen.findByRole('heading', { name: 'Pagina non trovata' })).toBeInTheDocument()

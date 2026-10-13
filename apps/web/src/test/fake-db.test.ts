@@ -176,3 +176,21 @@ test('configure() fills insert defaults and embeds rows on select', async () => 
   expect(data).toEqual({ id: 1, status: 'draft', client_id: 1, client: { id: 1, name: 'Mario' } })
   expect(db.calls('quotes')[0]).toEqual({ op: 'insert', filters: [], values: { client_id: 1 } })
 })
+
+test('configure() writable hides other rows from updates and deletes, like an RLS policy', async () => {
+  const db = new FakeDb({
+    quotes: [
+      { id: 1, status: 'draft' },
+      { id: 2, status: 'sent' },
+    ],
+  }).configure({ writable: { quotes: (row) => row.status === 'draft' } })
+  expect((await db.from('quotes').update({ notes: 'x' }).eq('id', 2).select('id')).data).toEqual([])
+  expect((await db.from('quotes').delete().eq('id', 2).select('id')).data).toEqual([])
+  expect(db.table('quotes')).toEqual([
+    { id: 1, status: 'draft' },
+    { id: 2, status: 'sent' },
+  ])
+  expect((await db.from('quotes').delete().eq('id', 1).select('id')).data).toEqual([
+    { id: 1, status: 'draft' },
+  ])
+})

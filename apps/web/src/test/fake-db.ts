@@ -175,6 +175,7 @@ class FakeQuery implements PromiseLike<Result> {
 
     const rows = this.db.table(this.tableName)
     const matching = () => rows.filter((row) => this.filters.every((f) => matches(row, f)))
+    const writable = () => matching().filter((row) => this.db.isWritable(this.tableName, row))
     let affected: Row[]
     if (this.op === 'insert') {
       const list = (Array.isArray(this.values) ? this.values : [this.values]) as Row[]
@@ -185,10 +186,10 @@ class FakeQuery implements PromiseLike<Result> {
       }))
       rows.push(...affected)
     } else if (this.op === 'update') {
-      affected = matching()
+      affected = writable()
       affected.forEach((row) => Object.assign(row, this.values))
     } else if (this.op === 'delete') {
-      affected = matching()
+      affected = writable()
       this.db.replace(
         this.tableName,
         rows.filter((row) => !affected.includes(row)),
@@ -243,6 +244,7 @@ export class FakeDb {
   private readonly functionLog: { name: string; body: unknown }[] = []
   private defaults: Record<string, () => Row> = {}
   private embeds: Record<string, (row: Row, db: FakeDb) => Row> = {}
+  private writable: Record<string, (row: Row) => boolean> = {}
 
   constructor(
     tables: Record<string, Row[]> = {},
@@ -258,15 +260,23 @@ export class FakeDb {
 
   /**
    * What the real database adds: column defaults and trigger values on insert, and embedded resources on select
-   * (only fields the row doesn't already carry, so seeded embeds win).
+   * (only fields the row doesn't already carry, so seeded embeds win), and the rows an RLS policy lets updates and
+   * deletes reach (`writable`; the others are silently skipped).
    */
   configure(options: {
     defaults?: Record<string, () => Row>
     embeds?: Record<string, (row: Row, db: FakeDb) => Row>
+    writable?: Record<string, (row: Row) => boolean>
   }) {
     Object.assign(this.defaults, options.defaults)
     Object.assign(this.embeds, options.embeds)
+    Object.assign(this.writable, options.writable)
     return this
+  }
+
+  /** @internal used by FakeQuery */
+  isWritable(table: string, row: Row): boolean {
+    return this.writable[table]?.(row) ?? true
   }
 
   /** @internal used by FakeQuery */
