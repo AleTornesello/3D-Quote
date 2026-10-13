@@ -143,13 +143,34 @@ test('pages through 25 at a time', async () => {
   const { user, router } = renderApp('/quotes', { session, tables: { quotes_list: rows } })
   expect(await screen.findByText('1–25 di 26')).toBeInTheDocument()
   expect(dataRows()).toHaveLength(25)
+  // Default sort is newest first.
+  expect(within(dataRows()[0]).getAllByRole('cell')[0]).toHaveTextContent('Q-2026-0026')
   expect(screen.getByRole('button', { name: 'Precedente' })).toBeDisabled()
 
   await user.click(screen.getByRole('button', { name: 'Successiva' }))
   expect(await screen.findByText('26–26 di 26')).toBeInTheDocument()
   expect(dataRows()).toHaveLength(1)
+  expect(within(dataRows()[0]).getAllByRole('cell')[0]).toHaveTextContent('Q-2026-0001')
   expect(router.state.location.search).toBe('?page=2')
   expect(screen.getByRole('button', { name: 'Successiva' })).toBeDisabled()
+})
+
+test('changing a filter or the sort goes back to page 1', async () => {
+  const rows = Array.from({ length: 30 }, (_, i) => quoteListRow({ id: i + 1 }))
+  const { user, router } = renderApp('/quotes?page=2', { session, tables: { quotes_list: rows } })
+  expect(await screen.findByText('26–30 di 30')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /Stato/ }))
+  await user.click(await screen.findByRole('checkbox', { name: 'Bozza' }))
+  await waitFor(() => expect(router.state.location.search).toBe('?status=draft'))
+  await user.keyboard('{Escape}')
+  expect(await screen.findByText('1–25 di 30')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Successiva' }))
+  await waitFor(() => expect(router.state.location.search).toContain('page=2'))
+  await user.click(screen.getByRole('button', { name: 'Totale' }))
+  await waitFor(() => expect(router.state.location.search).not.toContain('page'))
+  expect(router.state.location.search).toContain('sort=total')
 })
 
 test('a page past the end goes back to page 1', async () => {
