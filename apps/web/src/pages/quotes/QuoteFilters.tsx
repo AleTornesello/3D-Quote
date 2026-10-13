@@ -25,6 +25,14 @@ export function QuoteFilters({
   const [text, setText] = useState(params.q)
   const debounced = useDebouncedValue(text, 300)
 
+  // The URL's q changed and it isn't the search this box last settled on (the empty state's Clear filters, the
+  // sidebar link): show it, or the effect below would send the stale text straight back.
+  const [seenQ, setSeenQ] = useState(params.q)
+  if (params.q !== seenQ) {
+    setSeenQ(params.q)
+    if (params.q.trim() !== debounced.trim()) setText(params.q)
+  }
+
   // Only once typing has settled (debounced caught up with text): Clear filters empties `text` at once, and the stale
   // debounced value must not put the old search back.
   useEffect(() => {

@@ -194,6 +194,41 @@ test('empty states, with and without filters', async () => {
   expect(router.state.location.search).toBe('')
 })
 
+/** Longer than the search box's 300 ms debounce. */
+const pastDebounce = () => new Promise((resolve) => setTimeout(resolve, 400))
+
+test('the empty-state Clear filters also empties the search box for good', async () => {
+  const { user, router } = renderApp('/quotes?q=zzz', { session })
+  const search = await screen.findByRole('searchbox', { name: 'Cerca per numero o cliente' })
+  expect(search).toHaveValue('zzz')
+  expect(await screen.findByText('Nessun preventivo corrisponde ai filtri.')).toBeInTheDocument()
+  const clearButtons = screen.getAllByRole('button', { name: 'Cancella filtri' })
+  // The last one is the empty state's, after the filter bar's.
+  await user.click(clearButtons[clearButtons.length - 1])
+  expect(await screen.findByText('Nessun preventivo.')).toBeInTheDocument()
+  expect(router.state.location.search).toBe('')
+  expect(search).toHaveValue('')
+  await pastDebounce()
+  expect(router.state.location.search).toBe('')
+  expect(search).toHaveValue('')
+})
+
+test('the sidebar link to the list drops the search, box included', async () => {
+  const { user, router } = renderApp('/quotes?q=x', {
+    session,
+    tables: { quotes_list: [quoteListRow({ id: 1 })] },
+  })
+  const search = await screen.findByRole('searchbox', { name: 'Cerca per numero o cliente' })
+  expect(search).toHaveValue('x')
+  const nav = await screen.findByRole('navigation', { name: 'Navigazione principale' })
+  await user.click(within(nav).getByRole('link', { name: 'Preventivi' }))
+  await waitFor(() => expect(search).toHaveValue(''))
+  expect(router.state.location.search).toBe('')
+  await pastDebounce()
+  expect(router.state.location.search).toBe('')
+  expect(search).toHaveValue('')
+})
+
 test('New quote opens /quotes/new', async () => {
   const { user, router } = renderApp('/quotes', { session })
   await user.click(await screen.findByRole('button', { name: 'Nuovo preventivo' }))
