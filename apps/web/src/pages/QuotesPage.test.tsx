@@ -174,15 +174,20 @@ test('changing a filter or the sort goes back to page 1', async () => {
 })
 
 test('a page past the end goes back to page 1', async () => {
-  const { db, router } = renderApp('/quotes?page=4', {
+  const { router } = renderApp('/quotes?page=4', {
     session,
     tables: { quotes_list: [quoteListRow({ id: 1 })] },
   })
-  db.failNext('quotes_list', {
-    code: 'PGRST103',
-    message: 'Requested range not satisfiable',
-  })
   expect(await screen.findByRole('row', { name: /Q-2026-0001/ })).toBeInTheDocument()
+  expect(router.state.location.search).toBe('')
+})
+
+test('the page right after the last one goes back to page 1 too', async () => {
+  // PostgREST answers an empty page here, not an error: the range starts exactly at the end.
+  const rows = Array.from({ length: 25 }, (_, i) => quoteListRow({ id: i + 1 }))
+  const { router } = renderApp('/quotes?page=2', { session, tables: { quotes_list: rows } })
+  expect(await screen.findByText('1–25 di 25')).toBeInTheDocument()
+  expect(dataRows()).toHaveLength(25)
   expect(router.state.location.search).toBe('')
 })
 

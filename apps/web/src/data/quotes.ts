@@ -83,10 +83,15 @@ export function useQuotesList(params: QuoteListParams) {
       const { data, error, count } = await query
         .order('id', { ascending: false })
         .range(first, first + QUOTES_PAGE_SIZE - 1)
-      // PostgREST refuses a range that starts past the last row; the page goes back to 1.
+      // PostgREST refuses a range that starts past the last row, and answers an empty page for one starting right at
+      // the end; either way the page goes back to 1.
       if (error?.code === 'PGRST103') return { rows: [], count: 0, outOfRange: true }
       if (error) throw toAppError(error)
-      return { rows: data as QuoteListRow[], count: count ?? 0, outOfRange: false }
+      return {
+        rows: data as QuoteListRow[],
+        count: count ?? 0,
+        outOfRange: data.length === 0 && first > 0,
+      }
     },
     // Keep the current page on screen while the next one loads.
     placeholderData: keepPreviousData,

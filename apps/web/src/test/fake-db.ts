@@ -213,6 +213,14 @@ class FakeQuery implements PromiseLike<Result> {
     }
     const total = affected.length
     if (this.op === 'select' && this.window) {
+      // PostgREST refuses a range that starts past the last row; one starting right at the end is just empty.
+      if (this.window[0] > total) {
+        return result(
+          null,
+          postgrestError({ code: 'PGRST103', message: 'Requested range not satisfiable' }),
+          416,
+        )
+      }
       affected = affected.slice(this.window[0], this.window[1] + 1)
     }
 

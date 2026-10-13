@@ -131,6 +131,15 @@ describe('from()', () => {
     expect(data).toEqual([{ id: 2 }, { id: 3 }])
     expect(count).toBe(5)
   })
+
+  test('a range starting past the last row fails like PostgREST; right at the end it is empty', async () => {
+    const db = new FakeDb({ t: [1, 2, 3].map((id) => ({ id })) })
+    const atEnd = await db.from('t').select('*', { count: 'exact' }).range(3, 5)
+    expect(atEnd.error).toBeNull()
+    expect(atEnd.data).toEqual([])
+    const past = await db.from('t').select('*', { count: 'exact' }).range(4, 6)
+    expect(past.error?.code).toBe('PGRST103')
+  })
 })
 
 describe('rpc() and storage', () => {
