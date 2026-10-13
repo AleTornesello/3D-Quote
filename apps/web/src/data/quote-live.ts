@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSupabase } from '@/lib/supabase'
 import { queryKeys } from './query-keys'
 
@@ -13,8 +13,12 @@ export function useQuoteLiveUpdates(quoteId: number, itemIds: number[]) {
   const supabase = useSupabase()
   const queryClient = useQueryClient()
   const ids = [...itemIds].sort((a, b) => a - b).join(',')
+  // Across rebuilds: the channel is replaced whenever the item ids change, and changes made between the old one's
+  // removal and the new one's subscription are never delivered.
+  const subscribedBefore = useRef(false)
 
   useEffect(() => {
+    let closed = false
     let timer: ReturnType<typeof setTimeout> | undefined
     const refresh = () => {
       clearTimeout(timer)
@@ -43,14 +47,15 @@ export function useQuoteLiveUpdates(quoteId: number, itemIds: number[]) {
         refresh,
       )
     }
-    let subscribedBefore = false
     channel.subscribe((status) => {
-      if (status !== 'SUBSCRIBED') return
-      // Back after a drop: changes made meanwhile were never delivered.
-      if (subscribedBefore) refresh()
-      subscribedBefore = true
+      if (closed || status !== 'SUBSCRIBED') return
+      // Back after a drop, or a rebuilt channel: changes made meanwhile were never delivered. Only the editor's first
+      // subscription is skipped, right after the initial fetch.
+      if (subscribedBefore.current) refresh()
+      subscribedBefore.current = true
     })
     return () => {
+      closed = true
       clearTimeout(timer)
       void supabase.removeChannel(channel)
     }

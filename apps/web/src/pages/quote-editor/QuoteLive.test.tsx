@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { FakeDb, FunctionHandler, Row } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
@@ -52,6 +52,7 @@ const priced = {
   item_total: 39.24,
   priced_at: '2026-10-13T09:00:00Z',
 }
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const noPricing = { 'price-quote': () => ({ data: { priced: 0, skipped: 0 } }) }
 
 test("subscribes to the quote's items and their jobs", async () => {
@@ -85,6 +86,30 @@ test('refetches after reconnecting, to catch changes missed meanwhile', async ()
   await waitFor(() => expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31)']))
   Object.assign(db.table('quote_items')[0], { ...results, job: [jobRow({ status: 'succeeded' })] })
   await realtime.reconnect()
+  expect(await within(item).findByText('5:30')).toBeInTheDocument()
+})
+
+test('a channel rebuilt for new items refetches once subscribed, to catch changes made meanwhile', async () => {
+  const { db, realtime, queryClient } = renderLive([quoteItemRow({ id: 31, ...queued })], {
+    functions: noPricing,
+  })
+  const item = await screen.findByRole('article', { name: 'Staffa' })
+  await waitFor(() => expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31)']))
+
+  // A second item arrives: the channel is rebuilt for both ids, and its subscription takes a while.
+  realtime.hold()
+  db.table('quote_items').push(quoteItemRow({ id: 32, description: 'Perno', ...queued }))
+  await act(() => queryClient.invalidateQueries({ queryKey: ['quotes', 'items', 7] }))
+  await waitFor(() =>
+    expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31,32)']),
+  )
+  // The first item finishes in the gap: nobody is subscribed to hear it.
+  Object.assign(db.table('quote_items')[0], { ...results, job: [jobRow({ status: 'succeeded' })] })
+  await realtime.emit('slicing_jobs')
+  await pause(300)
+  expect(within(item).getByText('In attesa dello slicing')).toBeInTheDocument()
+
+  await realtime.release()
   expect(await within(item).findByText('5:30')).toBeInTheDocument()
 })
 
@@ -183,7 +208,6 @@ test('a sent quote is never priced automatically', async () => {
   expect(screen.queryByRole('button', { name: 'Ricalcola prezzi' })).not.toBeInTheDocument()
 })
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const pricedFields = {
   computed_total: 39.24,
   item_total: 39.24,

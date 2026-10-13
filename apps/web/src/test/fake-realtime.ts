@@ -6,10 +6,14 @@ type Listener = { table: string; filter?: string; callback: Callback }
 class FakeChannel {
   readonly name: string
   readonly listeners: Listener[] = []
+  /** Like the real thing, a channel delivers changes only while subscribed. */
+  subscribed = false
+  private readonly realtime: FakeRealtime
   private onStatus: ((status: string) => void) | undefined
 
-  constructor(name: string) {
+  constructor(name: string, realtime: FakeRealtime) {
     this.name = name
+    this.realtime = realtime
   }
 
   on(
@@ -23,12 +27,13 @@ class FakeChannel {
 
   subscribe(onStatus?: (status: string) => void) {
     this.onStatus = onStatus
-    queueMicrotask(() => onStatus?.('SUBSCRIBED'))
+    if (!this.realtime.holdSubscription(this)) queueMicrotask(() => this.status('SUBSCRIBED'))
     return this
   }
 
   /** @internal used by FakeRealtime */
   status(status: string) {
+    this.subscribed = status === 'SUBSCRIBED'
     this.onStatus?.(status)
   }
 }
@@ -36,11 +41,32 @@ class FakeChannel {
 /** Stands in for supabase.channel(): tests deliver changes and reconnects by hand. */
 export class FakeRealtime {
   readonly channels: FakeChannel[] = []
+  private held: FakeChannel[] | null = null
 
   readonly channel = (name: string) => {
-    const channel = new FakeChannel(name)
+    const channel = new FakeChannel(name, this)
     this.channels.push(channel)
     return channel
+  }
+
+  /** New subscriptions stay pending (receiving nothing) until `release()`. */
+  hold() {
+    this.held = []
+  }
+
+  /** Completes the subscriptions held since `hold()`. */
+  release() {
+    return act(async () => {
+      const held = this.held ?? []
+      this.held = null
+      for (const channel of held) if (this.channels.includes(channel)) channel.status('SUBSCRIBED')
+    })
+  }
+
+  /** @internal used by FakeChannel: true when the subscription is held. */
+  holdSubscription(channel: FakeChannel) {
+    this.held?.push(channel)
+    return this.held !== null
   }
 
   readonly removeChannel = async (channel: FakeChannel) => {
@@ -56,10 +82,10 @@ export class FakeRealtime {
     )
   }
 
-  /** Delivers a change on `table` to every open listener. */
+  /** Delivers a change on `table` to every listener of a subscribed channel. */
   emit(table: string) {
     return act(async () => {
-      for (const channel of [...this.channels]) {
+      for (const channel of this.channels.filter((c) => c.subscribed)) {
         for (const listener of channel.listeners) {
           if (listener.table === table) listener.callback({ table, eventType: 'UPDATE' })
         }
