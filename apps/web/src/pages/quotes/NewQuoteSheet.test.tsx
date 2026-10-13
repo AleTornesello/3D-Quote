@@ -74,6 +74,21 @@ test('owners can set a markup override', async () => {
   expect(db.rpcCalls('set_markup_override')).toEqual([{ quote_id: 1, pct: 35.5 }])
 })
 
+test('a markup over 9999,99 is refused before anything is created', async () => {
+  const { db, user } = renderApp('/quotes/new?client=1', {
+    session,
+    tables: { clients: [mario()] },
+    rpc: { set_markup_override: () => null },
+  })
+  const sheet = await openSheet()
+  await within(sheet).findByText('Mario Rossi (Rossi Meccanica)')
+  await user.type(within(sheet).getByLabelText('Ricarico personalizzato (%)'), '10000')
+  await user.click(within(sheet).getByRole('button', { name: 'Crea preventivo' }))
+  expect(await within(sheet).findByText('Tra 0 e 9999,99.')).toBeInTheDocument()
+  expect(db.calls('quotes').filter((call) => call.op === 'insert')).toEqual([])
+  expect(db.rpcCalls('set_markup_override')).toEqual([])
+})
+
 test('operators do not see the markup field', async () => {
   renderApp('/quotes/new', { session, staff: operatorStaff })
   const sheet = await openSheet()

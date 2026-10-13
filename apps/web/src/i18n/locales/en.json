@@ -97,7 +97,8 @@
     "passwordMismatch": "The passwords don't match.",
     "validUntilPast": "Must be today or later.",
     "layerHeight": "Between 0.01 and 9.99 mm.",
-    "quantity": "At least 1."
+    "quantity": "At least 1.",
+    "markupRange": "Between 0 and 9999.99."
   },
   "common": {
     "retry": "Retry",

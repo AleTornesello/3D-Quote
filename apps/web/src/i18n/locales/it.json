@@ -97,7 +97,8 @@
     "passwordMismatch": "Le password non coincidono.",
     "validUntilPast": "Deve essere oggi o una data futura.",
     "layerHeight": "Tra 0,01 e 9,99 mm.",
-    "quantity": "Almeno 1."
+    "quantity": "Almeno 1.",
+    "markupRange": "Tra 0 e 9999,99."
   },
   "common": {
     "retry": "Riprova",

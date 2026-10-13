@@ -15,10 +15,12 @@ export function quoteSchema(today: string) {
       .refine((value) => value !== '', 'validation.required')
       .refine((value) => value === '' || value >= today, 'validation.validUntilPast'),
     notes: z.string(),
+    // numeric(6,2) in the database.
     markup: numberField({
       min: 0,
+      max: 9999.99,
       decimals: 2,
-      rangeError: 'validation.nonNegative',
+      rangeError: 'validation.markupRange',
       optional: true,
     }),
   })
