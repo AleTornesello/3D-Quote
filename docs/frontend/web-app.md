@@ -98,16 +98,24 @@ apps/web/src/
   at the signed URL (so Safari doesn't block it).
 - **Uploads:** `useModelUploader()` (`src/data/model-upload.ts`) uploads with `tus-js-client` to
   `/storage/v1/upload/resumable` in 6 MB chunks; `useUploads` runs at most three at a time and keeps files in memory
-  for Retry. Leaving the editor cancels running and waiting uploads. Tests get a `FakeUploader`
-  (`renderApp(...).uploader`) and finish, fail or advance each upload by hand.
+  for Retry. Leaving the editor asks first and cancels running and waiting uploads; closing or reloading the tab
+  while uploads run brings up the browser's own warning (`beforeunload`). A quote that leaves draft (an upload
+  refused for that reason, or a refetch showing the new status) cancels every pending upload. Tests get a
+  `FakeUploader` (`renderApp(...).uploader`) and finish, fail or advance each upload by hand.
 - **Live status:** `useQuoteLiveUpdates` subscribes to `quote_items` and `slicing_jobs` (Supabase Realtime) and
-  refetches the items on any change. Tests drive it with `renderApp(...).realtime` (`emit`, `reconnect`).
+  refetches the items on any change. The channel is rebuilt whenever the item ids change, so every subscription
+  after the editor's first one refetches too (as does a reconnect). Tests drive it with `renderApp(...).realtime`
+  (`emit`, `reconnect`, and `hold` / `release` to keep new subscriptions pending); a channel only receives changes
+  once subscribed.
 - **Pricing:** `useAutoPrice` calls the `price-quote` Edge Function whenever a draft has items with results and no
   price; it retries once per pending item, then shows "Price not calculated" until the item changes. Recalculate and
   the error toast's Retry always call. Edge Functions are called through `invokeFunction`
-  (`src/data/edge-functions.ts`); tests pass handlers with `renderApp(path, { functions })`.
-- **Test fake:** `FakeDb#configure({ defaults, embeds })` adds what the database would: `renderApp` fills a new
-  quote's defaults and embeds its `client` and `creator`, and gives items an empty `job` unless seeded.
+  (`src/data/edge-functions.ts`); tests pass handlers with `renderApp(path, { functions })`. `price-quote`
+  defaults to a handler that prices nothing, so tests with sliced-but-unpriced items don't raise error toasts.
+- **Test fake:** `FakeDb#configure({ defaults, embeds, writable })` adds what the database would: `renderApp` fills
+  a new quote's defaults and embeds its `client` and `creator`, gives items an empty `job` unless seeded, and lets
+  updates and deletes reach draft quotes only (the RLS policy). A `range` starting past the last row fails with
+  `PGRST103`, like PostgREST; one starting right at the end returns no rows.
 
 ### Simulating a slice locally
 

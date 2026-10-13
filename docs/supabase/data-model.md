@@ -236,6 +236,10 @@ what happened (see [slicer-worker](../services/slicer-worker.md)).
 The quotes list (home page). `security_invoker = true`, so the caller's RLS on `quotes`, `clients`, `staff` and
 `quote_items` applies: users who aren't active staff see no rows. Declared in `supabase/schemas/08_quotes_list.sql`.
 
+A migration generated with `supabase db diff` recreates the view with `create or replace view` and drops
+`security_invoker`, which would show every quote to anyone who can select from the view. Any change to the view
+therefore needs `alter view public.quotes_list set (security_invoker = true);` added to its migration by hand.
+
 | Column | Notes |
 |---|---|
 | `id`, `number`, `number_year`, `number_seq`, `status`, `client_id`, `valid_until`, `sent_at`, `created_at`, `created_by` | From `quotes` |
