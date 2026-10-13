@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -31,31 +31,36 @@ export function NewQuoteSheet({
   // A disabled query (no client id) stays pending, so only wait for it when there is an id.
   const ready = settings.data !== undefined && (clientId === null || !client.isPending)
 
-  if (!ready) {
-    if (!settings.isError) return null
-    return (
-      <FormSheet title={t('quotes.new')} dirty={false} onClose={onClose}>
-        <QueryError error={settings.error} onRetry={() => void settings.refetch()} />
-      </FormSheet>
-    )
-  }
+  // dirty comes from the form once it exists; one FormSheet stays mounted from loading to ready.
+  const [dirty, setDirty] = useState(false)
+
   return (
-    <NewQuoteForm
-      validityDays={settings.data.default_validity_days}
-      client={client.data ?? null}
-      onClose={onClose}
-    />
+    <FormSheet title={t('quotes.new')} dirty={dirty} onClose={onClose}>
+      {ready ? (
+        <NewQuoteForm
+          validityDays={settings.data.default_validity_days}
+          client={client.data ?? null}
+          onDirtyChange={setDirty}
+        />
+      ) : settings.isError ? (
+        <QueryError error={settings.error} onRetry={() => void settings.refetch()} />
+      ) : (
+        <p role="status" className="text-muted-foreground">
+          {t('common.loading')}
+        </p>
+      )}
+    </FormSheet>
   )
 }
 
 function NewQuoteForm({
   validityDays,
   client,
-  onClose,
+  onDirtyChange,
 }: {
   validityDays: number
   client: ClientOption | null
-  onClose: () => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const { t } = useTranslation()
   const { isOwner } = useStaff()
@@ -77,6 +82,9 @@ function NewQuoteForm({
       locale,
     ),
   })
+
+  const { isDirty } = form.formState
+  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange])
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError(null)
@@ -100,18 +108,16 @@ function NewQuoteForm({
   })
 
   return (
-    <FormSheet title={t('quotes.new')} dirty={form.formState.isDirty} onClose={onClose}>
-      <form onSubmit={onSubmit} noValidate className="grid gap-4">
-        <QuoteFields form={form} idPrefix="new-quote" showMarkup={isOwner} />
-        {formError && (
-          <p role="alert" className="text-sm text-destructive">
-            {t(formError)}
-          </p>
-        )}
-        <Button type="submit" disabled={create.isPending || setMarkup.isPending}>
-          {t('quotes.form.create')}
-        </Button>
-      </form>
-    </FormSheet>
+    <form onSubmit={onSubmit} noValidate className="grid gap-4">
+      <QuoteFields form={form} idPrefix="new-quote" showMarkup={isOwner} />
+      {formError && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(formError)}
+        </p>
+      )}
+      <Button type="submit" disabled={create.isPending || setMarkup.isPending}>
+        {t('quotes.form.create')}
+      </Button>
+    </form>
   )
 }

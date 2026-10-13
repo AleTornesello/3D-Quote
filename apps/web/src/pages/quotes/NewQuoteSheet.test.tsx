@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeSession } from '@/test/fake-supabase'
+import { NETWORK_FAILURE } from '@/test/fake-db'
 import { clientRow, operatorStaff } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
 
@@ -48,7 +49,7 @@ test('creates the quote and opens it', async () => {
 test('requires a client and a date that is not in the past', async () => {
   const { db, user } = renderApp('/quotes/new', { session })
   const sheet = await openSheet()
-  const validUntil = within(sheet).getByLabelText('Valido fino al')
+  const validUntil = await within(sheet).findByLabelText('Valido fino al')
   fireEvent.change(validUntil, { target: { value: '' } })
   await user.click(within(sheet).getByRole('button', { name: 'Crea preventivo' }))
   expect(await within(sheet).findAllByText('Campo obbligatorio.')).toHaveLength(2)
@@ -102,7 +103,7 @@ test('picks a client by searching', async () => {
     tables: { clients: [mario(), clientRow({ id: 2, name: 'Luca Verdi', company: null })] },
   })
   const sheet = await openSheet()
-  await user.click(within(sheet).getByRole('combobox', { name: 'Cliente' }))
+  await user.click(await within(sheet).findByRole('combobox', { name: 'Cliente' }))
   await user.type(await screen.findByRole('combobox', { name: 'Cerca cliente' }), 'verdi')
   await user.click(await screen.findByRole('option', { name: 'Luca Verdi' }))
   expect(within(sheet).getByRole('combobox', { name: 'Cliente' })).toHaveTextContent('Luca Verdi')
@@ -111,7 +112,7 @@ test('picks a client by searching', async () => {
 test('creates a client inline and selects it', async () => {
   const { user } = renderApp('/quotes/new', { session })
   const sheet = await openSheet()
-  await user.click(within(sheet).getByRole('combobox', { name: 'Cliente' }))
+  await user.click(await within(sheet).findByRole('combobox', { name: 'Cliente' }))
   await user.click(await screen.findByRole('option', { name: 'Nuovo cliente' }))
   const clientSheet = await screen.findByRole('dialog', { name: 'Nuovo cliente' })
   await user.type(within(clientSheet).getByLabelText('Nome'), 'Giulia Neri')
@@ -129,4 +130,22 @@ test('closing the sheet goes back to the list', async () => {
   const sheet = await openSheet()
   await user.click(within(sheet).getByRole('button', { name: 'Chiudi' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/quotes'))
+})
+
+test('shows a loading state inside the sheet while its data loads', async () => {
+  renderApp('/quotes/new?client=1', { session, tables: { clients: [mario()] } })
+  const sheet = await openSheet()
+  expect(within(sheet).getByRole('status')).toHaveTextContent('Caricamento…')
+  expect(await screen.findByRole('combobox', { name: 'Cliente' })).toBeInTheDocument()
+  // One sheet throughout: the dialog found while loading is the one holding the form.
+  expect(sheet).toBeInTheDocument()
+})
+
+test('a settings error shows Retry inside the sheet, and Retry recovers to the form', async () => {
+  const { db, user } = renderApp('/quotes/new', { session })
+  db.failNext('settings', NETWORK_FAILURE)
+  const sheet = await openSheet()
+  await user.click(await within(sheet).findByRole('button', { name: 'Riprova' }))
+  expect(await within(sheet).findByRole('button', { name: 'Crea preventivo' })).toBeInTheDocument()
+  expect(sheet).toBeInTheDocument()
 })
