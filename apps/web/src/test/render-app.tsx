@@ -20,7 +20,10 @@ export type RenderAppOptions = {
   /** Rows per table. A settings row is seeded unless `tables.settings` is given. */
   tables?: Record<string, Row[]>
   rpc?: Record<string, (args: unknown) => unknown>
-  /** Edge Function handlers by name, e.g. `{ 'price-quote': () => ({ data: { priced: 1, skipped: 0 } }) }`. */
+  /**
+   * Edge Function handlers by name, e.g. `{ 'price-quote': () => ({ data: { priced: 1, skipped: 0 } }) }`.
+   * price-quote defaults to pricing nothing: sliced-but-unpriced items call it on their own.
+   */
   functions?: Record<string, FunctionHandler>
 }
 
@@ -34,7 +37,7 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
       staff: [...(staff ? [staff] : []), ...(tables.staff ?? [])],
     },
     opts.rpc,
-    opts.functions,
+    { 'price-quote': () => ({ data: { priced: 0, skipped: 0 } }), ...opts.functions },
   )
   db.configure({
     defaults: {

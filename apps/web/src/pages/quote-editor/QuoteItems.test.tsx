@@ -58,8 +58,6 @@ function renderItems(
       clear_price_override: () => null,
       ...opts.rpc,
     },
-    // Sliced-but-unpriced items trigger automatic pricing; these tests are not about it.
-    functions: { 'price-quote': () => ({ data: { priced: 0, skipped: 0 } }) },
   })
 }
 
