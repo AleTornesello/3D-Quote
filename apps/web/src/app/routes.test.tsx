@@ -5,14 +5,6 @@ import { fakeSession } from '@/test/fake-supabase'
 import { operatorStaff } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
 
-const pages = [['/quotes', 'Preventivi']] as const
-
-test.each(pages)('%s shows its translated title', async (path, title) => {
-  renderApp(path, { session: fakeSession() })
-  expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument()
-  expect(screen.getByText('In arrivo.')).toBeInTheDocument()
-})
-
 test('root redirects to quotes', async () => {
   const { router } = renderApp('/', { session: fakeSession() })
   expect(await screen.findByRole('heading', { level: 1, name: 'Preventivi' })).toBeInTheDocument()

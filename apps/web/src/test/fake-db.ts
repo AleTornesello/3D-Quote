@@ -1,7 +1,13 @@
 import { FunctionsFetchError, FunctionsHttpError, type PostgrestError } from '@supabase/supabase-js'
 
 export type Row = Record<string, unknown>
-export type Filter = ['eq', string, unknown] | ['ilike', string, string] | ['or', string]
+export type Filter =
+  | ['eq', string, unknown]
+  | ['ilike', string, string]
+  | ['or', string]
+  | ['in', string, unknown[]]
+  | ['gte', string, unknown]
+  | ['lte', string, unknown]
 export type DbOp = 'select' | 'insert' | 'update' | 'delete'
 export type DbCall = { op: DbOp; filters: Filter[]; values?: unknown }
 export type StorageCall = { op: 'upload' | 'remove' | 'createSignedUrl'; paths: string[] }
@@ -18,13 +24,18 @@ export const NETWORK_FAILURE: DbFailure = { code: '', message: 'TypeError: Faile
 type Result = {
   data: unknown
   error: PostgrestError | null
-  count: null
+  count: number | null
   status: number
   statusText: string
 }
 
-function result(data: unknown, error: PostgrestError | null, status: number): Result {
-  return { data, error, count: null, status, statusText: '' }
+function result(
+  data: unknown,
+  error: PostgrestError | null,
+  status: number,
+  count: number | null = null,
+): Result {
+  return { data, error, count, status, statusText: '' }
 }
 
 function postgrestError(failure: DbFailure): PostgrestError {
@@ -39,6 +50,9 @@ function likeToRegExp(pattern: string) {
 function matches(row: Row, filter: Filter): boolean {
   if (filter[0] === 'eq') return row[filter[1]] === filter[2]
   if (filter[0] === 'ilike') return likeToRegExp(filter[2]).test(String(row[filter[1]] ?? ''))
+  if (filter[0] === 'in') return filter[2].includes(row[filter[1]])
+  if (filter[0] === 'gte') return compare(row[filter[1]], filter[2]) >= 0
+  if (filter[0] === 'lte') return compare(row[filter[1]], filter[2]) <= 0
   return filter[1].split(',').some((part) => {
     const [column, op, ...rest] = part.split('.')
     const value = rest.join('.')
@@ -58,7 +72,9 @@ class FakeQuery implements PromiseLike<Result> {
   private op: DbOp = 'select'
   private values: unknown = undefined
   private filters: Filter[] = []
-  private sort: { column: string; ascending: boolean } | null = null
+  private sorts: { column: string; ascending: boolean; nullsFirst: boolean }[] = []
+  private window: [number, number] | null = null
+  private counting = false
   private max: number | null = null
   private returning = false
   private mode: 'many' | 'single' | 'maybeSingle' = 'many'
@@ -69,9 +85,9 @@ class FakeQuery implements PromiseLike<Result> {
   }
 
   /** Columns and embeds are not interpreted: rows come back as seeded (seed embedded fields directly). */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  select(_columns?: string) {
+  select(_columns?: string, options: { count?: 'exact' } = {}) {
     if (this.op !== 'select') this.returning = true
+    if (options.count) this.counting = true
     return this
   }
   insert(values: Row | Row[]) {
@@ -100,9 +116,32 @@ class FakeQuery implements PromiseLike<Result> {
     this.filters.push(['or', expression])
     return this
   }
+  in(column: string, values: unknown[]) {
+    this.filters.push(['in', column, values])
+    return this
+  }
+  gte(column: string, value: unknown) {
+    this.filters.push(['gte', column, value])
+    return this
+  }
+  lte(column: string, value: unknown) {
+    this.filters.push(['lte', column, value])
+    return this
+  }
   /** Ordering inside an embedded resource (`referencedTable`) is the seed's job, so it is ignored here. */
-  order(column: string, options: { ascending?: boolean; referencedTable?: string } = {}) {
-    if (!options.referencedTable) this.sort = { column, ascending: options.ascending ?? true }
+  order(
+    column: string,
+    options: { ascending?: boolean; nullsFirst?: boolean; referencedTable?: string } = {},
+  ) {
+    if (!options.referencedTable) {
+      const ascending = options.ascending ?? true
+      // PostgreSQL's default: nulls sort as the largest value.
+      this.sorts.push({ column, ascending, nullsFirst: options.nullsFirst ?? !ascending })
+    }
+    return this
+  }
+  range(from: number, to: number) {
+    this.window = [from, to]
     return this
   }
   limit(count: number, options: { referencedTable?: string } = {}) {
@@ -152,16 +191,29 @@ class FakeQuery implements PromiseLike<Result> {
       )
     } else {
       affected = matching()
-      const sort = this.sort
-      if (sort) {
-        affected.sort((a, b) => compare(a[sort.column], b[sort.column]) * (sort.ascending ? 1 : -1))
-      }
+      affected.sort((a, b) => {
+        for (const sort of this.sorts) {
+          const x = a[sort.column]
+          const y = b[sort.column]
+          const xNull = x === null || x === undefined
+          const yNull = y === null || y === undefined
+          if (xNull && yNull) continue
+          if (xNull || yNull) return (xNull ? -1 : 1) * (sort.nullsFirst ? 1 : -1)
+          const order = compare(x, y) * (sort.ascending ? 1 : -1)
+          if (order !== 0) return order
+        }
+        return 0
+      })
       if (this.max !== null) affected = affected.slice(0, this.max)
+    }
+    const total = affected.length
+    if (this.op === 'select' && this.window) {
+      affected = affected.slice(this.window[0], this.window[1] + 1)
     }
 
     const data = affected.map((row) => ({ ...row }))
     if (this.op !== 'select' && !this.returning) return result(null, null, 204)
-    if (this.mode === 'many') return result(data, null, 200)
+    if (this.mode === 'many') return result(data, null, 200, this.counting ? total : null)
     if (data.length === 1) return result(data[0], null, 200)
     if (data.length === 0 && this.mode === 'maybeSingle') return result(null, null, 200)
     return result(

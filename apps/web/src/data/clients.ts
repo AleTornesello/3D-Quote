@@ -113,3 +113,21 @@ export function useDeleteClient() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.clientLists }),
   })
 }
+
+export type ClientOption = Pick<Client, 'id' | 'name' | 'company'>
+
+/** Every client's id and name, for pickers and filters. */
+export function useClientOptions() {
+  const supabase = useSupabase()
+  return useQuery({
+    queryKey: queryKeys.clientOptions,
+    queryFn: async (): Promise<ClientOption[]> => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, company')
+        .order('name')
+      if (error) throw toAppError(error)
+      return data
+    },
+  })
+}

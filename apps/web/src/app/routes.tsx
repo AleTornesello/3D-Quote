@@ -11,6 +11,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { MaterialsPage } from '@/pages/MaterialsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PrintersPage } from '@/pages/PrintersPage'
+import { QuotesPage } from '@/pages/QuotesPage'
 import { SectionPage } from '@/pages/SectionPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { StaffPage } from '@/pages/StaffPage'
@@ -21,6 +22,7 @@ const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
   '/clients': <ClientsPage />,
   '/materials': <MaterialsPage />,
   '/printers': <PrintersPage />,
+  '/quotes': <QuotesPage />,
   '/settings': <SettingsPage />,
   '/staff': (
     <RequireOwner>

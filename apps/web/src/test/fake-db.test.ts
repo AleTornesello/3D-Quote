@@ -85,6 +85,52 @@ describe('from()', () => {
     )
     expect((await db.from('printers').select('*')).error).toBeNull()
   })
+  test('in, gte and lte filter and are recorded', async () => {
+    const db = new FakeDb({
+      quotes: [
+        { id: 1, status: 'draft', day: '2026-10-01' },
+        { id: 2, status: 'sent', day: '2026-10-05' },
+        { id: 3, status: 'expired', day: '2026-10-09' },
+      ],
+    })
+    const { data } = await db
+      .from('quotes')
+      .select('*')
+      .in('status', ['sent', 'expired'])
+      .gte('day', '2026-10-02')
+      .lte('day', '2026-10-05')
+    expect(data).toEqual([{ id: 2, status: 'sent', day: '2026-10-05' }])
+    expect(db.calls('quotes')[0].filters).toEqual([
+      ['in', 'status', ['sent', 'expired']],
+      ['gte', 'day', '2026-10-02'],
+      ['lte', 'day', '2026-10-05'],
+    ])
+  })
+
+  test('orders by several columns with nulls last by default when ascending', async () => {
+    const db = new FakeDb({
+      t: [
+        { id: 1, a: 1, b: null },
+        { id: 2, a: 1, b: 5 },
+        { id: 3, a: 0, b: 9 },
+      ],
+    })
+    const asc = await db.from('t').select('*').order('a').order('b')
+    expect((asc.data as { id: number }[]).map((r) => r.id)).toEqual([3, 2, 1])
+    const desc = await db.from('t').select('*').order('b', { ascending: false, nullsFirst: false })
+    expect((desc.data as { id: number }[]).map((r) => r.id)).toEqual([3, 2, 1])
+  })
+
+  test('range returns a window and count the full total', async () => {
+    const db = new FakeDb({ t: [1, 2, 3, 4, 5].map((id) => ({ id })) })
+    const { data, count } = await db
+      .from('t')
+      .select('*', { count: 'exact' })
+      .order('id')
+      .range(1, 2)
+    expect(data).toEqual([{ id: 2 }, { id: 3 }])
+    expect(count).toBe(5)
+  })
 })
 
 describe('rpc() and storage', () => {

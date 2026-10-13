@@ -116,7 +116,10 @@
       "body": "Le modifiche andranno perse.",
       "stay": "Continua a modificare",
       "discard": "Scarta"
-    }
+    },
+    "previous": "Precedente",
+    "next": "Successiva",
+    "pageRange": "{{from}}–{{to}} di {{total}}"
   },
   "access": {
     "none": {
@@ -218,6 +221,28 @@
       "accepted": "Accettato",
       "rejected": "Rifiutato",
       "expired": "Scaduto"
+    },
+    "search": "Cerca per numero o cliente",
+    "columns": {
+      "number": "Numero",
+      "client": "Cliente",
+      "status": "Stato",
+      "total": "Totale",
+      "created": "Creato",
+      "validUntil": "Valido fino al"
+    },
+    "createdBy": "da {{name}}",
+    "expiresSoon": "Scade a breve",
+    "empty": "Nessun preventivo.",
+    "noMatches": "Nessun preventivo corrisponde ai filtri.",
+    "filters": {
+      "status": "Stato",
+      "statusCount": "Stato ({{count}})",
+      "client": "Cliente",
+      "anyClient": "Tutti i clienti",
+      "from": "Creato dal",
+      "to": "Creato al",
+      "clear": "Cancella filtri"
     }
   },
   "settings": {

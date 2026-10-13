@@ -116,7 +116,10 @@
       "body": "Your changes will be lost.",
       "stay": "Keep editing",
       "discard": "Discard"
-    }
+    },
+    "previous": "Previous",
+    "next": "Next",
+    "pageRange": "{{from}}–{{to}} of {{total}}"
   },
   "access": {
     "none": {
@@ -218,6 +221,28 @@
       "accepted": "Accepted",
       "rejected": "Rejected",
       "expired": "Expired"
+    },
+    "search": "Search by number or client",
+    "columns": {
+      "number": "Number",
+      "client": "Client",
+      "status": "Status",
+      "total": "Total",
+      "created": "Created",
+      "validUntil": "Valid until"
+    },
+    "createdBy": "by {{name}}",
+    "expiresSoon": "Expires soon",
+    "empty": "No quotes yet.",
+    "noMatches": "No quotes match these filters.",
+    "filters": {
+      "status": "Status",
+      "statusCount": "Status ({{count}})",
+      "client": "Client",
+      "anyClient": "All clients",
+      "from": "Created from",
+      "to": "Created to",
+      "clear": "Clear filters"
     }
   },
   "settings": {

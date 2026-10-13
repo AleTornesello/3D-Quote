@@ -8,7 +8,6 @@ import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { QueryError } from '@/components/QueryError'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useLeaveGuard } from '@/components/use-leave-guard'
 import {
@@ -24,6 +23,7 @@ import { useFormat } from '@/lib/use-format'
 import { clientSchema, clientToForm, formToClient, type ClientForm } from './clients/client-form'
 import { ClientFields } from './clients/ClientFields'
 import { NotFoundMessage } from './NotFoundPage'
+import { QuoteStatusBadge } from './quotes/QuoteStatusBadge'
 
 export function ClientDetailPage() {
   const { t } = useTranslation()
@@ -101,7 +101,7 @@ function ClientDetail({ client }: { client: Client }) {
     {
       key: 'status',
       header: t('clients.detail.status'),
-      cell: (q) => <Badge variant="secondary">{t(`quotes.status.${q.status}`)}</Badge>,
+      cell: (q) => <QuoteStatusBadge status={q.status} />,
     },
     { key: 'created', header: t('clients.detail.created'), cell: (q) => format.date(q.created_at) },
     {

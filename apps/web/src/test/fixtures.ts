@@ -112,3 +112,27 @@ export function quoteRow(overrides: Partial<Tables<'quotes'>> = {}): Tables<'quo
     ...overrides,
   }
 }
+
+/** A row of the quotes_list view. */
+export function quoteListRow(overrides: Record<string, unknown> = {}) {
+  const id = (overrides.id as number | undefined) ?? nextId++
+  return {
+    id,
+    number: `Q-2026-${String(id).padStart(4, '0')}`,
+    number_year: 2026,
+    number_seq: id,
+    status: 'draft',
+    client_id: 1,
+    client_name: 'Mario Rossi',
+    client_company: 'Rossi Meccanica',
+    valid_until: '2026-11-11',
+    sent_at: null,
+    created_at: '2026-10-12T08:00:00Z',
+    created_on: '2026-10-12',
+    created_by: 'user-1',
+    created_by_name: 'Anna Rossi',
+    item_count: 1,
+    total: 39.24,
+    ...overrides,
+  }
+}
