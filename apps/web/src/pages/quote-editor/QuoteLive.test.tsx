@@ -182,3 +182,76 @@ test('a sent quote is never priced automatically', async () => {
   expect(db.functionCalls('price-quote')).toEqual([])
   expect(screen.queryByRole('button', { name: 'Ricalcola prezzi' })).not.toBeInTheDocument()
 })
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const pricedFields = {
+  computed_total: 39.24,
+  item_total: 39.24,
+  priced_at: '2026-10-13T10:00:00Z',
+  updated_at: '2026-10-13T10:00:00Z',
+}
+
+test('a partial result retries once and stops, even when the answer is slow', async () => {
+  const held: { db?: FakeDb } = {}
+  let calls = 0
+  const { db } = renderLive(
+    [
+      quoteItemRow({ id: 31, ...sliced }),
+      quoteItemRow({ id: 32, description: 'Perno', ...sliced }),
+    ],
+    {
+      functions: {
+        'price-quote': async () => {
+          calls += 1
+          await pause(50)
+          if (calls === 1) {
+            Object.assign(held.db!.table('quote_items')[0], pricedFields)
+            return { data: { priced: 1, skipped: 1 } }
+          }
+          return { data: { priced: 0, skipped: 1 } }
+        },
+      },
+    },
+  )
+  held.db = db
+  const bolt = await screen.findByRole('article', { name: 'Perno' })
+  expect(await within(bolt).findByText('Prezzo non calcolato')).toBeInTheDocument()
+  expect(
+    (await within(await screen.findByRole('article', { name: 'Staffa' })).findAllByText('39,24 €'))
+      .length,
+  ).toBeGreaterThan(0)
+  await pause(400)
+  expect(db.functionCalls('price-quote')).toHaveLength(2)
+})
+
+test('a trigger during a call queues exactly one more', async () => {
+  const held: { db?: FakeDb } = {}
+  const { db, realtime } = renderLive(
+    [
+      quoteItemRow({ id: 31, ...sliced }),
+      quoteItemRow({ id: 32, description: 'Perno', ...queued }),
+    ],
+    {
+      functions: {
+        'price-quote': async () => {
+          // Prices what is unpriced when the call starts, like the real function's snapshot.
+          const todo = held
+            .db!.table('quote_items')
+            .filter((row) => row.print_time_s !== null && row.priced_at === null)
+          await pause(500)
+          for (const row of todo) Object.assign(row, pricedFields)
+          return { data: { priced: todo.length, skipped: 0 } }
+        },
+      },
+    },
+  )
+  held.db = db
+  await screen.findByRole('article', { name: 'Staffa' })
+  await waitFor(() => expect(db.functionCalls('price-quote')).toHaveLength(1))
+  Object.assign(db.table('quote_items')[1], { ...results, job: [jobRow({ status: 'succeeded' })] })
+  await realtime.emit('slicing_jobs')
+  const bolt = await screen.findByRole('article', { name: 'Perno' })
+  expect((await within(bolt).findAllByText('39,24 €')).length).toBeGreaterThan(0)
+  await pause(400)
+  expect(db.functionCalls('price-quote')).toHaveLength(2)
+})

@@ -18,41 +18,56 @@ export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
   const refreshQuote = useRefreshQuote()
   const cachedItems = useCachedQuoteItems()
   const [gaveUp, setGaveUp] = useState<ReadonlyMap<number, string>>(() => new Map())
-  const flight = useRef({ running: false, again: false })
+  // A ref mirror of gaveUp: run() reads it synchronously, while the state drives rendering.
+  const gaveUpRef = useRef<Map<number, string>>(new Map())
+  const flight = useRef({ running: false, again: false, forced: false })
 
-  async function run() {
+  /** `forced` (Recalculate, the toast's Retry) always calls; otherwise it only does if something is eligible. */
+  async function run(forced = false) {
     const state = flight.current
     if (state.running) {
-      state.again = true
+      if (forced) state.forced = true
+      else state.again = true
       return
     }
     state.running = true
     // The cache, not the last render: the refetch has landed by the time mutateAsync resolves.
-    const pending = () => unpricedItems(cachedItems(quote.id))
+    const unpriced = () => unpricedItems(cachedItems(quote.id))
+    const eligible = () =>
+      unpriced().filter((item) => gaveUpRef.current.get(item.id) !== item.updated_at)
     try {
-      do {
-        state.again = false
+      let force = forced
+      for (;;) {
+        // Only the items pending now count for the retry and the give-up, not ones given up earlier.
+        const start = force ? unpriced() : eligible()
+        if (!force && start.length === 0) break
+        const ids = new Set(start.map((item) => item.id))
+        const stillPending = () => unpriced().filter((item) => ids.has(item.id))
         const result = await price.mutateAsync(quote.id)
-        if (result.skipped > 0 && pending().length > 0) await price.mutateAsync(quote.id)
-        const left = pending()
+        if (result.skipped > 0 && stillPending().length > 0) await price.mutateAsync(quote.id)
+        const left = stillPending()
         if (left.length > 0) {
-          setGaveUp((current) => {
-            const next = new Map(current)
-            for (const item of left) next.set(item.id, item.updated_at)
-            return next
-          })
+          for (const item of left) gaveUpRef.current.set(item.id, item.updated_at)
+          setGaveUp(new Map(gaveUpRef.current))
         }
-      } while (state.again)
+        // Triggers that arrived during the call queue exactly one more iteration.
+        force = state.forced
+        if (!state.forced && !state.again) break
+        state.forced = false
+        state.again = false
+      }
     } catch (caught) {
       const error = toAppError(caught)
       if (error.kind === 'notDraft') void refreshQuote(quote.id)
       else {
         toast.error(t(error.messageKey), {
-          action: { label: t('common.retry'), onClick: () => void run() },
+          action: { label: t('common.retry'), onClick: () => void run(true) },
         })
       }
     } finally {
       state.running = false
+      state.again = false
+      state.forced = false
     }
   }
 
@@ -74,7 +89,7 @@ export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
   }, [candidates])
 
   return {
-    recalculate: () => void run(),
+    recalculate: () => void run(true),
     pricing: price.isPending,
     notCalculated: (item: QuoteItem) => gaveUp.get(item.id) === item.updated_at,
   }
