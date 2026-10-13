@@ -260,6 +260,13 @@ export type Database = {
             referencedRelation: 'quotes'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'quote_items_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes_list'
+            referencedColumns: ['id']
+          },
         ]
       }
       quotes: {
@@ -492,7 +499,43 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      quotes_list: {
+        Row: {
+          client_company: string | null
+          client_id: number | null
+          client_name: string | null
+          created_at: string | null
+          created_by: string | null
+          created_by_name: string | null
+          created_on: string | null
+          id: number | null
+          item_count: number | null
+          number: string | null
+          number_seq: number | null
+          number_year: number | null
+          sent_at: string | null
+          status: string | null
+          total: number | null
+          valid_until: string | null
+        }
+        ComputedFields: never
+        Relationships: [
+          {
+            foreignKeyName: 'quotes_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quotes_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'staff'
+            referencedColumns: ['user_id']
+          },
+        ]
+      }
     }
     Functions: {
       clear_price_override: { Args: { item_id: number }; Returns: undefined }

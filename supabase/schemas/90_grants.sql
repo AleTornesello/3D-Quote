@@ -18,7 +18,8 @@ grant execute on function public.list_staff(), private.list_staff() to authentic
 -- printers, materials, clients
 grant insert, update, delete on public.printers, public.materials, public.clients to authenticated;
 
--- quotes (insert and update are column grants in the grants_and_setup migration)
+-- quotes (insert and update are column grants in the grants_and_setup migration). The quotes_list view gets the
+-- select above like every relation in public; its grants are repeated in the quotes_list_setup migration.
 grant delete on public.quotes to authenticated;
 
 -- quote_items (update is a column grant in the grants_and_setup migration)

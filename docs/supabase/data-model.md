@@ -229,6 +229,28 @@ what happened (see [slicer-worker](../services/slicer-worker.md)).
 | `queued_at` | `timestamptz` not null default `now()` | |
 | `started_at`, `finished_at` | `timestamptz` | |
 
+## Views
+
+### `quotes_list`
+
+The quotes list (home page). `security_invoker = true`, so the caller's RLS on `quotes`, `clients`, `staff` and
+`quote_items` applies: users who aren't active staff see no rows. Declared in `supabase/schemas/08_quotes_list.sql`.
+
+| Column | Notes |
+|---|---|
+| `id`, `number`, `number_year`, `number_seq`, `status`, `client_id`, `valid_until`, `sent_at`, `created_at`, `created_by` | From `quotes` |
+| `client_name`, `client_company` | From `clients` |
+| `created_by_name` | `staff.display_name` of the creator |
+| `created_on` | `created_at` as a date in `Europe/Rome`, for the date filter |
+| `item_count` | Number of items |
+| `total` | Sum of `item_total`; null when there are no items or any item is unpriced |
+
+## Realtime
+
+`quote_items` and `slicing_jobs` are in the `supabase_realtime` publication (migration `quotes_list_setup`; the
+declarative schema can't express publications). The quote editor subscribes to them; Realtime applies each table's
+`select` RLS, so only active staff receive changes.
+
 ## Storage
 
 - Private bucket **`models`**, 100 MB per file, no MIME restriction (browsers report STL and 3MF types
@@ -292,6 +314,9 @@ public table plus these writes; `service_role` gets `all`.
 | `quotes` | `client_id`, `valid_until`, `notes` | `client_id`, `valid_until`, `notes` | ✓ |
 | `quote_items` | — (created by function) | `description`, `quantity` | ✓ |
 | `slicing_jobs` | — | — | — |
+| `quotes_list` (view) | — | — | — |
+
+`quotes_list` is readable by `authenticated` and `service_role` only.
 
 ### RLS policies
 
