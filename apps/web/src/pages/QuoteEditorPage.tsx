@@ -4,6 +4,7 @@ import { QueryError } from '@/components/QueryError'
 import { useQuoteItems } from '@/data/quote-items'
 import { useQuote, type Quote } from '@/data/quotes'
 import { NotFoundMessage } from './NotFoundPage'
+import { ItemCard } from './quote-editor/ItemCard'
 import { QuoteActions } from './quote-editor/QuoteActions'
 import { QuoteHeader } from './quote-editor/QuoteHeader'
 
@@ -55,7 +56,9 @@ function QuoteEditor({ quote }: { quote: Quote }) {
         ) : (
           <ul className="grid gap-4">
             {itemList.map((item) => (
-              <li key={item.id}>{item.description}</li>
+              <li key={item.id}>
+                <ItemCard item={item} editable={quote.status === 'draft'} notCalculated={false} />
+              </li>
             ))}
           </ul>
         )}

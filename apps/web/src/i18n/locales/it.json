@@ -95,7 +95,9 @@
     "quotePrefix": "Da 1 a 10 lettere o cifre.",
     "passwordLength": "Almeno 6 caratteri.",
     "passwordMismatch": "Le password non coincidono.",
-    "validUntilPast": "Deve essere oggi o una data futura."
+    "validUntilPast": "Deve essere oggi o una data futura.",
+    "layerHeight": "Tra 0,01 e 9,99 mm.",
+    "quantity": "Almeno 1."
   },
   "common": {
     "retry": "Riprova",
@@ -293,6 +295,63 @@
       "rejectTitle": "Segnare {{number}} come rifiutato?",
       "outcomeBody": "Lo stato non potrà più essere cambiato.",
       "deleteTitle": "Eliminare {{number}}?"
+    },
+    "item": {
+      "description": "Descrizione",
+      "download": "Scarica {{name}}",
+      "downloadShort": "Scarica",
+      "remove": "Rimuovi",
+      "removeTitle": "Rimuovere {{name}}?",
+      "removeBody": "L'articolo e il suo file verranno eliminati.",
+      "printer": "Stampante",
+      "material": "Materiale",
+      "choose": "Scegli…",
+      "inactivePrinter": "{{name}} (disattivata)",
+      "inactiveMaterial": "{{name}} (disattivato)",
+      "quantity": "Quantità",
+      "layerHeight": "Altezza layer (mm)",
+      "infill": "Riempimento (%)",
+      "supports": "Supporti",
+      "doesNotFit": "Non entra in {{printer}}",
+      "slicing": {
+        "waiting": "Scegli stampante e materiale",
+        "queued": "In attesa dello slicing",
+        "slow": "Lo slicing sta richiedendo più del solito",
+        "slicing": "Slicing in corso… {{elapsed}}",
+        "failed": "Slicing non riuscito",
+        "retry": "Riprova lo slicing"
+      },
+      "results": {
+        "printTime": "Tempo di stampa per copia",
+        "filament": "Filamento per copia",
+        "grams": "{{value}} g",
+        "bbox": "Ingombro",
+        "bboxValue": "{{x}} × {{y}} × {{z}} mm"
+      },
+      "price": {
+        "total": "Totale articolo",
+        "unit": "Prezzo unitario",
+        "calculating": "Calcolo del prezzo…",
+        "notCalculated": "Prezzo non calcolato",
+        "breakdown": "Dettaglio prezzo",
+        "material": "Materiale",
+        "machine": "Macchina",
+        "energy": "Energia",
+        "failure": "Margine per stampe fallite",
+        "setupFee": "Costo di avvio",
+        "markup": "Ricarico ({{pct}} %)",
+        "computed": "Totale calcolato",
+        "overridden": "Prezzo modificato: {{total}} (calcolato {{computed}})",
+        "reason": "Motivo: {{reason}}",
+        "override": "Modifica prezzo",
+        "removeOverride": "Ripristina prezzo calcolato"
+      },
+      "overrideDialog": {
+        "title": "Modifica il prezzo di {{name}}",
+        "body": "Il prezzo calcolato resta visibile accanto a quello modificato.",
+        "total": "Totale articolo",
+        "reason": "Motivo"
+      }
     }
   },
   "settings": {

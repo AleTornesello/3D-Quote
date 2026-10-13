@@ -95,7 +95,9 @@
     "quotePrefix": "1 to 10 letters or digits.",
     "passwordLength": "At least 6 characters.",
     "passwordMismatch": "The passwords don't match.",
-    "validUntilPast": "Must be today or later."
+    "validUntilPast": "Must be today or later.",
+    "layerHeight": "Between 0.01 and 9.99 mm.",
+    "quantity": "At least 1."
   },
   "common": {
     "retry": "Retry",
@@ -293,6 +295,63 @@
       "rejectTitle": "Mark {{number}} as rejected?",
       "outcomeBody": "The status can't be changed afterwards.",
       "deleteTitle": "Delete {{number}}?"
+    },
+    "item": {
+      "description": "Description",
+      "download": "Download {{name}}",
+      "downloadShort": "Download",
+      "remove": "Remove",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "The item and its file will be deleted.",
+      "printer": "Printer",
+      "material": "Material",
+      "choose": "Choose…",
+      "inactivePrinter": "{{name}} (inactive)",
+      "inactiveMaterial": "{{name}} (inactive)",
+      "quantity": "Quantity",
+      "layerHeight": "Layer height (mm)",
+      "infill": "Infill (%)",
+      "supports": "Supports",
+      "doesNotFit": "Doesn't fit on {{printer}}",
+      "slicing": {
+        "waiting": "Choose printer and material",
+        "queued": "Waiting to slice",
+        "slow": "Slicing is taking longer than usual",
+        "slicing": "Slicing… {{elapsed}}",
+        "failed": "Slicing failed",
+        "retry": "Retry slicing"
+      },
+      "results": {
+        "printTime": "Print time per copy",
+        "filament": "Filament per copy",
+        "grams": "{{value}} g",
+        "bbox": "Bounding box",
+        "bboxValue": "{{x}} × {{y}} × {{z}} mm"
+      },
+      "price": {
+        "total": "Item total",
+        "unit": "Unit price",
+        "calculating": "Calculating price…",
+        "notCalculated": "Price not calculated",
+        "breakdown": "Price breakdown",
+        "material": "Material",
+        "machine": "Machine",
+        "energy": "Energy",
+        "failure": "Failure allowance",
+        "setupFee": "Setup fee",
+        "markup": "Markup ({{pct}} %)",
+        "computed": "Computed total",
+        "overridden": "Overridden: {{total}} (computed {{computed}})",
+        "reason": "Reason: {{reason}}",
+        "override": "Override price",
+        "removeOverride": "Remove override"
+      },
+      "overrideDialog": {
+        "title": "Override the price of {{name}}",
+        "body": "The computed price stays visible beside the override.",
+        "total": "Item total",
+        "reason": "Reason"
+      }
     }
   },
   "settings": {
