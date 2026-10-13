@@ -180,3 +180,16 @@ test('a sent quote has no upload zone', async () => {
     screen.queryByRole('group', { name: 'Trascina qui i file STL o 3MF' }),
   ).not.toBeInTheDocument()
 })
+
+test('leaving also cancels the uploads still waiting', async () => {
+  const { user, router, uploader } = renderUploads()
+  await dropFiles([stl('a.stl'), stl('b.stl'), stl('c.stl'), stl('d.stl')])
+  await waitFor(() => expect(uploader.uploads).toHaveLength(3))
+  const nav = screen.getByRole('navigation', { name: 'Navigazione principale' })
+  await user.click(within(nav).getByRole('link', { name: 'Clienti' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Caricamenti in corso' })
+  await user.click(within(dialog).getByRole('button', { name: 'Scarta' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/clients'))
+  await waitFor(() => expect(uploader.uploads.every((upload) => upload.aborted)).toBe(true))
+  expect(uploader.uploads).toHaveLength(3)
+})

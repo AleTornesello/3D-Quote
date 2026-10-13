@@ -50,7 +50,12 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
   // Leaving the page cancels what is still uploading.
   useEffect(() => {
     const active = controllers.current
-    return () => active.forEach((controller) => controller.abort())
+    const queued = waiting.current
+    return () => {
+      // Clear the queue first: each aborted run would otherwise pump the next waiting file.
+      queued.length = 0
+      active.forEach((controller) => controller.abort())
+    }
   }, [])
 
   function patch(key: string, change: Partial<UploadRow>) {
@@ -137,7 +142,7 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
 
   function cancel(key: string) {
     if (waiting.current.includes(key)) {
-      waiting.current = waiting.current.filter((candidate) => candidate !== key)
+      waiting.current.splice(waiting.current.indexOf(key), 1)
       drop(key)
       return
     }
