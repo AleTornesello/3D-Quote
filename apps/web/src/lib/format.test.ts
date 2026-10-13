@@ -1,5 +1,15 @@
-import { expect, test } from 'vitest'
-import { formatCurrency, formatDate, formatNumber, localeFor, toInputNumber } from './format'
+import { describe, expect, test } from 'vitest'
+import {
+  addDays,
+  formatCurrency,
+  formatDate,
+  formatDuration,
+  formatElapsed,
+  formatNumber,
+  localeFor,
+  shopToday,
+  toInputNumber,
+} from './format'
 
 // Intl uses non-breaking spaces; compare with plain ones.
 const plain = (text: string) => text.replace(/\s/g, ' ')
@@ -33,4 +43,29 @@ test('toInputNumber writes numbers the way the user types them', () => {
   expect(toInputNumber(0.4, 'en-GB', 2)).toBe('0.40')
   expect(toInputNumber(250, 'it-IT')).toBe('250')
   expect(toInputNumber(null, 'it-IT')).toBe('')
+})
+
+describe('shopToday', () => {
+  test('is the date in Rome, which is ahead of UTC', () => {
+    expect(shopToday(new Date('2026-10-12T22:30:00Z'))).toBe('2026-10-13')
+    expect(shopToday(new Date('2026-10-12T21:59:00Z'))).toBe('2026-10-12')
+    expect(shopToday(new Date('2026-01-15T23:30:00Z'))).toBe('2026-01-16')
+  })
+})
+
+test('addDays crosses months and years', () => {
+  expect(addDays('2026-10-13', 30)).toBe('2026-11-12')
+  expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
+  expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
+})
+
+test('formatDuration shows hours and minutes', () => {
+  expect(formatDuration(19800)).toBe('5:30')
+  expect(formatDuration(59)).toBe('0:01')
+  expect(formatDuration(36000)).toBe('10:00')
+})
+
+test('formatElapsed shows minutes and seconds', () => {
+  expect(formatElapsed(65)).toBe('1:05')
+  expect(formatElapsed(0)).toBe('0:00')
 })

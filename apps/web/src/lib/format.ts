@@ -34,3 +34,32 @@ export function toInputNumber(value: number | null | undefined, locale: Locale, 
   const text = decimals === undefined ? String(value) : value.toFixed(decimals)
   return locale === 'it-IT' ? text.replace('.', ',') : text
 }
+
+/** Today's date (yyyy-mm-dd) in shop time, Europe/Rome, like `private.shop_today()` in the database. */
+export function shopToday(now: Date = new Date()): string {
+  // en-CA formats dates as yyyy-mm-dd.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
+/** A yyyy-mm-dd date moved by whole days. */
+export function addDays(date: string, days: number): string {
+  const moved = new Date(`${date}T00:00:00Z`)
+  moved.setUTCDate(moved.getUTCDate() + days)
+  return moved.toISOString().slice(0, 10)
+}
+
+/** Seconds as h:mm, rounded to the minute: 19800 → "5:30". */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60)
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`
+}
+
+/** Seconds as m:ss: 65 → "1:05". */
+export function formatElapsed(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
