@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fromUploadResponse } from '@/data/errors'
 import type { Row } from '@/test/fake-db'
@@ -192,4 +192,59 @@ test('leaving also cancels the uploads still waiting', async () => {
   await waitFor(() => expect(router.state.location.pathname).toBe('/clients'))
   await waitFor(() => expect(uploader.uploads.every((upload) => upload.aborted)).toBe(true))
   expect(uploader.uploads).toHaveLength(3)
+})
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const zoneName = 'Trascina qui i file STL o 3MF'
+
+test('an upload refused because the quote left draft stops the others, and leaving does not ask', async () => {
+  const { db, user, router, uploader } = renderUploads()
+  await dropFiles([stl('a.stl'), stl('b.stl'), stl('c.stl'), stl('d.stl')])
+  await waitFor(() => expect(uploader.uploads).toHaveLength(3))
+  db.table('quotes')[0].status = 'sent'
+  db.failNext('create_quote_item', { code: 'P0001', message: 'quote_not_draft' })
+  await uploader.uploads[0].succeed()
+  await waitFor(() =>
+    expect(screen.queryByRole('group', { name: zoneName })).not.toBeInTheDocument(),
+  )
+  expect(screen.getByText('Inviato')).toBeInTheDocument()
+  expect(uploader.uploads[1].aborted).toBe(true)
+  expect(uploader.uploads[2].aborted).toBe(true)
+  await pause(100)
+  expect(uploader.uploads).toHaveLength(3)
+
+  const nav = screen.getByRole('navigation', { name: 'Navigazione principale' })
+  await user.click(within(nav).getByRole('link', { name: 'Clienti' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/clients'))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
+
+test('a quote found to have left draft cancels the uploads, running and waiting', async () => {
+  const { db, queryClient, uploader } = renderUploads()
+  await dropFiles([stl('a.stl'), stl('b.stl'), stl('c.stl'), stl('d.stl')])
+  await waitFor(() => expect(uploader.uploads).toHaveLength(3))
+  // Someone else sent it; this editor learns it from a refetch.
+  db.table('quotes')[0].status = 'sent'
+  await act(() => queryClient.invalidateQueries({ queryKey: ['quotes', 'detail', 7] }))
+  await waitFor(() =>
+    expect(screen.queryByRole('group', { name: zoneName })).not.toBeInTheDocument(),
+  )
+  await waitFor(() => expect(uploader.uploads.every((upload) => upload.aborted)).toBe(true))
+  await pause(100)
+  expect(uploader.uploads).toHaveLength(3)
+})
+
+test('closing or reloading the tab warns only while an upload runs', async () => {
+  const { uploader } = renderUploads()
+  await dropFiles([stl()])
+  await waitFor(() => expect(uploader.uploads).toHaveLength(1))
+  const during = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(during)
+  expect(during.defaultPrevented).toBe(true)
+
+  await uploader.uploads[0].succeed()
+  await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument())
+  const after = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(after)
+  expect(after.defaultPrevented).toBe(false)
 })

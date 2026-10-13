@@ -47,7 +47,7 @@ function QuoteEditor({ quote }: { quote: Quote }) {
   const itemList = items.data ?? []
   const editable = quote.status === 'draft'
   const refreshQuote = useRefreshQuote()
-  const uploads = useUploads(quote.id, itemList, () => void refreshQuote(quote.id))
+  const uploads = useUploads(quote.id, itemList, editable, () => void refreshQuote(quote.id))
   const guard = useLeaveGuard(uploads.busy, {
     titleKey: 'quotes.upload.leaveTitle',
     bodyKey: 'quotes.upload.leaveBody',

@@ -28,9 +28,15 @@ export type Uploads = ReturnType<typeof useUploads>
 
 /**
  * The editor's upload queue: at most MAX_PARALLEL_UPLOADS at once; each finished upload becomes an item. The files
- * stay in memory so a failed upload can be retried without choosing it again. Nothing survives a reload.
+ * stay in memory so a failed upload can be retried without choosing it again. Nothing survives a reload, and
+ * nothing outlives the quote's draft status (`editable`).
  */
-export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () => void) {
+export function useUploads(
+  quoteId: number,
+  items: QuoteItem[],
+  editable: boolean,
+  onNotDraft: () => void,
+) {
   const uploader = useModelUploader()
   const create = useCreateQuoteItem()
   const printers = usePrinters()
@@ -58,6 +64,33 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
     }
   }, [])
 
+  // The quote left draft: storage would refuse every remaining upload, and the zone showing them is gone.
+  const [wasEditable, setWasEditable] = useState(editable)
+  if (editable !== wasEditable) {
+    setWasEditable(editable)
+    if (!editable) setRows([])
+  }
+  useEffect(() => {
+    if (editable) return
+    // The rows are gone already (above); clear the queue before aborting, as on leaving.
+    waiting.current.length = 0
+    files.current.clear()
+    controllers.current.forEach((controller) => controller.abort())
+  }, [editable])
+
+  // Closing or reloading the tab would lose them too; the browser asks with its own text.
+  const busy = rows.some((row) => row.status !== 'failed')
+  useEffect(() => {
+    if (!busy) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      // Older Chrome and Edge also need returnValue set.
+      event.returnValue = true
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [busy])
+
   function patch(key: string, change: Partial<UploadRow>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)))
   }
@@ -65,6 +98,12 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
   function drop(key: string) {
     files.current.delete(key)
     setRows((current) => current.filter((row) => row.key !== key))
+  }
+
+  /** Clears the queue and aborts what is running; each aborted run removes its own row. */
+  function stopAll() {
+    for (const key of waiting.current.splice(0)) drop(key)
+    controllers.current.forEach((controller) => controller.abort())
   }
 
   function catalogDefaults() {
@@ -98,7 +137,12 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
       }
       const error = toAppError(caught)
       patch(key, { status: 'failed', error: error.messageKey })
-      if (error.kind === 'notDraft') latest.current.onNotDraft()
+      if (error.kind === 'notDraft') {
+        // Every other upload would be refused the same way. This one is over: don't abort it too.
+        controllers.current.delete(key)
+        stopAll()
+        latest.current.onNotDraft()
+      }
     } finally {
       controllers.current.delete(key)
     }
@@ -153,7 +197,7 @@ export function useUploads(quoteId: number, items: QuoteItem[], onNotDraft: () =
     rows,
     rejected,
     /** Uploads that leaving the page would cancel. */
-    busy: rows.some((row) => row.status !== 'failed'),
+    busy,
     add,
     retry,
     cancel,

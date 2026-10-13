@@ -39,6 +39,8 @@ export function createTusUploader(supabase: AppSupabaseClient, env: SupabaseEnv)
     // Read per upload: a long session refreshes its token.
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
+    // Cancelled (or the page left) while the session was being read: the abort listener below came too late.
+    if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError')
     if (!token) throw new AppError('sessionExpired')
     await new Promise<void>((resolve, reject) => {
       const upload = new Upload(file, {
