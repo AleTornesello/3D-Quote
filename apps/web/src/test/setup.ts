@@ -10,6 +10,22 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 }
 
+// jsdom has no matchMedia; sonner's Toaster reads the colour scheme with it.
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList
+
+// jsdom has no scrollIntoView; cmdk scrolls the highlighted option into view.
+Element.prototype.scrollIntoView ??= function () {}
+
 beforeEach(() => {
   window.localStorage.clear()
   initI18n('it')

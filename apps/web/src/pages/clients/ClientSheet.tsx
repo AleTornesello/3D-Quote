@@ -5,13 +5,19 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { FormSheet } from '@/components/FormSheet'
 import { Button } from '@/components/ui/button'
-import { useSaveClient } from '@/data/clients'
+import { useSaveClient, type Client } from '@/data/clients'
 import { toAppError } from '@/data/errors'
 import { clientSchema, clientToForm, formToClient, type ClientForm } from './client-form'
 import { ClientFields } from './ClientFields'
 
-/** New client; on save, goes to the new client's page. */
-export function ClientSheet({ onClose }: { onClose: () => void }) {
+/** New client; on save, goes to the new client's page, or hands the client to `onCreated` when given. */
+export function ClientSheet({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated?: (client: Client) => void
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const save = useSaveClient()
@@ -25,7 +31,8 @@ export function ClientSheet({ onClose }: { onClose: () => void }) {
     setFormError(null)
     try {
       const created = await save.mutateAsync({ values: formToClient(values) })
-      navigate(`/clients/${created.id}`)
+      if (onCreated) onCreated(created)
+      else navigate(`/clients/${created.id}`)
     } catch (error) {
       setFormError(toAppError(error).messageKey)
     }

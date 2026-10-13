@@ -94,7 +94,8 @@
     "currency": "Use a 3-letter code, e.g. EUR.",
     "quotePrefix": "1 to 10 letters or digits.",
     "passwordLength": "At least 6 characters.",
-    "passwordMismatch": "The passwords don't match."
+    "passwordMismatch": "The passwords don't match.",
+    "validUntilPast": "Must be today or later."
   },
   "common": {
     "retry": "Retry",
@@ -243,6 +244,19 @@
       "from": "Created from",
       "to": "Created to",
       "clear": "Clear filters"
+    },
+    "markupNotSaved": "Quote created, but the markup wasn't saved.",
+    "form": {
+      "client": "Client",
+      "clientSearch": "Search clients",
+      "chooseClient": "Choose a client",
+      "noClients": "No clients found.",
+      "newClient": "New client",
+      "validUntil": "Valid until",
+      "notes": "Notes",
+      "markup": "Markup override (%)",
+      "markupHint": "When empty, the default markup applies.",
+      "create": "Create quote"
     }
   },
   "settings": {

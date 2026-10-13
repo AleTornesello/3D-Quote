@@ -47,7 +47,7 @@ export const routes: RouteObject[] = [
             element: SECTION_PAGES[path] ?? <SectionPage titleKey={labelKey} />,
           })),
           { path: 'clients/:id', element: <ClientDetailPage /> },
-          { path: 'quotes/new', element: <SectionPage titleKey="quotes.new" /> },
+          { path: 'quotes/new', element: <QuotesPage creating /> },
           { path: 'account', element: <AccountPage /> },
         ],
       },

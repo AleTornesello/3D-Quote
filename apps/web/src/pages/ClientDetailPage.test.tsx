@@ -111,12 +111,13 @@ test.each(['/clients/999', '/clients/abc'])('%s shows not found', async (path) =
   expect(await screen.findByRole('heading', { name: 'Pagina non trovata' })).toBeInTheDocument()
 })
 
-test('New quote for this client opens the quote placeholder with the client', async () => {
+test('New quote for this client opens the New quote sheet with the client', async () => {
   const { user, router } = renderApp('/clients/1', { session, tables: { clients: [mario()] } })
   await user.click(await screen.findByRole('link', { name: 'Nuovo preventivo per questo cliente' }))
-  expect(
-    await screen.findByRole('heading', { level: 1, name: 'Nuovo preventivo' }),
-  ).toBeInTheDocument()
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo preventivo' })
+  expect(await within(sheet).findByRole('combobox', { name: 'Cliente' })).toHaveTextContent(
+    'Mario Rossi',
+  )
   expect(router.state.location.search).toBe('?client=1')
 })
 

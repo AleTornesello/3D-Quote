@@ -1,4 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { TablesInsert } from '@/lib/database.types'
 import { useSupabase } from '@/lib/supabase'
 import { sanitizeSearch } from './clients'
 import { toAppError } from './errors'
@@ -66,5 +67,48 @@ export function useQuotesList(params: QuoteListParams) {
     },
     // Keep the current page on screen while the next one loads.
     placeholderData: keepPreviousData,
+  })
+}
+
+export type QuoteValues = { client_id: number; valid_until: string; notes: string | null }
+
+/** Inserts a draft; the database assigns its number. Resolves to the new id. */
+export function useCreateQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (values: QuoteValues): Promise<number> => {
+      // A trigger assigns number, number_year and number_seq; the generated Insert type still requires them, and
+      // staff may only insert client_id, valid_until and notes.
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert(values as TablesInsert<'quotes'>)
+        .select('id')
+        .single()
+      if (error) throw toAppError(error)
+      return data.id
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+      ]),
+  })
+}
+
+/** Owner only. `pct` null removes the override; every item's price breakdown is cleared. */
+export function useSetMarkupOverride() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ quoteId, pct }: { quoteId: number; pct: number | null }) => {
+      // The generated Args type says number, but the function accepts null to clear the override.
+      const { error } = await supabase.rpc('set_markup_override', {
+        quote_id: quoteId,
+        pct: pct as number,
+      })
+      if (error) throw toAppError(error)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
   })
 }

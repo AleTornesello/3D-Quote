@@ -94,7 +94,8 @@
     "currency": "Usa un codice di 3 lettere, es. EUR.",
     "quotePrefix": "Da 1 a 10 lettere o cifre.",
     "passwordLength": "Almeno 6 caratteri.",
-    "passwordMismatch": "Le password non coincidono."
+    "passwordMismatch": "Le password non coincidono.",
+    "validUntilPast": "Deve essere oggi o una data futura."
   },
   "common": {
     "retry": "Riprova",
@@ -243,6 +244,19 @@
       "from": "Creato dal",
       "to": "Creato al",
       "clear": "Cancella filtri"
+    },
+    "markupNotSaved": "Preventivo creato, ma il ricarico non è stato salvato.",
+    "form": {
+      "client": "Cliente",
+      "clientSearch": "Cerca cliente",
+      "chooseClient": "Scegli un cliente",
+      "noClients": "Nessun cliente trovato.",
+      "newClient": "Nuovo cliente",
+      "validUntil": "Valido fino al",
+      "notes": "Note",
+      "markup": "Ricarico personalizzato (%)",
+      "markupHint": "Se vuoto si usa il ricarico predefinito.",
+      "create": "Crea preventivo"
     }
   },
   "settings": {

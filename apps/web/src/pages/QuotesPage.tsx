@@ -17,6 +17,7 @@ import {
 import { QUOTES_PAGE_SIZE, useQuotesList, type QuoteListRow } from '@/data/quotes'
 import { shopToday } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
+import { NewQuoteSheet } from './quotes/NewQuoteSheet'
 import { QuoteFilters } from './quotes/QuoteFilters'
 import { QuoteStatusBadge } from './quotes/QuoteStatusBadge'
 
@@ -173,7 +174,7 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
           )
         }
       />
-      {creating && null}
+      {creating && <NewQuoteSheet clientId={params.client} onClose={() => navigate('/quotes')} />}
     </section>
   )
 }
