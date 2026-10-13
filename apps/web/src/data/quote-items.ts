@@ -3,7 +3,7 @@ import type { Tables } from '@/lib/database.types'
 import { useSupabase } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
 import { queryKeys } from './query-keys'
-import type { ItemJob } from './quote-rules'
+import { descriptionFromFilename, type ItemJob } from './quote-rules'
 
 export type QuoteItem = Tables<'quote_items'> & { job: ItemJob | null }
 
@@ -193,5 +193,37 @@ export function useModelDownload() {
       if (error) throw toAppError(error)
       return data.signedUrl
     },
+  })
+}
+
+export type NewItem = {
+  quoteId: number
+  path: string
+  filename: string
+  printer_id: number | null
+  material_id: number | null
+}
+
+/** Creates the item for an uploaded file (queued for slicing when printer and material are set). */
+export function useCreateQuoteItem() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ quoteId, path, filename, printer_id, material_id }: NewItem) => {
+      const { data, error } = await supabase.rpc('create_quote_item', {
+        quote_id: quoteId,
+        model_path: path,
+        original_filename: filename,
+        description: descriptionFromFilename(filename),
+        ...(printer_id !== null && material_id !== null ? { printer_id, material_id } : {}),
+      })
+      if (error) {
+        // Without its item the file is an orphan: remove it now, on a best-effort basis.
+        await supabase.storage.from('models').remove([path])
+        throw toAppError(error)
+      }
+      return data
+    },
+    onSuccess: (_id, { quoteId }) => refreshItems(queryClient, quoteId),
   })
 }

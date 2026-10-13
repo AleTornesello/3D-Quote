@@ -15,10 +15,14 @@ export function UnsavedChangesDialog({
   open,
   onStay,
   onDiscard,
+  titleKey = 'common.unsaved.title',
+  bodyKey = 'common.unsaved.body',
 }: {
   open: boolean
   onStay: () => void
   onDiscard: () => void
+  titleKey?: string
+  bodyKey?: string
 }) {
   const { t } = useTranslation()
   const stayRef = useRef<HTMLButtonElement>(null)
@@ -32,8 +36,8 @@ export function UnsavedChangesDialog({
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('common.unsaved.title')}</AlertDialogTitle>
-          <AlertDialogDescription>{t('common.unsaved.body')}</AlertDialogDescription>
+          <AlertDialogTitle>{t(titleKey)}</AlertDialogTitle>
+          <AlertDialogDescription>{t(bodyKey)}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <Button ref={stayRef} variant="outline" onClick={onStay}>

@@ -1,12 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { QueryError } from '@/components/QueryError'
+import { useLeaveGuard } from '@/components/use-leave-guard'
 import { useQuoteItems } from '@/data/quote-items'
-import { useQuote, type Quote } from '@/data/quotes'
+import { useQuote, useRefreshQuote, type Quote } from '@/data/quotes'
 import { NotFoundMessage } from './NotFoundPage'
 import { ItemCard } from './quote-editor/ItemCard'
 import { QuoteActions } from './quote-editor/QuoteActions'
 import { QuoteHeader } from './quote-editor/QuoteHeader'
+import { UploadZone } from './quote-editor/UploadZone'
+import { useUploads } from './quote-editor/use-uploads'
 
 export function QuoteEditorPage() {
   const { t } = useTranslation()
@@ -39,6 +42,13 @@ function QuoteEditor({ quote }: { quote: Quote }) {
   const { t } = useTranslation()
   const items = useQuoteItems(quote.id)
   const itemList = items.data ?? []
+  const editable = quote.status === 'draft'
+  const refreshQuote = useRefreshQuote()
+  const uploads = useUploads(quote.id, itemList, () => void refreshQuote(quote.id))
+  const guard = useLeaveGuard(uploads.busy, {
+    titleKey: 'quotes.upload.leaveTitle',
+    bodyKey: 'quotes.upload.leaveBody',
+  })
 
   return (
     <section className="grid gap-6">
@@ -57,12 +67,16 @@ function QuoteEditor({ quote }: { quote: Quote }) {
           <ul className="grid gap-4">
             {itemList.map((item) => (
               <li key={item.id}>
-                <ItemCard item={item} editable={quote.status === 'draft'} notCalculated={false} />
+                <ItemCard item={item} editable={editable} notCalculated={false} />
               </li>
             ))}
           </ul>
         )}
+        {editable && (
+          <UploadZone uploads={uploads} empty={items.isSuccess && itemList.length === 0} />
+        )}
       </section>
+      {guard.dialog}
     </section>
   )
 }

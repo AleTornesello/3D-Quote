@@ -352,6 +352,25 @@
         "total": "Totale articolo",
         "reason": "Motivo"
       }
+    },
+    "upload": {
+      "drop": "Trascina qui i file STL o 3MF",
+      "hint": "STL o 3MF, massimo 100 MB ciascuno.",
+      "choose": "Scegli file",
+      "empty": "Aggiungi i file dei modelli per iniziare.",
+      "rejected": {
+        "extension": "{{name}}: sono accettati solo file STL e 3MF.",
+        "empty": "{{name}}: il file è vuoto.",
+        "tooLarge": "{{name}}: supera i 100 MB."
+      },
+      "dismiss": "Ignora {{name}}",
+      "cancel": "Annulla {{name}}",
+      "retry": "Riprova {{name}}",
+      "progress": "Caricamento di {{name}}",
+      "waiting": "In attesa",
+      "creating": "Creazione dell'articolo…",
+      "leaveTitle": "Caricamenti in corso",
+      "leaveBody": "I caricamenti in corso verranno annullati."
     }
   },
   "settings": {

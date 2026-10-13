@@ -6,7 +6,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog'
  * Asks before navigating to another page while `dirty`. Render `dialog`; call `allowLeaving()` right before a
  * navigation that should not ask (e.g. after deleting the record being edited).
  */
-export function useLeaveGuard(dirty: boolean) {
+export function useLeaveGuard(dirty: boolean, texts: { titleKey?: string; bodyKey?: string } = {}) {
   const bypass = useRef(false)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -18,6 +18,8 @@ export function useLeaveGuard(dirty: boolean) {
         open={blocker.state === 'blocked'}
         onStay={() => blocker.reset?.()}
         onDiscard={() => blocker.proceed?.()}
+        titleKey={texts.titleKey}
+        bodyKey={texts.bodyKey}
       />
     ),
     allowLeaving: () => {

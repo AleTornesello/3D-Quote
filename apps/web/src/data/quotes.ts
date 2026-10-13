@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Tables, TablesInsert } from '@/lib/database.types'
+import { useCallback } from 'react'
 import { useSupabase } from '@/lib/supabase'
 import { sanitizeSearch } from './clients'
 import type { ClientOption } from './clients'
@@ -239,4 +240,18 @@ export function useDuplicateQuote() {
         queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
       ]),
   })
+}
+
+/** Reloads a quote and its items, e.g. after an action found that it is no longer a draft. */
+export function useRefreshQuote() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    async (quoteId: number) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quote(quoteId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+      ])
+    },
+    [queryClient],
+  )
 }

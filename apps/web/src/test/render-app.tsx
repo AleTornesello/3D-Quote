@@ -7,6 +7,7 @@ import { routes } from '@/app/routes'
 import type { Tables } from '@/lib/database.types'
 import { createQueryClient } from '@/lib/query-client'
 import { FakeDb, type FunctionHandler, type Row } from './fake-db'
+import { FakeUploader } from './fake-uploader'
 import { createFakeSupabase, type SignInFailure } from './fake-supabase'
 import { ownerStaff, quoteRow, settingsRow } from './fixtures'
 
@@ -60,10 +61,11 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const queryClient = createQueryClient({ retry: false })
   const user = userEvent.setup()
+  const uploader = new FakeUploader()
   render(
-    <AppProviders client={fake.client} queryClient={queryClient}>
+    <AppProviders client={fake.client} queryClient={queryClient} uploader={uploader.upload}>
       <RouterProvider router={router} />
     </AppProviders>,
   )
-  return { ...fake, router, user, queryClient }
+  return { ...fake, router, user, queryClient, uploader }
 }

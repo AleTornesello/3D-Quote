@@ -352,6 +352,25 @@
         "total": "Item total",
         "reason": "Reason"
       }
+    },
+    "upload": {
+      "drop": "Drop STL or 3MF files here",
+      "hint": "STL or 3MF, up to 100 MB each.",
+      "choose": "Choose files",
+      "empty": "Add model files to start.",
+      "rejected": {
+        "extension": "{{name}}: only STL and 3MF files are accepted.",
+        "empty": "{{name}}: the file is empty.",
+        "tooLarge": "{{name}}: larger than 100 MB."
+      },
+      "dismiss": "Dismiss {{name}}",
+      "cancel": "Cancel {{name}}",
+      "retry": "Retry {{name}}",
+      "progress": "Uploading {{name}}",
+      "waiting": "Waiting",
+      "creating": "Creating the item…",
+      "leaveTitle": "Uploads in progress",
+      "leaveBody": "Uploads in progress will be cancelled."
     }
   },
   "settings": {
