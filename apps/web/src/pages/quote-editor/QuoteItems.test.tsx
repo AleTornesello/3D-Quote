@@ -25,7 +25,14 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderItems(items: Row[], opts: { status?: string; staff?: Tables<'staff'> } = {}) {
+function renderItems(
+  items: Row[],
+  opts: {
+    status?: string
+    staff?: Tables<'staff'>
+    rpc?: Record<string, (args: unknown) => unknown>
+  } = {},
+) {
   return renderApp('/quotes/7', {
     session,
     staff: opts.staff,
@@ -49,6 +56,7 @@ function renderItems(items: Row[], opts: { status?: string; staff?: Tables<'staf
       retry_slicing: () => 99,
       set_price_override: () => null,
       clear_price_override: () => null,
+      ...opts.rpc,
     },
   })
 }
@@ -337,15 +345,49 @@ test('a sent quote shows its items read-only', async () => {
   expect(within(item).queryByRole('button', { name: 'Rimuovi' })).not.toBeInTheDocument()
 })
 
-test('Download opens a signed link', async () => {
-  const open = vi.spyOn(window, 'open').mockReturnValue(null)
+function fakeTab() {
+  return { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
+}
+
+test('Download opens a signed link in a tab opened within the click', async () => {
+  const tab = fakeTab()
+  const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
   const { user } = renderItems([quoteItemRow({ id: 31, ...sliced })])
   await user.click(within(await card()).getByRole('button', { name: 'Scarica staffa.stl' }))
   await waitFor(() =>
-    expect(open).toHaveBeenCalledWith(
-      'https://storage.test/models/7/u31/staffa.stl',
-      '_blank',
-      'noopener',
-    ),
+    expect(tab.location.href).toBe('https://storage.test/models/7/u31/staffa.stl'),
   )
+  expect(open).toHaveBeenCalledWith('', '_blank')
+  expect(tab.opener).toBeNull()
+})
+
+test('a failed download link closes the tab and shows the error', async () => {
+  const tab = fakeTab()
+  vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+  const { db, user } = renderItems([quoteItemRow({ id: 31, ...sliced })])
+  const item = await card()
+  db.failNext('storage:models', { code: '', message: 'boom' })
+  await user.click(within(item).getByRole('button', { name: 'Scarica staffa.stl' }))
+  await waitFor(() => expect(tab.close).toHaveBeenCalled())
+  expect(tab.location.href).toBe('')
+  expect(await screen.findByText('Qualcosa è andato storto. Riprova.')).toBeInTheDocument()
+})
+
+test('every control on a card is disabled while one of its saves is pending', async () => {
+  let release: () => void = () => {}
+  const held = new Promise<null>((resolve) => {
+    release = () => resolve(null)
+  })
+  const { user } = renderItems([quoteItemRow({ id: 31, ...sliced })], {
+    rpc: { update_quote_item_settings: () => held },
+  })
+  const item = await card()
+  await user.click(within(item).getByRole('switch', { name: 'Supporti' }))
+  await waitFor(() => expect(within(item).getByLabelText('Descrizione')).toBeDisabled())
+  expect(within(item).getByLabelText('Quantità')).toBeDisabled()
+  expect(within(item).getByRole('button', { name: 'Rimuovi' })).toBeDisabled()
+  release()
+  await waitFor(() => expect(within(item).getByLabelText('Descrizione')).toBeEnabled())
+  expect(within(item).getByLabelText('Quantità')).toBeEnabled()
+  expect(within(item).getByRole('button', { name: 'Rimuovi' })).toBeEnabled()
 })

@@ -9,11 +9,11 @@ import { Switch } from '@/components/ui/switch'
 import { toAppError } from '@/data/errors'
 import { useMaterials } from '@/data/materials'
 import { usePrinters } from '@/data/printers'
-import {
+import type {
   useUpdateItem,
   useUpdateItemSettings,
-  type QuoteItem,
-  type SliceSettings,
+  QuoteItem,
+  SliceSettings,
 } from '@/data/quote-items'
 import { toInputNumber } from '@/lib/format'
 import { numberField, parseDecimal } from '@/lib/forms'
@@ -53,14 +53,23 @@ function ReadOnly({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Printer, material, quantity, layer height, infill and supports; each saves as soon as it changes. */
-export function ItemSettings({ item, editable }: { item: QuoteItem; editable: boolean }) {
+export function ItemSettings({
+  item,
+  editable,
+  busy,
+  settings,
+  update,
+}: {
+  item: QuoteItem
+  editable: boolean
+  busy: boolean
+  settings: ReturnType<typeof useUpdateItemSettings>
+  update: ReturnType<typeof useUpdateItem>
+}) {
   const { t } = useTranslation()
   const format = useFormat()
   const printers = usePrinters()
   const materials = useMaterials()
-  const settings = useUpdateItemSettings()
-  const update = useUpdateItem()
-  const busy = settings.isPending || update.isPending
   const printer = printers.data?.find((p) => p.id === item.printer_id)
   const material = materials.data?.find((m) => m.id === item.material_id)
 

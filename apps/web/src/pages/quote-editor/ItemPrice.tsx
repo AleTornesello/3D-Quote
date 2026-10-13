@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useStaff } from '@/auth/staff-context'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
-import { useClearPriceOverride, type QuoteItem } from '@/data/quote-items'
+import type { QuoteItem, useClearPriceOverride } from '@/data/quote-items'
 import { useFormat } from '@/lib/use-format'
 import { OverrideDialog } from './OverrideDialog'
 
@@ -13,15 +13,18 @@ export function ItemPrice({
   item,
   editable,
   notCalculated,
+  busy,
+  clear,
 }: {
   item: QuoteItem
   editable: boolean
   notCalculated: boolean
+  busy: boolean
+  clear: ReturnType<typeof useClearPriceOverride>
 }) {
   const { t } = useTranslation()
   const format = useFormat()
   const { isOwner } = useStaff()
-  const clear = useClearPriceOverride()
   const [overriding, setOverriding] = useState(false)
   const canOverride = editable && isOwner
 
@@ -88,14 +91,14 @@ export function ItemPrice({
       )}
       {canOverride && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => setOverriding(true)}>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setOverriding(true)}>
             {t('quotes.item.price.override')}
           </Button>
           {item.override_total !== null && (
             <Button
               size="sm"
               variant="ghost"
-              disabled={clear.isPending}
+              disabled={busy}
               onClick={() =>
                 clear.mutate(item, {
                   onError: (caught) => toast.error(t(toAppError(caught).messageKey)),

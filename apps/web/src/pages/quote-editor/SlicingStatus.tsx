@@ -3,17 +3,26 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
-import { useRetrySlicing, type QuoteItem } from '@/data/quote-items'
+import type { QuoteItem, useRetrySlicing } from '@/data/quote-items'
 import { slicingState } from '@/data/quote-rules'
 import { formatDuration, formatElapsed } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
 import { useNow } from '@/lib/use-now'
 
 /** The item's slicing state and, once done, its results (functional analysis §7). */
-export function SlicingStatus({ item, editable }: { item: QuoteItem; editable: boolean }) {
+export function SlicingStatus({
+  item,
+  editable,
+  busy,
+  retry,
+}: {
+  item: QuoteItem
+  editable: boolean
+  busy: boolean
+  retry: ReturnType<typeof useRetrySlicing>
+}) {
   const { t } = useTranslation()
   const format = useFormat()
-  const retry = useRetrySlicing()
   const ticking = item.job?.status === 'queued' || item.job?.status === 'running'
   const now = useNow(ticking)
   const state = slicingState(item, now)
@@ -51,7 +60,7 @@ export function SlicingStatus({ item, editable }: { item: QuoteItem; editable: b
               <Button
                 size="sm"
                 variant="outline"
-                disabled={retry.isPending}
+                disabled={busy}
                 onClick={() =>
                   retry.mutate(item, {
                     onError: (caught) => toast.error(t(toAppError(caught).messageKey)),

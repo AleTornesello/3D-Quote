@@ -6,7 +6,15 @@ import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
 import { usePrinters } from '@/data/printers'
-import { useModelDownload, useRemoveItem, useUpdateItem, type QuoteItem } from '@/data/quote-items'
+import {
+  useClearPriceOverride,
+  useModelDownload,
+  useRemoveItem,
+  useRetrySlicing,
+  useUpdateItem,
+  useUpdateItemSettings,
+  type QuoteItem,
+} from '@/data/quote-items'
 import { fitsPrinter } from '@/data/quote-rules'
 import { InlineField } from './InlineField'
 import { ItemPrice } from './ItemPrice'
@@ -26,18 +34,32 @@ export function ItemCard({
   const { t } = useTranslation()
   const printers = usePrinters()
   const update = useUpdateItem()
+  const settings = useUpdateItemSettings()
+  const retry = useRetrySlicing()
+  const clear = useClearPriceOverride()
   const remove = useRemoveItem()
   const download = useModelDownload()
   const [removing, setRemoving] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  // One flag for the whole card, so nothing can be edited while any of its changes is being saved.
+  const busy =
+    update.isPending || settings.isPending || retry.isPending || clear.isPending || remove.isPending
   const printer = printers.data?.find((p) => p.id === item.printer_id)
   const titleId = `item-${item.id}-title`
 
   async function openDownload() {
+    // Opened before the request: browsers like Safari only allow a new tab within the click itself.
+    const tab = window.open('', '_blank')
     try {
       const url = await download.mutateAsync(item.model_path)
-      window.open(url, '_blank', 'noopener')
+      if (tab) {
+        tab.opener = null
+        tab.location.href = url
+      } else {
+        window.location.assign(url)
+      }
     } catch (caught) {
+      tab?.close()
       toast.error(t(toAppError(caught).messageKey))
     }
   }
@@ -75,7 +97,7 @@ export function ItemCard({
           </p>
         </div>
         {editable && (
-          <Button variant="ghost" size="sm" onClick={() => setRemoving(true)}>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRemoving(true)}>
             <Trash2 aria-hidden />
             {t('quotes.item.remove')}
           </Button>
@@ -86,21 +108,33 @@ export function ItemCard({
           id={`item-${item.id}-description`}
           label={t('quotes.item.description')}
           value={item.description}
-          disabled={update.isPending}
+          disabled={busy}
           revertOnError
           validate={(text) => (text.trim() ? null : 'validation.required')}
           onSave={(text) => update.mutateAsync({ item, values: { description: text.trim() } })}
         />
       )}
-      <ItemSettings item={item} editable={editable} />
-      <SlicingStatus item={item} editable={editable} />
+      <ItemSettings
+        item={item}
+        editable={editable}
+        busy={busy}
+        settings={settings}
+        update={update}
+      />
+      <SlicingStatus item={item} editable={editable} busy={busy} retry={retry} />
       {printer && !fitsPrinter(item, printer) && (
         <p className="flex items-center gap-2 text-sm font-medium text-destructive">
           <TriangleAlert aria-hidden className="size-4" />
           {t('quotes.item.doesNotFit', { printer: printer.name })}
         </p>
       )}
-      <ItemPrice item={item} editable={editable} notCalculated={notCalculated} />
+      <ItemPrice
+        item={item}
+        editable={editable}
+        notCalculated={notCalculated}
+        busy={busy}
+        clear={clear}
+      />
       {removing && (
         <ConfirmDeleteDialog
           title={t('quotes.item.removeTitle', { name: item.description })}
