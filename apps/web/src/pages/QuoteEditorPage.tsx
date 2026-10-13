@@ -2,13 +2,16 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { QueryError } from '@/components/QueryError'
 import { useLeaveGuard } from '@/components/use-leave-guard'
+import { useQuoteLiveUpdates } from '@/data/quote-live'
 import { useQuoteItems } from '@/data/quote-items'
 import { useQuote, useRefreshQuote, type Quote } from '@/data/quotes'
 import { NotFoundMessage } from './NotFoundPage'
 import { ItemCard } from './quote-editor/ItemCard'
 import { QuoteActions } from './quote-editor/QuoteActions'
 import { QuoteHeader } from './quote-editor/QuoteHeader'
+import { QuoteTotals } from './quote-editor/QuoteTotals'
 import { UploadZone } from './quote-editor/UploadZone'
+import { useAutoPrice } from './quote-editor/use-auto-price'
 import { useUploads } from './quote-editor/use-uploads'
 
 export function QuoteEditorPage() {
@@ -49,6 +52,11 @@ function QuoteEditor({ quote }: { quote: Quote }) {
     titleKey: 'quotes.upload.leaveTitle',
     bodyKey: 'quotes.upload.leaveBody',
   })
+  const pricing = useAutoPrice(quote, items.data)
+  useQuoteLiveUpdates(
+    quote.id,
+    itemList.map((item) => item.id),
+  )
 
   return (
     <section className="grid gap-6">
@@ -67,13 +75,25 @@ function QuoteEditor({ quote }: { quote: Quote }) {
           <ul className="grid gap-4">
             {itemList.map((item) => (
               <li key={item.id}>
-                <ItemCard item={item} editable={editable} notCalculated={false} />
+                <ItemCard
+                  item={item}
+                  editable={editable}
+                  notCalculated={pricing.notCalculated(item)}
+                />
               </li>
             ))}
           </ul>
         )}
         {editable && (
           <UploadZone uploads={uploads} empty={items.isSuccess && itemList.length === 0} />
+        )}
+        {items.isSuccess && (
+          <QuoteTotals
+            items={itemList}
+            editable={editable}
+            pricing={pricing.pricing}
+            onRecalculate={pricing.recalculate}
+          />
         )}
       </section>
       {guard.dialog}

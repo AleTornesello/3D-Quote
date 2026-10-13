@@ -29,6 +29,9 @@ window.matchMedia ??= (query: string) =>
 // jsdom has no scrollIntoView; cmdk scrolls the highlighted option into view.
 Element.prototype.scrollIntoView ??= function () {}
 
+// jsdom has no pointer capture; sonner calls it when a toast is pressed.
+Element.prototype.setPointerCapture ??= function () {}
+
 beforeEach(() => {
   window.localStorage.clear()
   initI18n('it')

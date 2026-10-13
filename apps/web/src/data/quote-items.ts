@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import type { Tables } from '@/lib/database.types'
 import { useSupabase } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
@@ -226,4 +227,13 @@ export function useCreateQuoteItem() {
     },
     onSuccess: (_id, { quoteId }) => refreshItems(queryClient, quoteId),
   })
+}
+
+/** Reads the quote's items from the cache as they are right now (fresher than the last render). */
+export function useCachedQuoteItems() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    (quoteId: number) => queryClient.getQueryData<QuoteItem[]>(queryKeys.quoteItems(quoteId)) ?? [],
+    [queryClient],
+  )
 }

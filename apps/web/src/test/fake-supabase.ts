@@ -2,6 +2,7 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { vi } from 'vitest'
 import { FakeDb } from './fake-db'
+import { FakeRealtime } from './fake-realtime'
 
 type Listener = (event: AuthChangeEvent, session: Session | null) => void
 
@@ -81,14 +82,17 @@ export function createFakeSupabase(
   }
 
   const db = opts.db ?? new FakeDb()
+  const realtime = new FakeRealtime()
   const client = {
     auth,
     from: (table: string) => db.from(table),
     rpc: (fn: string, args?: unknown) => db.rpc(fn, args),
     storage: db.storage,
+    channel: realtime.channel,
+    removeChannel: realtime.removeChannel,
     functions: {
       invoke: (name: string, options: { body?: unknown } = {}) => db.invoke(name, options.body),
     },
   }
-  return { client: client as unknown as AppSupabaseClient, auth, db }
+  return { client: client as unknown as AppSupabaseClient, auth, db, realtime }
 }

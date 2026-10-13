@@ -294,7 +294,10 @@
       "acceptTitle": "Mark {{number}} as accepted?",
       "rejectTitle": "Mark {{number}} as rejected?",
       "outcomeBody": "The status can't be changed afterwards.",
-      "deleteTitle": "Delete {{number}}?"
+      "deleteTitle": "Delete {{number}}?",
+      "total": "Total",
+      "netOfVat": "Prices net of VAT.",
+      "recalculate": "Recalculate prices"
     },
     "item": {
       "description": "Description",

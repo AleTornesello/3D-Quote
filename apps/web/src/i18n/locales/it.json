@@ -294,7 +294,10 @@
       "acceptTitle": "Segnare {{number}} come accettato?",
       "rejectTitle": "Segnare {{number}} come rifiutato?",
       "outcomeBody": "Lo stato non potrà più essere cambiato.",
-      "deleteTitle": "Eliminare {{number}}?"
+      "deleteTitle": "Eliminare {{number}}?",
+      "total": "Totale",
+      "netOfVat": "Prezzi IVA esclusa.",
+      "recalculate": "Ricalcola prezzi"
     },
     "item": {
       "description": "Descrizione",

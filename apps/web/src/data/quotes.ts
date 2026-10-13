@@ -255,3 +255,20 @@ export function useRefreshQuote() {
     [queryClient],
   )
 }
+
+export type PriceResult = { priced: number; skipped: number }
+
+/** Prices the draft's sliced items (Edge Function). Resolves once the items have been refetched. */
+export function usePriceQuote() {
+  const supabase = useSupabase()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (quoteId: number) =>
+      invokeFunction<PriceResult>(supabase, 'price-quote', { quote_id: quoteId }),
+    onSuccess: (_result, quoteId) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+      ]),
+  })
+}
