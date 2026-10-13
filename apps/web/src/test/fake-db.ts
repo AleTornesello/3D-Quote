@@ -1,4 +1,4 @@
-import type { PostgrestError } from '@supabase/supabase-js'
+import { FunctionsFetchError, FunctionsHttpError, type PostgrestError } from '@supabase/supabase-js'
 
 export type Row = Record<string, unknown>
 export type Filter = ['eq', string, unknown] | ['ilike', string, string] | ['or', string]
@@ -6,6 +6,11 @@ export type DbOp = 'select' | 'insert' | 'update' | 'delete'
 export type DbCall = { op: DbOp; filters: Filter[]; values?: unknown }
 export type StorageCall = { op: 'upload' | 'remove' | 'createSignedUrl'; paths: string[] }
 export type DbFailure = { code: string; message: string }
+
+/** What a fake Edge Function answers: data, an error response with `{ code }`, or no response at all. */
+export type FunctionResult =
+  { data: unknown } | { status: number; code: string } | { network: true }
+export type FunctionHandler = (body: unknown) => FunctionResult | Promise<FunctionResult>
 
 /** What supabase-js returns when the request never reaches the server. */
 export const NETWORK_FAILURE: DbFailure = { code: '', message: 'TypeError: Failed to fetch' }
@@ -178,15 +183,19 @@ export class FakeDb {
   private readonly log: { table: string; call: DbCall }[] = []
   private readonly rpcLog: { fn: string; args: unknown }[] = []
   private readonly storageLog: { bucket: string; call: StorageCall }[] = []
+  private readonly functions: Record<string, FunctionHandler>
+  private readonly functionLog: { name: string; body: unknown }[] = []
 
   constructor(
     tables: Record<string, Row[]> = {},
     rpcs: Record<string, (args: unknown) => unknown> = {},
+    functions: Record<string, FunctionHandler> = {},
   ) {
     this.tables = Object.fromEntries(
       Object.entries(tables).map(([name, rows]) => [name, rows.map((row) => ({ ...row }))]),
     )
     this.rpcs = rpcs
+    this.functions = functions
   }
 
   from(table: string) {
@@ -206,6 +215,28 @@ export class FakeDb {
       )
     }
     return result(await handler(args), null, 200)
+  }
+
+  /** Answers like `supabase.functions.invoke`: `{ data, error }` with supabase-js's own error classes. */
+  async invoke(name: string, body: unknown) {
+    this.functionLog.push({ name, body })
+    const handler = this.functions[name]
+    const answer: FunctionResult = handler
+      ? await handler(body)
+      : { status: 404, code: 'not_found' }
+    if ('data' in answer) return { data: answer.data, error: null }
+    if ('network' in answer) {
+      return { data: null, error: new FunctionsFetchError(new TypeError('Failed to fetch')) }
+    }
+    const response = new Response(JSON.stringify({ code: answer.code }), {
+      status: answer.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return { data: null, error: new FunctionsHttpError(response) }
+  }
+
+  functionCalls(name: string): unknown[] {
+    return this.functionLog.filter((entry) => entry.name === name).map((entry) => entry.body)
   }
 
   readonly storage = {

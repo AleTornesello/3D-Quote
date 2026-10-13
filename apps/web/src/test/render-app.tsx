@@ -6,7 +6,7 @@ import { AppProviders } from '@/app/AppProviders'
 import { routes } from '@/app/routes'
 import type { Tables } from '@/lib/database.types'
 import { createQueryClient } from '@/lib/query-client'
-import { FakeDb, type Row } from './fake-db'
+import { FakeDb, type FunctionHandler, type Row } from './fake-db'
 import { createFakeSupabase, type SignInFailure } from './fake-supabase'
 import { ownerStaff, settingsRow } from './fixtures'
 
@@ -19,6 +19,8 @@ export type RenderAppOptions = {
   /** Rows per table. A settings row is seeded unless `tables.settings` is given. */
   tables?: Record<string, Row[]>
   rpc?: Record<string, (args: unknown) => unknown>
+  /** Edge Function handlers by name, e.g. `{ 'price-quote': () => ({ data: { priced: 1, skipped: 0 } }) }`. */
+  functions?: Record<string, FunctionHandler>
 }
 
 export function renderApp(path: string, opts: RenderAppOptions = {}) {
@@ -31,6 +33,7 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
       staff: [...(staff ? [staff] : []), ...(tables.staff ?? [])],
     },
     opts.rpc,
+    opts.functions,
   )
   const fake = createFakeSupabase({ ...opts, db })
   const router = createMemoryRouter(routes, { initialEntries: [path] })

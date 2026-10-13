@@ -86,6 +86,9 @@ export function createFakeSupabase(
     from: (table: string) => db.from(table),
     rpc: (fn: string, args?: unknown) => db.rpc(fn, args),
     storage: db.storage,
+    functions: {
+      invoke: (name: string, options: { body?: unknown } = {}) => db.invoke(name, options.body),
+    },
   }
   return { client: client as unknown as AppSupabaseClient, auth, db }
 }
