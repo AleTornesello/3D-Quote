@@ -131,7 +131,7 @@ The main screen. Layout: header, items, totals.
 | Part | Content |
 |---|---|
 | Description | Defaults to the file name without extension; editable; printed on the PDF. |
-| File | Original file name and size. Download link. |
+| File | Original file name and a download link. The size isn't shown: it isn't stored on the item. |
 | Settings | Printer (active printers only), material (active materials only, shown with colour), quantity, layer height, infill, supports. Editable in Draft. |
 | Slicing | Status and results — see [§7](#7-slicing-as-the-user-sees-it). |
 | Results | Print time per copy (h:mm), filament per copy (g), bounding box (mm). |

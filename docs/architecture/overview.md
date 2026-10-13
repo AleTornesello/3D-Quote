@@ -40,7 +40,7 @@ sequenceDiagram
     Worker->>Storage: download model
     Worker->>Worker: run slicer CLI, parse output
     Worker->>DB: write results, job status "succeeded"<br/>pgmq.delete(message)
-    DB-->>Web: status change (Realtime or polling)
+    DB-->>Web: status change (Realtime)
     Web->>Fn: price-quote(quote_id)
     Fn->>DB: write each item's price breakdown (service role)
 ```
@@ -95,6 +95,5 @@ stateDiagram-v2
 
 - **Slicer CLI:** PrusaSlicer or OrcaSlicer — affects profile format and output parsing.
 - **Worker hosting:** which container platform, and always-on vs. scale-to-zero.
-- **Status updates:** Supabase Realtime subscription vs. polling from the web app.
 - **Worker HTTP surface:** whether anything beyond `/healthz` is needed (e.g. a manual re-run endpoint), or whether
   FastAPI is needed at all.

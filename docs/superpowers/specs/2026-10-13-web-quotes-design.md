@@ -1,7 +1,7 @@
 # Web App: Quotes — Design
 
 - **Date:** 2026-10-13
-- **Status:** Draft — awaiting review
+- **Status:** Implemented
 - **Branch:** `develop`
 
 ## Goal

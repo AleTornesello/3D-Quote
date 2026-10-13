@@ -30,7 +30,8 @@ apps/web/src/
 ├── index.css         # Tailwind + shadcn theme tokens
 ├── app/              # App, AppProviders, routes (SECTION_PAGES), sections
 ├── lib/              # env, typed Supabase client, generated database types, query client, formatting, form helpers
-├── data/             # one TanStack Query module per entity, AppError mapping, query keys
+├── data/             # one TanStack Query module per entity (quotes and quote items included), AppError mapping,
+│                     # query keys, Edge Function calls, the model uploader, quote rules and live updates
 ├── i18n/             # i18next setup, language detection/switching, locales/it.json + en.json
 ├── auth/             # session (AuthProvider, RequireAuth), staff profile (StaffProvider, useStaff), RequireOwner
 ├── layout/           # AppShell (sidebar / drawer), Navigation, LanguageSwitcher
@@ -71,17 +72,59 @@ apps/web/src/
   `git checkout -- apps/web/src/components/ui/button.tsx apps/web/src/components/ui/label.tsx`, because they carry the
   `pointer-coarse` touch-target sizes. Run `npm run format` afterwards.
 - **Tests** sit next to the code as `*.test.ts(x)` and query by role and visible (Italian) text. `src/test/setup.ts`
-  stubs `ResizeObserver`, which jsdom lacks and Radix Switch inside a form needs.
-  `renderApp(path, { session, staff, tables, rpc })` renders the real routes against a fake Supabase client:
+  stubs what jsdom lacks (`ResizeObserver`, `matchMedia`, `scrollIntoView`, `setPointerCapture`). Vitest's
+  `testTimeout` is 15000 ms and Testing Library's `asyncUtilTimeout` 3000 ms, so multi-step page tests don't time out
+  on a loaded machine.
+  `renderApp(path, { session, staff, tables, rpc, functions })` renders the real routes against a fake Supabase client:
   - `staff` is the signed-in user's staff row (default: an owner; `null` means no access);
   - `tables` seeds in-memory rows;
-  - `rpc` maps function names to handlers.
+  - `rpc` maps database function names to handlers; `functions` does the same for Edge Functions.
 
-  It returns `{ db, user, auth, router, queryClient }`:
+  It returns `{ db, user, auth, router, queryClient, uploader, realtime }`:
   - `db.calls('printers')` lists the requests made (`{ op, values, filters }`);
   - `db.failNext('printers', { code, message })` makes the next one fail;
   - fixtures live in `src/test/fixtures.ts`.
 - **Style** is enforced by Prettier (no semicolons, single quotes, width 100) and ESLint (including `jsx-a11y`).
+
+## Quotes
+
+- **List:** `QuotesPage` reads the `quotes_list` view. Search, filters, sort and page live in the URL
+  (`parseQuoteListParams` / `toQuoteListSearch` in `src/data/quote-rules.ts`). `/quotes/new` is the same page with
+  the New quote sheet open; the sheet stays open with a loading state (and Retry on error) while settings and the
+  client load.
+- **Editor:** `QuoteEditorPage` with its parts in `src/pages/quote-editor/`. Item changes save as soon as they happen
+  (selects and switches at once, text and numbers on blur or Enter, through `InlineField`). The item card disables
+  every control while any of its saves is pending. Download opens the tab synchronously in the click, then points it
+  at the signed URL (so Safari doesn't block it).
+- **Uploads:** `useModelUploader()` (`src/data/model-upload.ts`) uploads with `tus-js-client` to
+  `/storage/v1/upload/resumable` in 6 MB chunks; `useUploads` runs at most three at a time and keeps files in memory
+  for Retry. Leaving the editor cancels running and waiting uploads. Tests get a `FakeUploader`
+  (`renderApp(...).uploader`) and finish, fail or advance each upload by hand.
+- **Live status:** `useQuoteLiveUpdates` subscribes to `quote_items` and `slicing_jobs` (Supabase Realtime) and
+  refetches the items on any change. Tests drive it with `renderApp(...).realtime` (`emit`, `reconnect`).
+- **Pricing:** `useAutoPrice` calls the `price-quote` Edge Function whenever a draft has items with results and no
+  price; it retries once per pending item, then shows "Price not calculated" until the item changes. Recalculate and
+  the error toast's Retry always call. Edge Functions are called through `invokeFunction`
+  (`src/data/edge-functions.ts`); tests pass handlers with `renderApp(path, { functions })`.
+- **Test fake:** `FakeDb#configure({ defaults, embeds })` adds what the database would: `renderApp` fills a new
+  quote's defaults and embeds its `client` and `creator`, and gives items an empty `job` unless seeded.
+
+### Simulating a slice locally
+
+The slicer worker doesn't exist yet. With the local stack running, slice the oldest queued job by hand in Studio's
+SQL editor (`http://127.0.0.1:54323`), which runs as `postgres`:
+
+```sql
+select msg_id, message->>'job_id' as job_id from public.worker_claim_job(300, 3);
+-- then, with the two values it returned:
+select public.worker_complete_job(
+  <msg_id>, <job_id>,
+  '{"print_time_s": 19800, "filament_g": 120.5, "filament_mm": 40000, "layer_count": 266,
+    "bbox_x_mm": 100, "bbox_y_mm": 80, "bbox_z_mm": 40, "slicer_version": "manual"}'::jsonb
+);
+```
+
+An open editor shows the results without reloading, then prices the item.
 
 ## Adding a section page
 
@@ -94,7 +137,9 @@ apps/web/src/
 
 ## Not done yet
 
-- **Quotes** — list, editor and pricing; `/quotes/new?client=<id>` is a placeholder the quotes work will read.
+- **PDF export** — next spec.
+- **Orphaned model files** — files whose item was never created or whose removal failed stay in `models` until a
+  cleanup job exists.
 - **Inviting, removing and deactivating staff** — needs an Edge Function; until then use the Supabase dashboard.
 - **Redirect URLs** — the reset email links to `<origin>/account?reset=1`. Allow it under Supabase → Authentication →
   URL Configuration → **Redirect URLs** for every environment (for example `https://<host>/account**`), or Supabase

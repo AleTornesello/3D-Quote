@@ -19,6 +19,8 @@ JSON `{ "code": "<code>" }`:
 | 500 | `duplicate_failed` | `duplicate-quote` couldn't copy a file or the items; nothing was left behind |
 | 500 | `internal_error` | Anything else; the function log has the cause |
 
+The web app calls both through `invokeFunction` (`apps/web/src/data/edge-functions.ts`), which turns the `{ code }` into an `AppError`.
+
 ## `price-quote`
 
 Body `{ "quote_id": 42 }` → `200 { "priced": 2, "skipped": 1 }`.
