@@ -236,11 +236,16 @@ export async function createItem(
 }
 
 export async function markSent(admin: SupabaseClient, quoteId: number): Promise<void> {
+  // A non-draft quote must carry a VAT rate (quotes_vat_rate_check): take the shop's current one.
+  const settings = await must<{ vat_rate_pct: Decimal }>(
+    admin.from('settings').select('vat_rate_pct').eq('id', 1).single(),
+  )
   await must(
-    admin.from('quotes').update({ status: 'sent', sent_at: new Date().toISOString() }).eq(
-      'id',
-      quoteId,
-    ),
+    admin.from('quotes').update({
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      vat_rate_pct: settings.vat_rate_pct,
+    }).eq('id', quoteId),
   )
 }
 
