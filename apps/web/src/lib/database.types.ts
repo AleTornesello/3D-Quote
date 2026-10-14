@@ -575,6 +575,7 @@ export type Database = {
           display_name: string
           email: string
           language: string
+          last_sign_in_at: string
           role: string
           user_id: string
         }[]

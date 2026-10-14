@@ -1,12 +1,12 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
-insert into auth.users (id, email) values
-  ('00000000-0000-4000-8000-0000000000b1', 'owner.ls@test.local'),
-  ('00000000-0000-4000-8000-0000000000b2', 'operator.ls@test.local'),
-  ('00000000-0000-4000-8000-0000000000b3', 'outsider.ls@test.local'),
-  ('00000000-0000-4000-8000-0000000000b4', 'inactive.ls@test.local');
+insert into auth.users (id, email, last_sign_in_at) values
+  ('00000000-0000-4000-8000-0000000000b1', 'owner.ls@test.local', now()),
+  ('00000000-0000-4000-8000-0000000000b2', 'operator.ls@test.local', null),
+  ('00000000-0000-4000-8000-0000000000b3', 'outsider.ls@test.local', null),
+  ('00000000-0000-4000-8000-0000000000b4', 'inactive.ls@test.local', null);
 insert into public.staff (user_id, display_name, role, active) values
   ('00000000-0000-4000-8000-0000000000b1', 'Ada Owner', 'owner', true),
   ('00000000-0000-4000-8000-0000000000b2', 'Bea Operator', 'operator', true),
@@ -34,6 +34,16 @@ select is(
   array(select display_name from public.list_staff()),
   array(select display_name from public.staff order by display_name, user_id),
   'rows are ordered by display name'
+);
+select is(
+  (select last_sign_in_at is not null from public.list_staff() where user_id = '00000000-0000-4000-8000-0000000000b1'),
+  true,
+  'a person who has signed in has a last sign-in time'
+);
+select is(
+  (select last_sign_in_at from public.list_staff() where user_id = '00000000-0000-4000-8000-0000000000b2'),
+  null::timestamptz,
+  'a person who never signed in has none'
 );
 
 -- Operator

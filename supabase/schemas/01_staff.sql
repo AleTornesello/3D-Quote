@@ -83,10 +83,11 @@ create trigger staff_guard
   before update or delete on public.staff
   for each row execute function private.staff_guard();
 
--- The staff list with login emails, for the owner's Staff screen. auth.users isn't exposed through the API.
+-- The staff list with login emails and last sign-in, for the owner's Staff screen. auth.users isn't exposed through the API.
 create or replace function private.list_staff()
 returns table (
-  user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz
+  user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz,
+  last_sign_in_at timestamptz
 )
 language plpgsql
 stable
@@ -99,7 +100,7 @@ begin
     raise exception 'owner_required' using errcode = '42501';
   end if;
   return query
-  select s.user_id, s.display_name, u.email::text, s.role, s.language, s.active, s.created_at
+  select s.user_id, s.display_name, u.email::text, s.role, s.language, s.active, s.created_at, u.last_sign_in_at
   from public.staff s
   join auth.users u on u.id = s.user_id
   order by s.display_name, s.user_id;
@@ -108,7 +109,8 @@ $$;
 
 create or replace function public.list_staff()
 returns table (
-  user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz
+  user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz,
+  last_sign_in_at timestamptz
 )
 language sql
 stable
