@@ -72,7 +72,7 @@ export function StaffActions({
         await navigator.clipboard.writeText(link)
         toast.success(t('staff.toasts.linkCopied'))
       } catch {
-        onShowLink({ name: member.display_name, link })
+        onShowLink({ name: member.display_name, link, reason: 'clipboard' })
       }
     } catch (caught) {
       toast.error(t(toAppError(caught).messageKey))

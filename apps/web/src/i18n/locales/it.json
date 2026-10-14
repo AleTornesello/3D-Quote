@@ -488,6 +488,7 @@
     "linkDialog": {
       "title": "Link di invito",
       "body": "Impossibile inviare l'email. Copia questo link e invialo tu a {{name}}; funziona una sola volta.",
+      "bodyClipboard": "Impossibile copiare in automatico. Copia questo link e invialo tu a {{name}}; funziona una sola volta.",
       "copy": "Copia",
       "copied": "Copiato"
     },

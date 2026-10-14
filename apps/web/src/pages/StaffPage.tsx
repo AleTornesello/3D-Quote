@@ -105,6 +105,7 @@ export function StaffPage() {
         <InvitationLinkDialog
           name={shownLink.name}
           link={shownLink.link}
+          reason={shownLink.reason}
           onClose={() => setShownLink(null)}
         />
       )}

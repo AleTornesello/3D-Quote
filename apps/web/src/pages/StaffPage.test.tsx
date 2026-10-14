@@ -267,6 +267,7 @@ test('Resend offers the link when the email fails again', async () => {
   )
   const dialog = await screen.findByRole('dialog', { name: 'Link di invito' })
   expect(within(dialog).getByText('https://auth.test/verify?token=xyz')).toBeInTheDocument()
+  expect(within(dialog).getByText(/Impossibile inviare l'email/)).toBeInTheDocument()
 })
 
 test('Copy link puts the link on the clipboard', async () => {
@@ -298,6 +299,8 @@ test('Copy link opens the link dialog when the clipboard is unavailable', async 
   )
   const dialog = await screen.findByRole('dialog', { name: 'Link di invito' })
   expect(within(dialog).getByText('https://auth.test/verify?token=abc')).toBeInTheDocument()
+  expect(within(dialog).getByText(/Impossibile copiare in automatico/)).toBeInTheDocument()
+  expect(within(dialog).queryByText(/Impossibile inviare l'email/)).not.toBeInTheDocument()
 })
 
 test('Revoke asks first, then deletes the invitation', async () => {

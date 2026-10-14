@@ -488,6 +488,7 @@
     "linkDialog": {
       "title": "Invitation link",
       "body": "The email couldn't be sent. Copy this link and send it to {{name}} yourself; it works once.",
+      "bodyClipboard": "Couldn't copy automatically. Copy this link and send it to {{name}} yourself; it works once.",
       "copy": "Copy",
       "copied": "Copied"
     },

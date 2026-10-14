@@ -11,7 +11,7 @@ JSON `{ "code": "<code>" }`:
 
 | Status | Code | When |
 |---|---|---|
-| 400 | `invalid_request` | Not a `POST`, or the body has no positive integer `quote_id` |
+| 400 | `invalid_request` | Not a `POST`; for the quote functions, no positive integer `quote_id`; for `manage-staff`, a body that is not a JSON object, an unknown `action`, or bad fields |
 | 401 | `not_authenticated` | No bearer token, or not a valid session |
 | 403 | `not_staff` | The user has no active staff row |
 | 403 | `not_owner` | `manage-staff` called by active staff who is not an owner |
@@ -23,7 +23,7 @@ JSON `{ "code": "<code>" }`:
 | 500 | `duplicate_failed` | `duplicate-quote` couldn't copy a file or the items; nothing was left behind |
 | 500 | `internal_error` | Anything else; the function log has the cause |
 
-The web app calls both through `invokeFunction` (`apps/web/src/data/edge-functions.ts`), which turns the `{ code }` into an `AppError`.
+The web app calls all three through `invokeFunction` (`apps/web/src/data/edge-functions.ts`), which turns the `{ code }` into an `AppError`.
 
 ## `price-quote`
 
@@ -62,6 +62,13 @@ Owner only. Body `{ "action": ..., ... }`; anything else is `400 invalid_request
 email is trimmed and lower-cased. `resend`, `link` and `cancel` only work on someone who has a staff row and has never
 signed in (a pending invitation); `cancel` deletes the login and its staff row. `link` sends nothing: it returns a
 link that opens the app signed in so the person can set a password.
+
+A person has only one valid invitation token at a time: every `link` or `resend`, and even an `invite` refused as a
+duplicate, replaces the previous token, so only the newest emailed or copied link works.
+
+Someone whose login was created and auto-confirmed outside the app (e.g. in the Supabase dashboard) and has never
+signed in shows as Invited, but Resend and Copy link fail for them (the `link` call returns an error) while Revoke
+would delete them. Check the cloud staff list for such people before deploying.
 
 Links and emails redirect to `<Origin>/account?reset=1`, taken from the request's `Origin` header; without a valid
 `http(s)` origin Supabase's Site URL is used.

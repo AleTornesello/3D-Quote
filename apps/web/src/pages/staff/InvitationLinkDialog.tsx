@@ -14,10 +14,12 @@ import {
 export function InvitationLinkDialog({
   name,
   link,
+  reason = 'emailFailed',
   onClose,
 }: {
   name: string
   link: string
+  reason?: 'emailFailed' | 'clipboard'
   onClose: () => void
 }) {
   const { t } = useTranslation()
@@ -37,7 +39,12 @@ export function InvitationLinkDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('staff.linkDialog.title')}</DialogTitle>
-          <DialogDescription>{t('staff.linkDialog.body', { name })}</DialogDescription>
+          <DialogDescription>
+            {t(
+              reason === 'clipboard' ? 'staff.linkDialog.bodyClipboard' : 'staff.linkDialog.body',
+              { name },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <p className="rounded-md border bg-muted p-2 text-sm break-all select-all">{link}</p>
         <DialogFooter>

@@ -45,7 +45,7 @@ Nothing else in the schema changes. The existing pieces already do what the scre
 
 - the `staff_update` policy lets owners change `role` and `active`;
 - `staff_guard` refuses to demote or deactivate the last active owner (`last_owner`);
-- `staff` rows cascade away when their auth user is deleted, which is what Revoke invitation relies on. Cancel is
+- `staff` rows cascade away when their auth user is deleted, which is what Revoke relies on. Revoke (action `cancel`) is
   refused for anyone who has signed in, and a person who has never signed in cannot have created quotes.
 
 ### Tests (pgTAP)
@@ -111,7 +111,7 @@ Columns: Name, Email, Role, Status, Actions. Status is a badge: **Invited**, **A
 
 | Status | Role select | Actions |
 |---|---|---|
-| Invited | enabled | Resend invitation · Copy link · Revoke invitation |
+| Invited | enabled | Resend invitation · Copy link · Revoke |
 | Active | enabled | Deactivate |
 | Inactive | disabled | Reactivate |
 
@@ -132,7 +132,7 @@ An **Invite** button in the page header opens a `FormSheet` with name, email and
 - **Resend invitation:** toast "Invitation sent." (or the same copy-link dialog when `email_sent` is false).
 - **Copy link:** fetches the link and copies it to the clipboard with a toast; if the clipboard is unavailable the
   link dialog opens instead.
-- **Revoke invitation:** confirm dialog, then the person disappears.
+- **Revoke:** confirm dialog, then the person disappears.
 - **Deactivate:** confirm dialog ("{{name}} won't be able to use 3D-Quote. Their quotes stay."); **Reactivate**
   needs no confirmation.
 - A change that finds the person already signed in (`not_pending`) refreshes the list and shows the error.

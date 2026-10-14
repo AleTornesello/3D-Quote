@@ -158,9 +158,13 @@ An open editor shows the results without reloading, then prices the item.
   - `use-invitation-link.ts` — fetches a pending person's link and hands it to the dialog; a failure is a toast.
 - **Data:** `src/data/staff.ts` has the hooks. Invite, resend, link and revoke call the `manage-staff` Edge Function
   through `invokeFunction` (action `cancel` is the Revoke button); role changes, Deactivate and Reactivate are plain
-  updates under the owner policy. The `list_staff` view supplies `last_sign_in_at`.
+  updates under the owner policy. The `list_staff` function (RPC) supplies `last_sign_in_at`.
 - **Status:** `staffStatus` (`src/data/staff-rules.ts`): not active is Inactive, never signed in is Invited,
   otherwise Active.
+- **Invitation tokens:** a person has one valid token at a time; every Resend, Copy link, or an invite refused as a
+  duplicate replaces the previous one, so only the newest link works. Someone created and auto-confirmed outside the
+  app (e.g. in the Supabase dashboard) who never signed in shows as Invited, but Resend and Copy link fail for them
+  while Revoke would delete them: check the cloud staff list before deploying.
 - **Tests:** handlers are passed with `renderApp(path, { functions: { 'manage-staff': … } })`; the clipboard comes
   from user-event.
 - **Deploying:** the `manage-staff` function and the `staff_last_sign_in` migrations must be deployed / applied to
