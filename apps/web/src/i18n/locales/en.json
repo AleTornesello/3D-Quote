@@ -455,7 +455,13 @@
       "deactivate": "Deactivate",
       "reactivate": "Reactivate",
       "deactivateFor": "Deactivate {{name}}",
-      "reactivateFor": "Reactivate {{name}}"
+      "reactivateFor": "Reactivate {{name}}",
+      "resendFor": "Resend the invitation to {{name}}",
+      "resend": "Resend",
+      "linkFor": "Copy the invitation link of {{name}}",
+      "link": "Copy link",
+      "revokeFor": "Revoke the invitation of {{name}}",
+      "revoke": "Revoke"
     },
     "deactivate": {
       "title": "Deactivate {{name}}?",
@@ -464,6 +470,31 @@
     "roles": {
       "owner": "Owner",
       "operator": "Operator"
+    },
+    "invite": {
+      "button": "Invite",
+      "title": "Invite someone",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "submit": "Send invitation"
+    },
+    "toasts": {
+      "invited": "Invitation sent to {{email}}.",
+      "resent": "Invitation sent.",
+      "linkCopied": "Link copied.",
+      "revoked": "Invitation revoked."
+    },
+    "linkDialog": {
+      "title": "Invitation link",
+      "body": "The email couldn't be sent. Copy this link and send it to {{name}} yourself; it works once.",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "revoke": {
+      "title": "Revoke the invitation for {{name}}?",
+      "body": "They won't be able to join.",
+      "confirm": "Revoke"
     }
   },
   "account": {

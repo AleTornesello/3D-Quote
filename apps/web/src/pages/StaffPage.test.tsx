@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { NETWORK_FAILURE } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
 import { renderApp } from '@/test/render-app'
@@ -138,4 +138,194 @@ test('there are no actions on your own row', async () => {
   await screen.findByRole('row', { name: /Anna Rossi/ })
   expect(screen.queryByRole('button', { name: 'Disattiva Anna Rossi' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Disattiva Bruno Verdi' })).toBeInTheDocument()
+})
+
+type Body = { action: string; [key: string]: unknown }
+const manageStaff = (answers: Record<string, unknown>) => (body: unknown) => {
+  const { action } = body as Body
+  const answer = answers[action]
+  if (answer && typeof answer === 'object' && 'status' in answer) return answer as never
+  return { data: answer ?? {} }
+}
+
+test('Invite sends the trimmed name and email and confirms with a toast', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({ invite: { user_id: 'user-9', email_sent: true } }),
+    },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Invita' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Invita una persona' })
+  await user.type(within(sheet).getByLabelText('Nome'), '  Dora Bianchi ')
+  await user.type(within(sheet).getByLabelText('Email'), '  Dora@Example.com ')
+  await user.selectOptions(within(sheet).getByLabelText('Ruolo'), 'owner')
+  await user.click(within(sheet).getByRole('button', { name: 'Invia invito' }))
+  expect(await screen.findByText('Invito inviato a dora@example.com.')).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toEqual([
+    { action: 'invite', email: 'dora@example.com', display_name: 'Dora Bianchi', role: 'owner' },
+  ])
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+test('Invite checks the fields before calling the function', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: { 'manage-staff': manageStaff({}) },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Invita' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Invita una persona' })
+  await user.type(within(sheet).getByLabelText('Email'), 'not-an-email')
+  await user.click(within(sheet).getByRole('button', { name: 'Invia invito' }))
+  expect(await within(sheet).findByText('Campo obbligatorio.')).toBeInTheDocument()
+  expect(within(sheet).getByText('Inserisci un indirizzo email valido.')).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toHaveLength(0)
+})
+
+test('Invite shows an email that already has an account next to the field', async () => {
+  const { user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({ invite: { status: 409, code: 'email_already_registered' } }),
+    },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Invita' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Invita una persona' })
+  await user.type(within(sheet).getByLabelText('Nome'), 'Dora')
+  await user.type(within(sheet).getByLabelText('Email'), 'anna@example.com')
+  await user.click(within(sheet).getByRole('button', { name: 'Invia invito' }))
+  expect(await within(sheet).findByText('Questa email ha già un account.')).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: 'Invita una persona' })).toBeInTheDocument()
+})
+
+test('when the email cannot be sent the invitation link is offered to copy', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({
+        invite: { user_id: 'user-9', email_sent: false },
+        link: { link: 'https://auth.test/verify?token=abc' },
+      }),
+    },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Invita' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Invita una persona' })
+  await user.type(within(sheet).getByLabelText('Nome'), 'Dora Bianchi')
+  await user.type(within(sheet).getByLabelText('Email'), 'dora@example.com')
+  await user.click(within(sheet).getByRole('button', { name: 'Invia invito' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Link di invito' })
+  expect(within(dialog).getByText(/Impossibile inviare l'email/)).toBeInTheDocument()
+  expect(within(dialog).getByText('https://auth.test/verify?token=abc')).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toContainEqual({ action: 'link', user_id: 'user-9' })
+  await user.click(within(dialog).getByRole('button', { name: 'Copia' }))
+  expect(await navigator.clipboard.readText()).toBe('https://auth.test/verify?token=abc')
+})
+
+test('an invited person has Resend, Copy link and Revoke, and no Deactivate', async () => {
+  renderApp('/staff', { session, rpc })
+  await screen.findByRole('row', { name: /Carla Neri/ })
+  expect(
+    screen.getByRole('button', { name: "Invia di nuovo l'invito a Carla Neri" }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Copia il link di invito di Carla Neri' }),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: "Revoca l'invito di Carla Neri" })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Disattiva Carla Neri' })).not.toBeInTheDocument()
+})
+
+test('Resend sends the invitation again', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: { 'manage-staff': manageStaff({ resend: { email_sent: true } }) },
+  })
+  await user.click(
+    await screen.findByRole('button', { name: "Invia di nuovo l'invito a Carla Neri" }),
+  )
+  expect(await screen.findByText('Invito inviato.')).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toEqual([{ action: 'resend', user_id: 'user-4' }])
+})
+
+test('Resend offers the link when the email fails again', async () => {
+  const { user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({
+        resend: { email_sent: false },
+        link: { link: 'https://auth.test/verify?token=xyz' },
+      }),
+    },
+  })
+  await user.click(
+    await screen.findByRole('button', { name: "Invia di nuovo l'invito a Carla Neri" }),
+  )
+  const dialog = await screen.findByRole('dialog', { name: 'Link di invito' })
+  expect(within(dialog).getByText('https://auth.test/verify?token=xyz')).toBeInTheDocument()
+})
+
+test('Copy link puts the link on the clipboard', async () => {
+  const { user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({ link: { link: 'https://auth.test/verify?token=abc' } }),
+    },
+  })
+  await user.click(
+    await screen.findByRole('button', { name: 'Copia il link di invito di Carla Neri' }),
+  )
+  expect(await screen.findByText('Link copiato.')).toBeInTheDocument()
+  expect(await navigator.clipboard.readText()).toBe('https://auth.test/verify?token=abc')
+})
+
+test('Copy link opens the link dialog when the clipboard is unavailable', async () => {
+  const { user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: {
+      'manage-staff': manageStaff({ link: { link: 'https://auth.test/verify?token=abc' } }),
+    },
+  })
+  vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'))
+  await user.click(
+    await screen.findByRole('button', { name: 'Copia il link di invito di Carla Neri' }),
+  )
+  const dialog = await screen.findByRole('dialog', { name: 'Link di invito' })
+  expect(within(dialog).getByText('https://auth.test/verify?token=abc')).toBeInTheDocument()
+})
+
+test('Revoke asks first, then deletes the invitation', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: { 'manage-staff': manageStaff({ cancel: {} }) },
+  })
+  await user.click(await screen.findByRole('button', { name: "Revoca l'invito di Carla Neri" }))
+  const dialog = await screen.findByRole('alertdialog')
+  expect(within(dialog).getByText("Revocare l'invito per Carla Neri?")).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toHaveLength(0)
+  await user.click(within(dialog).getByRole('button', { name: 'Revoca' }))
+  expect(await screen.findByText('Invito revocato.')).toBeInTheDocument()
+  expect(db.functionCalls('manage-staff')).toEqual([{ action: 'cancel', user_id: 'user-4' }])
+})
+
+test('a person who already signed in cannot be revoked: the error is shown and the list reloads', async () => {
+  const { db, user } = renderApp('/staff', {
+    session,
+    rpc,
+    functions: { 'manage-staff': manageStaff({ cancel: { status: 409, code: 'not_pending' } }) },
+  })
+  await user.click(await screen.findByRole('button', { name: "Revoca l'invito di Carla Neri" }))
+  const dialog = await screen.findByRole('alertdialog')
+  await user.click(within(dialog).getByRole('button', { name: 'Revoca' }))
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+    "Questa persona ha già effettuato l'accesso",
+  )
+  await waitFor(() => expect(db.rpcCalls('list_staff').length).toBeGreaterThan(1))
 })

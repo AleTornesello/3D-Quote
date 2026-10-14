@@ -455,7 +455,13 @@
       "deactivate": "Disattiva",
       "reactivate": "Riattiva",
       "deactivateFor": "Disattiva {{name}}",
-      "reactivateFor": "Riattiva {{name}}"
+      "reactivateFor": "Riattiva {{name}}",
+      "resendFor": "Invia di nuovo l'invito a {{name}}",
+      "resend": "Invia di nuovo",
+      "linkFor": "Copia il link di invito di {{name}}",
+      "link": "Copia link",
+      "revokeFor": "Revoca l'invito di {{name}}",
+      "revoke": "Revoca"
     },
     "deactivate": {
       "title": "Disattivare {{name}}?",
@@ -464,6 +470,31 @@
     "roles": {
       "owner": "Titolare",
       "operator": "Operatore"
+    },
+    "invite": {
+      "button": "Invita",
+      "title": "Invita una persona",
+      "name": "Nome",
+      "email": "Email",
+      "role": "Ruolo",
+      "submit": "Invia invito"
+    },
+    "toasts": {
+      "invited": "Invito inviato a {{email}}.",
+      "resent": "Invito inviato.",
+      "linkCopied": "Link copiato.",
+      "revoked": "Invito revocato."
+    },
+    "linkDialog": {
+      "title": "Link di invito",
+      "body": "Impossibile inviare l'email. Copia questo link e invialo tu a {{name}}; funziona una sola volta.",
+      "copy": "Copia",
+      "copied": "Copiato"
+    },
+    "revoke": {
+      "title": "Revocare l'invito per {{name}}?",
+      "body": "Non potrà più registrarsi.",
+      "confirm": "Revoca"
     }
   },
   "account": {
