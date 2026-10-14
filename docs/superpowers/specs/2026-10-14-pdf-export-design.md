@@ -1,7 +1,7 @@
 # PDF Export and VAT — Design
 
 - **Date:** 2026-10-14
-- **Status:** Draft — awaiting review
+- **Status:** Implemented
 - **Branch:** `develop`
 
 ## Goal

@@ -151,8 +151,9 @@ Rules when editing a Draft item:
 - **Remove override** returns to the computed price.
 
 **Totals**
-- Quote total = sum of item totals. Shown with currency, formatted for the user's language.
-- Prices are **net of VAT** (VAT handling: see [Open questions](#10-open-questions)).
+- **Net total** = sum of item totals; **VAT** = net × VAT rate, rounded half-up to the cent; **Total incl. VAT**.
+  Shown with currency, formatted for the user's language. A draft uses the shop's VAT rate (Settings); marking the
+  quote as sent freezes the rate on the quote.
 - **Recalculate prices** (Draft only): re-prices every item with the current settings and rates. Prices are also
   recalculated automatically whenever an item changes or a slice finishes.
 
@@ -227,6 +228,7 @@ quotes.
 | Failure allowance (%) | 10 | 0–100 |
 | Setup / handling fee (per item) | 5.00 | ≥ 0 |
 | Default markup (%) | 30 | ≥ 0 |
+| VAT rate (%) | 22 | 0–100; applied to the quote's net total; frozen on each quote when it is sent |
 | Minimum item price | 10.00 | ≥ 0 |
 | Currency | EUR | ISO 4217 code; one currency for the whole shop |
 
@@ -236,7 +238,7 @@ quotes.
 |---|---|---|
 | Quote number prefix | `Q` | 1–10 letters/digits |
 | Default validity (days) | 30 | 1–365 |
-| PDF terms | "Prices net of VAT. Delivery …" | Optional; Italian and English text, printed at the bottom of the PDF in the chosen language |
+| PDF terms | "Delivery …" | Optional; Italian and English text, printed at the bottom of the PDF in the chosen language |
 
 **Shop details** (printed on the PDF): name, address, VAT number, email, phone, logo (PNG/JPG/SVG, ≤ 1 MB).
 
@@ -356,7 +358,7 @@ their UI language).
 2. Title "Quote" / "Preventivo", number, date (sent date, or today for drafts), valid until.
 3. Client block: name, company, email, phone.
 4. Items table: description, material (type and colour), quantity, unit price, item total.
-5. Quote total, currency, "Prices net of VAT".
+5. Net total, VAT (rate) and total incl. VAT, in the shop currency.
 6. Quote notes.
 7. PDF terms from Settings, in the chosen language.
 
@@ -366,6 +368,9 @@ notes.
 Draft PDFs carry a diagonal "DRAFT" / "BOZZA" watermark.
 
 File name: `<number>-<client name>.pdf`, e.g. `Q-2026-0042-Rossi.pdf`.
+
+The Export PDF button is available in every status once every item has a price; it opens a dialog to choose the
+language.
 
 ## 7. Slicing as the user sees it
 
@@ -421,8 +426,6 @@ This analysis requires these changes, applied in the same change set:
 
 ## 10. Open questions
 
-- **VAT:** whether the PDF should show VAT and a gross total (rate, exemptions for foreign clients), or stay net.
-- **PDF generation:** in the browser or in an Edge Function.
 - **Default print settings:** whether the owner can configure the defaults for new items (layer height, infill,
   supports) instead of the fixed 0.20 mm / 20 % / off.
 - **Maximum upload size:** 100 MB is a proposal; to be confirmed against the worker's limits.

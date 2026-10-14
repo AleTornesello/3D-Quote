@@ -112,6 +112,15 @@ apps/web/src/
   the error toast's Retry always call. Edge Functions are called through `invokeFunction`
   (`src/data/edge-functions.ts`); tests pass handlers with `renderApp(path, { functions })`. `price-quote`
   defaults to a handler that prices nothing, so tests with sliced-but-unpriced items don't raise error toasts.
+- **PDF:** `ExportPdfDialog` (`src/pdf/`) builds a `QuotePdfData` with `toQuotePdfData` (pure: translated and
+  formatted in the chosen language, VAT included), renders it with `QuotePdf` (`@react-pdf/renderer`) and downloads
+  it. The renderer is a context (`usePdfRenderer`) whose real implementation lazy-loads react-pdf, so the library is a
+  separate chunk fetched on the first export. Tests get a `FakePdfRenderer` (`renderApp(...).pdf`, with `rendered` and
+  `failWith`); `QuotePdf.render.test.ts` renders the real thing in a Node environment and reads the text back with
+  `pdfjs-dist`. The PDF uses the built-in Helvetica: Western European letters and € print correctly, other scripts
+  (Cyrillic, Greek…) don't until a font is embedded.
+- **VAT:** `settings.vat_rate_pct` is the shop rate; `mark_quote_sent` copies it onto the quote. `vatRateFor` and
+  `quoteTotals` (`src/data/quote-rules.ts`) work in integer cents; the editor's totals and the PDF use them.
 - **Test fake:** `FakeDb#configure({ defaults, embeds, writable })` adds what the database would: `renderApp` fills
   a new quote's defaults and embeds its `client` and `creator`, gives items an empty `job` unless seeded, and lets
   updates and deletes reach draft quotes only (the RLS policy). A `range` starting past the last row fails with
@@ -145,12 +154,12 @@ An open editor shows the results without reloading, then prices the item.
 
 ## Not done yet
 
-- **PDF export** — next spec.
 - **Orphaned model files** — files whose item was never created or whose removal failed stay in `models` until a
   cleanup job exists.
 - **Inviting, removing and deactivating staff** — needs an Edge Function; until then use the Supabase dashboard.
 - **Redirect URLs** — the reset email links to `<origin>/account?reset=1`. Allow it under Supabase → Authentication →
   URL Configuration → **Redirect URLs** for every environment (for example `https://<host>/account**`), or Supabase
   falls back to the Site URL.
-- **Bundle size** — the single JS chunk is ~700 kB (~210 kB gzip); split routes with lazy loading.
+- **Bundle size** — the main JS chunk is ~1.1 MB (1,125 kB, ~331 kB gzip); split routes with lazy loading (the PDF
+  library is already its own lazy chunk, ~1,202 kB).
 - **End-to-end tests** (Playwright).
