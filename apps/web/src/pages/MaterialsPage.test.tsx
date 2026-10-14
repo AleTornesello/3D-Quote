@@ -37,6 +37,22 @@ test('operators see the list without owner actions', async () => {
   expect(screen.queryByRole('switch')).not.toBeInTheDocument()
 })
 
+test('a double-click on a row edits the material, but only for owners', async () => {
+  const { user } = renderApp('/materials', { session, tables: { materials: [pla()] } })
+  await user.dblClick(await screen.findByText('1,24 g/cm³'))
+  expect(await screen.findByRole('dialog', { name: 'Modifica materiale' })).toBeInTheDocument()
+})
+
+test('operators cannot open a material by double-clicking', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    staff: operatorStaff,
+    tables: { materials: [pla()] },
+  })
+  await user.dblClick(await screen.findByText('1,24 g/cm³'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
 test('choosing a type pre-fills density until density is edited by hand', async () => {
   const { db, user } = renderApp('/materials', { session })
   await user.click(await screen.findByRole('button', { name: 'Nuovo materiale' }))

@@ -11,7 +11,13 @@ import { FormSheet } from './FormSheet'
 
 type Item = { id: number; name: string }
 
-function List({ load }: { load: () => Promise<Item[]> }) {
+function List({
+  load,
+  onRowDoubleClick,
+}: {
+  load: () => Promise<Item[]>
+  onRowDoubleClick?: (item: Item) => void
+}) {
   const query = useQuery({ queryKey: ['items'], queryFn: load })
   return (
     <DataTable
@@ -19,7 +25,11 @@ function List({ load }: { load: () => Promise<Item[]> }) {
       caption="Items"
       empty="Nothing here"
       rowKey={(item) => item.id}
-      columns={[{ key: 'name', header: 'Name', cell: (item) => item.name }]}
+      onRowDoubleClick={onRowDoubleClick}
+      columns={[
+        { key: 'name', header: 'Name', cell: (item) => item.name },
+        { key: 'act', header: 'Act', cell: () => <button type="button">Inner</button> },
+      ]}
     />
   )
 }
@@ -37,6 +47,20 @@ test('DataTable shows a loading state, then the rows', async () => {
   expect(screen.getByRole('status', { name: 'Caricamento…' })).toBeInTheDocument()
   expect(await screen.findByRole('cell', { name: 'MK4' })).toBeInTheDocument()
   expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument()
+})
+
+test('DataTable double-click runs onRowDoubleClick, except on controls inside the row', async () => {
+  const onDouble = vi.fn()
+  render(
+    <QueryClientProvider client={createQueryClient({ retry: false })}>
+      <List load={async () => [{ id: 1, name: 'MK4' }]} onRowDoubleClick={onDouble} />
+    </QueryClientProvider>,
+  )
+  const user = userEvent.setup()
+  await user.dblClick(await screen.findByRole('button', { name: 'Inner' }))
+  expect(onDouble).not.toHaveBeenCalled()
+  await user.dblClick(screen.getByRole('cell', { name: 'MK4' }))
+  expect(onDouble).toHaveBeenCalledWith({ id: 1, name: 'MK4' })
 })
 
 test('DataTable shows the empty state', async () => {

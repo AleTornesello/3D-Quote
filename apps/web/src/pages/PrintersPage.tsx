@@ -106,6 +106,7 @@ export function PrintersPage() {
         columns={columns}
         rowKey={(p) => p.id}
         caption={t('nav.printers')}
+        onRowDoubleClick={isOwner ? setEditing : undefined}
         empty={t('printers.empty')}
       />
       {editing && (

@@ -1,7 +1,7 @@
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { useNavigate } from 'react-router'
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -17,17 +17,15 @@ export function ClientsPage() {
   const [search, setSearch] = useState('')
   const debounced = useDebouncedValue(search, 300)
   const clients = useClients(debounced)
+  const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
+  const edit = (c: ClientListRow) => navigate(`/clients/${c.id}`)
 
   const columns: Column<ClientListRow>[] = [
     {
       key: 'name',
       header: t('clients.fields.name'),
-      cell: (c) => (
-        <Link to={`/clients/${c.id}`} className="font-medium underline-offset-4 hover:underline">
-          {c.name}
-        </Link>
-      ),
+      cell: (c) => <span className="font-medium">{c.name}</span>,
     },
     { key: 'company', header: t('clients.fields.company'), cell: (c) => c.company ?? '—' },
     { key: 'email', header: t('clients.fields.email'), cell: (c) => c.email ?? '—' },
@@ -42,6 +40,21 @@ export function ClientsPage() {
       key: 'lastQuote',
       header: t('clients.columns.lastQuote'),
       cell: (c) => (c.lastQuoteAt ? format.date(c.lastQuoteAt) : '—'),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{t('common.actions')}</span>,
+      className: 'text-right',
+      cell: (c) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('common.editItem', { name: c.name })}
+          onClick={() => edit(c)}
+        >
+          <Pencil aria-hidden />
+        </Button>
+      ),
     },
   ]
 
@@ -70,6 +83,7 @@ export function ClientsPage() {
         rowKey={(c) => c.id}
         caption={t('nav.clients')}
         empty={t(debounced.trim() ? 'clients.noMatches' : 'clients.empty')}
+        onRowDoubleClick={edit}
       />
       {creating && <ClientSheet onClose={() => setCreating(false)} />}
     </section>

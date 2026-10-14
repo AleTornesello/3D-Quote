@@ -45,6 +45,10 @@ something useful (e.g. operators see the price breakdown read-only). Permissions
 - **Sidebar** with: Quotes (home), Clients, Printers, Materials, Settings (owner sees it editable, operator
   read-only), Staff (owner only). At the bottom: the current user's name, language switcher, Account, Log out.
 - **Desktop** (≥ 1024 px): sidebar always visible; lists are tables.
+- **Opening a row to edit:** in the Quotes, Clients, Printers and Materials lists each row has an Edit (pencil)
+  button, and double-clicking the row does the same. For quotes and clients that opens the quote editor or the client
+  page; for printers and materials, the edit sheet (owners only). Names and numbers in the lists are not links, and a
+  single click does nothing. Staff has no edit form, so it has neither.
 - **Tablet** (768–1023 px): sidebar collapses to an icon rail / drawer; tables keep their key columns and hide the
   rest; every action reachable by touch.
 - Below 768 px the app remains usable but is not optimised (see [§8](#8-non-functional-requirements)).

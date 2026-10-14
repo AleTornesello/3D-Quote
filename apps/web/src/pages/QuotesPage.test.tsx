@@ -27,10 +27,7 @@ test('shows quotes with client, status, total and creator', async () => {
     },
   })
   const first = await screen.findByRole('row', { name: /Q-2026-0042/ })
-  expect(within(first).getByRole('link', { name: 'Q-2026-0042' })).toHaveAttribute(
-    'href',
-    '/quotes/42',
-  )
+  expect(within(first).queryByRole('link')).not.toBeInTheDocument()
   expect(within(first).getByText('Rossi Meccanica')).toBeInTheDocument()
   expect(within(first).getByText('Bozza')).toBeInTheDocument()
   expect(within(first).getByText('39,24 €')).toBeInTheDocument()
@@ -232,6 +229,21 @@ test('the sidebar link to the list drops the search, box included', async () => 
   await pastDebounce()
   expect(router.state.location.search).toBe('')
   expect(search).toHaveValue('')
+})
+
+test('the Edit button and a double-click on the row open the quote; a single click does not', async () => {
+  const { router, user } = renderApp('/quotes', {
+    session,
+    tables: { quotes_list: [quoteListRow({ id: 42 }), quoteListRow({ id: 43 })] },
+  })
+  const first = await screen.findByRole('row', { name: /Q-2026-0042/ })
+  await user.click(within(first).getByText('Q-2026-0042'))
+  expect(router.state.location.pathname).toBe('/quotes')
+  await user.dblClick(within(first).getByText('Q-2026-0042'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/quotes/42'))
+  await router.navigate('/quotes')
+  await user.click(await screen.findByRole('button', { name: 'Modifica Q-2026-0043' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/quotes/43'))
 })
 
 test('New quote opens /quotes/new', async () => {

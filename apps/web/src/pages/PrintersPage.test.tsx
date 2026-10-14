@@ -244,6 +244,25 @@ test('edits a printer', async () => {
   })
 })
 
+test('a double-click on a row edits the printer, but not on its Active switch', async () => {
+  const { user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
+  const row = await screen.findByRole('row', { name: /MK4 #1/ })
+  await user.dblClick(within(row).getByRole('switch'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await user.dblClick(within(row).getByText('Prusa MK4'))
+  expect(await screen.findByRole('dialog', { name: 'Modifica stampante' })).toBeInTheDocument()
+})
+
+test('operators cannot open a printer by double-clicking', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    staff: operatorStaff,
+    tables: { printers: [mk4()] },
+  })
+  await user.dblClick(await screen.findByText('Prusa MK4'))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
 test('a duplicate name is shown under the name field', async () => {
   const { db, user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
   const sheet = await openEdit(user)

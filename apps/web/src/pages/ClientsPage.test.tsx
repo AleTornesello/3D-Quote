@@ -17,13 +17,25 @@ test('lists clients with their quote count and last quote date', async () => {
   expect(within(row).getByText('Rossi Meccanica')).toBeInTheDocument()
   expect(within(row).getByText('2')).toBeInTheDocument()
   expect(within(row).getByText('05/10/2026')).toBeInTheDocument()
-  expect(within(row).getByRole('link', { name: 'Mario Rossi' })).toHaveAttribute(
-    'href',
-    '/clients/1',
-  )
+  expect(within(row).queryByRole('link')).not.toBeInTheDocument()
   const other = screen.getByRole('row', { name: /Lucia Verdi/ })
   expect(within(other).getByText('0')).toBeInTheDocument()
   expect(within(other).getAllByText('—').length).toBeGreaterThan(0)
+})
+
+test('the Edit button and a double-click on the row open the client; a single click does not', async () => {
+  const { router, user } = renderApp('/clients', {
+    session,
+    tables: { clients: [mario(), lucia()] },
+  })
+  const row = await screen.findByRole('row', { name: /Mario Rossi/ })
+  await user.click(within(row).getByText('Mario Rossi'))
+  expect(router.state.location.pathname).toBe('/clients')
+  await user.dblClick(within(row).getByText('Rossi Meccanica'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/clients/1'))
+  await router.navigate('/clients')
+  await user.click(await screen.findByRole('button', { name: 'Modifica Lucia Verdi' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/clients/2'))
 })
 
 test('shows an empty state', async () => {

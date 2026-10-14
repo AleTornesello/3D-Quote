@@ -1,7 +1,7 @@
-import { Clock, Plus } from 'lucide-react'
+import { Clock, Pencil, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { DataTable, type Column, type TableQuery } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -61,16 +61,14 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
   const clearFilters = () =>
     update({ q: '', status: [], client: null, from: null, to: null, page: DEFAULT_QUOTE_LIST.page })
 
+  const edit = (q: QuoteListRow) => navigate(`/quotes/${q.id}`)
+
   const columns: Column<QuoteListRow>[] = [
     {
       key: 'number',
       sortKey: 'number',
       header: t('quotes.columns.number'),
-      cell: (q) => (
-        <Link to={`/quotes/${q.id}`} className="font-medium underline-offset-4 hover:underline">
-          {q.number}
-        </Link>
-      ),
+      cell: (q) => <span className="font-medium">{q.number}</span>,
     },
     {
       key: 'client',
@@ -126,6 +124,21 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
         </span>
       ),
     },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{t('common.actions')}</span>,
+      className: 'text-right',
+      cell: (q) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('common.editItem', { name: q.number })}
+          onClick={() => edit(q)}
+        >
+          <Pencil aria-hidden />
+        </Button>
+      ),
+    },
   ]
 
   const tableQuery: TableQuery<QuoteListRow> = {
@@ -154,6 +167,7 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
         columns={columns}
         rowKey={(q) => q.id}
         caption={t('nav.quotes')}
+        onRowDoubleClick={edit}
         sort={{ key: params.sort, dir: params.dir, onSort }}
         pagination={{
           page: params.page,

@@ -33,6 +33,9 @@ export type TableQuery<T> = {
   refetch: () => unknown
 }
 
+/** Controls inside a row keep their own double-click: it must not open the row. */
+const INTERACTIVE = 'a, button, input, select, textarea, label, [role="switch"], [role="button"]'
+
 /** A list backed by a query: a skeleton while loading, an error with Retry, an empty state, or the rows. */
 export function DataTable<T>({
   query,
@@ -42,6 +45,7 @@ export function DataTable<T>({
   caption,
   sort,
   pagination,
+  onRowDoubleClick,
 }: {
   query: TableQuery<T>
   columns: Column<T>[]
@@ -50,6 +54,8 @@ export function DataTable<T>({
   caption: string
   sort?: { key: string; dir: 'asc' | 'desc'; onSort: (key: string) => void }
   pagination?: { page: number; pageSize: number; total: number; onPage: (page: number) => void }
+  /** Runs when a row is double-clicked, e.g. to edit it. Double-clicks on controls inside the row are ignored. */
+  onRowDoubleClick?: (row: T) => void
 }) {
   const { t, i18n } = useTranslation()
 
@@ -110,7 +116,15 @@ export function DataTable<T>({
         </TableHeader>
         <TableBody>
           {query.data.map((row) => (
-            <TableRow key={rowKey(row)}>
+            <TableRow
+              key={rowKey(row)}
+              onDoubleClick={
+                onRowDoubleClick &&
+                ((event) => {
+                  if (!(event.target as Element).closest(INTERACTIVE)) onRowDoubleClick(row)
+                })
+              }
+            >
               {columns.map((column) => (
                 <TableCell key={column.key} className={column.className}>
                   {column.cell(row)}

@@ -110,6 +110,7 @@ export function MaterialsPage() {
         columns={columns}
         rowKey={(m) => m.id}
         caption={t('nav.materials')}
+        onRowDoubleClick={isOwner ? setEditing : undefined}
         empty={t('materials.empty')}
       />
       {editing && (
