@@ -146,6 +146,27 @@ select public.worker_complete_job(
 
 An open editor shows the results without reloading, then prices the item.
 
+## Staff
+
+- **Page:** `StaffPage` (`src/pages/StaffPage.tsx`, owner only) lists name, email, role select and a status badge.
+  Its parts are in `src/pages/staff/`:
+  - `InviteSheet.tsx` and `invite-form.ts` — the Invite form (name, email, role; zod schema and defaults). When the
+    email can't be sent (`email_sent: false`) it hands the person to `onShowLink` and closes.
+  - `StaffActions.tsx` — the actions a row allows for its status: Resend, Copy link, Revoke (confirmed) for Invited;
+    Deactivate (confirmed) for Active; Reactivate for Inactive. Your own row has none.
+  - `InvitationLinkDialog.tsx` — shows a link to copy by hand (clipboard fallback and the no-email case).
+  - `use-invitation-link.ts` — fetches a pending person's link and hands it to the dialog; a failure is a toast.
+- **Data:** `src/data/staff.ts` has the hooks. Invite, resend, link and revoke call the `manage-staff` Edge Function
+  through `invokeFunction` (action `cancel` is the Revoke button); role changes, Deactivate and Reactivate are plain
+  updates under the owner policy. The `list_staff` view supplies `last_sign_in_at`.
+- **Status:** `staffStatus` (`src/data/staff-rules.ts`): not active is Inactive, never signed in is Invited,
+  otherwise Active.
+- **Tests:** handlers are passed with `renderApp(path, { functions: { 'manage-staff': … } })`; the clipboard comes
+  from user-event.
+- **Deploying:** the `manage-staff` function and the `staff_last_sign_in` migrations must be deployed / applied to
+  the cloud project (via the Supabase MCP, when asked) together with this build: without them the Staff page can't
+  load Invited / Active and invitations fail.
+
 ## Adding a section page
 
 1. Create `src/pages/<Name>Page.tsx`.
@@ -159,10 +180,11 @@ An open editor shows the results without reloading, then prices the item.
 
 - **Orphaned model files** — files whose item was never created or whose removal failed stay in `models` until a
   cleanup job exists.
-- **Inviting, removing and deactivating staff** — needs an Edge Function; until then use the Supabase dashboard.
-- **Redirect URLs** — the reset email links to `<origin>/account?reset=1`. Allow it under Supabase → Authentication →
-  URL Configuration → **Redirect URLs** for every environment (for example `https://<host>/account**`), or Supabase
-  falls back to the Site URL.
+- **Redirect URLs** — the reset email and staff invitations link to `<origin>/account?reset=1`. Allow it under
+  Supabase → Authentication → URL Configuration → **Redirect URLs** for every environment (for example
+  `https://<host>/account**`; the same entry covers both), or Supabase falls back to the Site URL.
+- **Custom SMTP** — Supabase's built-in email sender only delivers to members of your Supabase organisation and is
+  rate-limited, so configure custom SMTP before inviting ordinary addresses; until then use **Copy link**.
 - **Bundle size** — the main JS chunk is ~1.1 MB (1,125 kB, ~331 kB gzip); split routes with lazy loading (the PDF
   library is already its own lazy chunk, ~1,202 kB).
 - **End-to-end tests** (Playwright).

@@ -246,11 +246,14 @@ quotes.
 
 Owner only.
 
-- **List:** name, email, role, status (Active / Invited).
-- **Invite:** email + role. Sends the invitation email; the person appears as Invited until they set a password.
+- **List:** name, email, role, status (Invited / Active / Inactive). Invited = invited and never signed in.
+- **Invite:** name, email and role (the person's language starts as Italian). Sends the invitation email; the person
+  follows the link, sets a password and is in. If the email can't be sent the app shows the link to send by hand.
+- **Invitations:** Resend, Copy link, Revoke (deletes the invitation; only before the person has signed in).
 - **Change role** between Operator and Owner.
-- **Remove:** revokes access immediately. The person's past quotes keep showing them as creator.
-- The last remaining owner can't be removed or demoted.
+- **Deactivate / Reactivate:** a deactivated person can no longer use the app, and the quotes they created keep
+  showing them as creator. Your own row has no actions.
+- The last remaining owner can't be demoted or deactivated.
 
 ### 3.10 Account
 

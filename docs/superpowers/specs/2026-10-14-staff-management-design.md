@@ -1,7 +1,7 @@
 # Staff Invites and Management — Design
 
 - **Date:** 2026-10-14
-- **Status:** Draft — awaiting review
+- **Status:** Implemented
 - **Branch:** `develop`
 
 ## Goal
@@ -11,7 +11,7 @@ Let an owner manage staff from the app instead of the Supabase dashboard
 
 - invite a person by email with a name and a role;
 - see who is Invited, Active or Inactive;
-- resend an invitation, copy its link, or cancel it;
+- resend an invitation, copy its link, or revoke it;
 - deactivate and reactivate people;
 - change roles (already built).
 
@@ -23,7 +23,7 @@ Today the Staff screen lists people and changes roles; inviting and removing hap
 |---|---|
 | Removing people | **Deactivate / Reactivate** (`staff.active`). No hard delete of people who have signed in: quotes keep pointing at their creator |
 | Revoking access | `active = false` makes `is_staff()` false, which stops every table, storage and Edge Function call. The auth user is not banned |
-| Pending invitations | Can be **cancelled**: the auth user and the staff row are deleted. Only for people who never signed in |
+| Pending invitations | Can be **revoked**: the auth user and the staff row are deleted. Only for people who never signed in |
 | Who needs the service role | Invite, resend, link and cancel go through one Edge Function, `manage-staff`. Deactivate, reactivate and role changes stay plain updates under the existing owner policy |
 | Invitation delivery | The standard Supabase invitation email, plus a link the owner can copy and send by hand (Supabase's built-in email sender is rate-limited and only delivers to organisation members until SMTP is configured) |
 | Accepting an invitation | The email and the copied link both open `<origin>/account?reset=1`, the page that already lets a user with a recovery session set a password |
@@ -45,7 +45,7 @@ Nothing else in the schema changes. The existing pieces already do what the scre
 
 - the `staff_update` policy lets owners change `role` and `active`;
 - `staff_guard` refuses to demote or deactivate the last active owner (`last_owner`);
-- `staff` rows cascade away when their auth user is deleted, which is what Cancel invitation relies on. Cancel is
+- `staff` rows cascade away when their auth user is deleted, which is what Revoke invitation relies on. Cancel is
   refused for anyone who has signed in, and a person who has never signed in cannot have created quotes.
 
 ### Tests (pgTAP)
@@ -65,7 +65,7 @@ staff row must also have `role = 'owner'` (`403 not_owner`).
 |---|---|---|
 | `{ action: "invite", email, display_name, role }` | Creates the auth user and sends the invitation email, redirecting to `<origin>/account?reset=1`; inserts the staff row (`display_name`, `role`, language `it`, active) | `201 { user_id, email_sent }` |
 | `{ action: "resend", user_id }` | Sends the invitation email again | `200 { email_sent }` |
-| `{ action: "link", user_id }` | Generates a one-time link that opens `<origin>/account?reset=1` (recovery type; sends nothing) | `200 { link }` |
+| `{ action: "link", user_id }` | Generates a one-time link that opens `<origin>/account?reset=1` (an invite-type link, generated with `generateLink`; sends nothing) | `200 { link }` |
 | `{ action: "cancel", user_id }` | Deletes the auth user (the staff row goes with it) | `200 {}` |
 
 - `<origin>` is taken from the request's `Origin` header; if it is missing the function falls back to the project's
@@ -111,7 +111,7 @@ Columns: Name, Email, Role, Status, Actions. Status is a badge: **Invited**, **A
 
 | Status | Role select | Actions |
 |---|---|---|
-| Invited | enabled | Resend invitation · Copy link · Cancel invitation |
+| Invited | enabled | Resend invitation · Copy link · Revoke invitation |
 | Active | enabled | Deactivate |
 | Inactive | disabled | Reactivate |
 
@@ -132,7 +132,7 @@ An **Invite** button in the page header opens a `FormSheet` with name, email and
 - **Resend invitation:** toast "Invitation sent." (or the same copy-link dialog when `email_sent` is false).
 - **Copy link:** fetches the link and copies it to the clipboard with a toast; if the clipboard is unavailable the
   link dialog opens instead.
-- **Cancel invitation:** confirm dialog, then the person disappears.
+- **Revoke invitation:** confirm dialog, then the person disappears.
 - **Deactivate:** confirm dialog ("{{name}} won't be able to use 3D-Quote. Their quotes stay."); **Reactivate**
   needs no confirmation.
 - A change that finds the person already signed in (`not_pending`) refreshes the list and shows the error.
@@ -165,7 +165,7 @@ components.
   refuses one who signed in; unknown action and unknown `user_id`.
 - **Vitest:** `staffStatus` (Invited/Active/Inactive); page tests with `renderApp(path, { functions })` handlers:
   the invite sheet (fields, validation, success toast, `email_sent: false` link dialog, duplicate email error);
-  status badges and the actions shown per status; Resend, Copy link (clipboard stubbed) and Cancel (confirmation
+  status badges and the actions shown per status; Resend, Copy link (clipboard stubbed) and Revoke (confirmation
   needed); Deactivate (confirmation) and Reactivate update `staff.active`; the last-owner error is shown; no
   actions on your own row; operators still can't reach the page.
 
