@@ -24,6 +24,7 @@ function fakeAdmin(
   options: {
     generateError?: Error
     inviteError?: Error
+    inviteThrows?: Error
     insertError?: { code: string; message: string }
     staff?: { user_id: string } | null
     lastSignIn?: string | null
@@ -57,6 +58,7 @@ function fakeAdmin(
         },
         inviteUserByEmail: (email: string, opts: unknown) => {
           calls.invite.push([email, opts])
+          if (options.inviteThrows) return Promise.reject(options.inviteThrows)
           return Promise.resolve({ data: null, error: options.inviteError ?? null })
         },
         getUserById: () =>
@@ -90,6 +92,12 @@ function fakeAdmin(
     },
   } as unknown as SupabaseClient
   return { admin, calls }
+}
+
+function assertNothingMutated(calls: Calls) {
+  assertEquals(calls.deleted, [])
+  assertEquals(calls.invite, [])
+  assertEquals(calls.generateLink, [])
 }
 
 const input = { email: 'dora@example.com', display_name: 'Dora Bianchi', role: 'operator' as const }
@@ -165,6 +173,18 @@ Deno.test('inviteStaff keeps the person and says email_sent false when the email
   assertEquals(calls.deleted, [])
 })
 
+Deno.test('inviteStaff and resend say email_sent false when sending throws', async () => {
+  const { admin } = fakeAdmin({ inviteThrows: new Error('network down') })
+  assertEquals(await inviteStaff(admin, input, undefined), { user_id: USER_ID, email_sent: false })
+  assertEquals(await resendInvitation(admin, USER_ID, undefined), { email_sent: false })
+})
+
+Deno.test('inviteStaff passes on a 422 that is not email_exists', async () => {
+  const other = new AuthApiError('weak', 422, 'weak_password')
+  const { admin } = fakeAdmin({ generateError: other })
+  assertEquals(await assertRejects(() => inviteStaff(admin, input, undefined)), other)
+})
+
 Deno.test('inviteStaff refuses an email that already has an account', async () => {
   const taken = new AuthApiError('exists', 422, 'email_exists')
   const { admin, calls } = fakeAdmin({ generateError: taken })
@@ -212,7 +232,7 @@ Deno.test('invitationLink returns the action link of a pending person', async ()
 })
 
 Deno.test('resend, link and cancel refuse someone who has signed in', async () => {
-  const { admin } = fakeAdmin({ lastSignIn: '2026-10-01T10:00:00Z' })
+  const { admin, calls } = fakeAdmin({ lastSignIn: '2026-10-01T10:00:00Z' })
   for (
     const run of [
       () => resendInvitation(admin, USER_ID, undefined),
@@ -222,11 +242,12 @@ Deno.test('resend, link and cancel refuse someone who has signed in', async () =
   ) {
     const error = await assertRejects(run, HttpError)
     assertEquals([error.status, error.code], [409, 'not_pending'])
+    assertNothingMutated(calls)
   }
 })
 
 Deno.test('resend, link and cancel refuse an unknown id', async () => {
-  const { admin } = fakeAdmin({ staff: null })
+  const { admin, calls } = fakeAdmin({ staff: null })
   for (
     const run of [
       () => resendInvitation(admin, USER_ID, undefined),
@@ -236,6 +257,40 @@ Deno.test('resend, link and cancel refuse an unknown id', async () => {
   ) {
     const error = await assertRejects(run, HttpError)
     assertEquals([error.status, error.code], [404, 'staff_not_found'])
+    assertNothingMutated(calls)
+  }
+})
+
+Deno.test('resend, link and cancel treat a login that is gone as an unknown id', async () => {
+  const { admin, calls } = fakeAdmin({
+    getUserError: new AuthApiError('User not found', 404, 'user_not_found'),
+  })
+  for (
+    const run of [
+      () => resendInvitation(admin, USER_ID, undefined),
+      () => invitationLink(admin, USER_ID, undefined),
+      () => cancelInvitation(admin, USER_ID),
+    ]
+  ) {
+    const error = await assertRejects(run, HttpError)
+    assertEquals([error.status, error.code], [404, 'staff_not_found'])
+    assertNothingMutated(calls)
+  }
+})
+
+Deno.test('resend, link and cancel rethrow other lookup failures', async () => {
+  const failure = new AuthApiError('boom', 500, 'unexpected_failure')
+  const { admin, calls } = fakeAdmin({ getUserError: failure })
+  for (
+    const run of [
+      () => resendInvitation(admin, USER_ID, undefined),
+      () => invitationLink(admin, USER_ID, undefined),
+      () => cancelInvitation(admin, USER_ID),
+    ]
+  ) {
+    const error = await assertRejects(run)
+    assertEquals(error, failure)
+    assertNothingMutated(calls)
   }
 })
 

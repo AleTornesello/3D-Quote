@@ -64,7 +64,15 @@ export async function signIn(email: string, password = PASSWORD): Promise<string
 export interface FunctionResponse {
   status: number
   headers: Headers
-  body: { code?: string; priced?: number; skipped?: number; quote_id?: number }
+  body: {
+    code?: string
+    priced?: number
+    skipped?: number
+    quote_id?: number
+    user_id?: string
+    email_sent?: boolean
+    link?: string
+  }
 }
 
 export async function callFunction(

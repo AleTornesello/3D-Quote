@@ -29,12 +29,17 @@ async function sendInvitation(
   email: string,
   redirectTo: string | undefined,
 ): Promise<boolean> {
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo })
-  if (error) {
+  try {
+    const { error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo })
+    if (error) {
+      console.error('The invitation email could not be sent', error)
+      return false
+    }
+    return true
+  } catch (error) {
     console.error('The invitation email could not be sent', error)
     return false
   }
-  return true
 }
 
 /**
@@ -53,7 +58,7 @@ export async function inviteStaff(
     options: { redirectTo, data: { display_name: input.display_name } },
   })
   if (error) {
-    if (isAuthApiError(error) && (error.code === 'email_exists' || error.status === 422)) {
+    if (isAuthApiError(error) && error.code === 'email_exists') {
       throw new HttpError(409, 'email_already_registered')
     }
     throw error

@@ -420,3 +420,6 @@ verify_jwt = false
 
 [functions.duplicate-quote]
 verify_jwt = false
+
+[functions.manage-staff]
+verify_jwt = false
