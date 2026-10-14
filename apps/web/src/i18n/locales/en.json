@@ -436,14 +436,30 @@
       "emailRegistered": "This email already has an account.",
       "notPending": "This person has already signed in; the invitation can't be changed."
     },
-    "note": "Inviting or removing people still happens in the Supabase dashboard.",
+    "note": "Deactivating someone stops their access at once; the quotes they created stay.",
     "empty": "No staff yet.",
     "roleFor": "Role of {{name}}",
     "columns": {
       "name": "Name",
       "email": "Email",
       "role": "Role",
-      "active": "Active"
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "invited": "Invited",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "deactivateFor": "Deactivate {{name}}",
+      "reactivateFor": "Reactivate {{name}}"
+    },
+    "deactivate": {
+      "title": "Deactivate {{name}}?",
+      "body": "{{name}} won't be able to use 3D-Quote. Their quotes stay."
     },
     "roles": {
       "owner": "Owner",

@@ -436,14 +436,30 @@
       "emailRegistered": "Questa email ha già un account.",
       "notPending": "Questa persona ha già effettuato l'accesso: l'invito non può essere modificato."
     },
-    "note": "Per invitare o rimuovere persone si usa ancora la dashboard di Supabase.",
+    "note": "Disattivare una persona ne blocca subito l'accesso; i preventivi che ha creato restano.",
     "empty": "Nessun membro del personale.",
     "roleFor": "Ruolo di {{name}}",
     "columns": {
       "name": "Nome",
       "email": "Email",
       "role": "Ruolo",
-      "active": "Attivo"
+      "status": "Stato",
+      "actions": "Azioni"
+    },
+    "status": {
+      "invited": "Invitato",
+      "active": "Attivo",
+      "inactive": "Disattivato"
+    },
+    "actions": {
+      "deactivate": "Disattiva",
+      "reactivate": "Riattiva",
+      "deactivateFor": "Disattiva {{name}}",
+      "reactivateFor": "Riattiva {{name}}"
+    },
+    "deactivate": {
+      "title": "Disattivare {{name}}?",
+      "body": "{{name}} non potrà più usare 3D-Quote. I suoi preventivi restano."
     },
     "roles": {
       "owner": "Titolare",

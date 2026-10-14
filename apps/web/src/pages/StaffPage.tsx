@@ -2,9 +2,18 @@ import { useTranslation } from 'react-i18next'
 import { useStaff } from '@/auth/staff-context'
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
+import { Badge } from '@/components/ui/badge'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { toAppError } from '@/data/errors'
 import { useSetStaffRole, useStaffList, type StaffMember } from '@/data/staff'
+import { staffStatus, type StaffStatus } from '@/data/staff-rules'
+import { StaffActions } from './staff/StaffActions'
+
+const STATUS_VARIANT: Record<StaffStatus, 'default' | 'secondary' | 'outline'> = {
+  active: 'default',
+  invited: 'secondary',
+  inactive: 'outline',
+}
 
 /** Owner only (wrapped in RequireOwner). The select shows the saved role, so a refused change snaps back. */
 export function StaffPage() {
@@ -28,7 +37,7 @@ export function StaffPage() {
           aria-label={t('staff.roleFor', { name: m.display_name })}
           value={m.role}
           // Your own role can't be changed here, so an owner can't demote themselves by accident.
-          disabled={m.user_id === me.userId || setRole.isPending}
+          disabled={m.user_id === me.userId || setRole.isPending || !m.active}
           onChange={(event) =>
             setRole.mutate({
               userId: m.user_id,
@@ -42,9 +51,17 @@ export function StaffPage() {
       ),
     },
     {
-      key: 'active',
-      header: t('staff.columns.active'),
-      cell: (m) => t(m.active ? 'common.yes' : 'common.no'),
+      key: 'status',
+      header: t('staff.columns.status'),
+      cell: (m) => {
+        const status = staffStatus(m)
+        return <Badge variant={STATUS_VARIANT[status]}>{t(`staff.status.${status}`)}</Badge>
+      },
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{t('staff.columns.actions')}</span>,
+      cell: (m) => <StaffActions member={m} isSelf={m.user_id === me.userId} />,
     },
   ]
 
