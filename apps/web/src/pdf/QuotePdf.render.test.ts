@@ -1,0 +1,74 @@
+// @vitest-environment node
+import { renderToBuffer } from '@react-pdf/renderer'
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { expect, test } from 'vitest'
+import { QuotePdf } from './QuotePdf'
+import { sampleQuotePdfData } from './sample-data'
+import type { QuotePdfData } from './quote-pdf-data'
+
+/** The text of each page of the rendered PDF. */
+async function pagesOf(data: QuotePdfData): Promise<string[]> {
+  const buffer = await renderToBuffer(QuotePdf({ data }))
+  const pdf = await getDocument({ data: new Uint8Array(buffer) }).promise
+  const pages: string[] = []
+  for (let number = 1; number <= pdf.numPages; number += 1) {
+    const content = await (await pdf.getPage(number)).getTextContent()
+    pages.push(content.items.map((entry) => ('str' in entry ? entry.str : '')).join(' '))
+  }
+  return pages
+}
+
+test('prints the header, client, rows, totals, notes, terms and footer', async () => {
+  const [page] = await pagesOf(sampleQuotePdfData())
+  for (const text of [
+    '3D Lab',
+    'P.IVA IT01234567890',
+    'Preventivo',
+    'Q-2026-0042',
+    'Valido fino al',
+    '11/11/2026',
+    'Cliente',
+    'Rossi Meccanica',
+    'Descrizione',
+    'Staffa 1',
+    'PLA · Black',
+    'Imponibile',
+    'IVA (22 %)',
+    'Totale IVA inclusa',
+    '73,20 €',
+    'Note',
+    'Colore da confermare',
+    'Consegna in 10 giorni lavorativi.',
+    'Pagina 1 di 1',
+  ]) {
+    expect(page).toContain(text)
+  }
+})
+
+test('a draft carries the watermark and a sent quote does not', async () => {
+  const [draft] = await pagesOf(sampleQuotePdfData({ watermark: 'BOZZA' }))
+  const [sent] = await pagesOf(sampleQuotePdfData({ watermark: null }))
+  expect(draft).toContain('BOZZA')
+  expect(sent).not.toContain('BOZZA')
+})
+
+test('empty optional parts leave no trace', async () => {
+  const [page] = await pagesOf(
+    sampleQuotePdfData({ notes: null, terms: null, shop: { name: null, lines: [] } }),
+  )
+  expect(page).not.toContain('Note')
+  expect(page).not.toContain('Consegna')
+  expect(page).not.toContain('undefined')
+  expect(page).not.toContain('null')
+})
+
+test('a long quote continues on the next pages with the table header repeated', async () => {
+  const pages = await pagesOf(sampleQuotePdfData({}, 40))
+  expect(pages.length).toBeGreaterThan(1)
+  pages.forEach((page, index) => {
+    expect(page).toContain('Descrizione')
+    expect(page).toContain(`Pagina ${index + 1} di ${pages.length}`)
+  })
+  expect(pages.join(' ')).toContain('Staffa 40')
+  expect(pages[0]).not.toContain('Staffa 40')
+})
