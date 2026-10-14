@@ -8,21 +8,9 @@ import {
   inviteStaff,
   parseInvite,
   parseUserId,
+  redirectUrl,
   resendInvitation,
 } from './staff.ts'
-
-/** `<origin>/account?reset=1` from the request's Origin header; undefined lets Supabase use its Site URL. */
-function redirectUrl(req: Request): string | undefined {
-  const origin = req.headers.get('Origin')
-  if (!origin) return undefined
-  try {
-    const url = new URL(origin)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
-    return `${url.origin}/account?reset=1`
-  } catch {
-    return undefined
-  }
-}
 
 Deno.serve(createHandler(async (req) => {
   const admin = serviceClient()

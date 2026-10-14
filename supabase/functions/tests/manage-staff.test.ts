@@ -7,6 +7,7 @@ import {
   inviteStaff,
   parseInvite,
   parseUserId,
+  redirectUrl,
   resendInvitation,
 } from '../manage-staff/staff.ts'
 
@@ -298,4 +299,19 @@ Deno.test('cancelInvitation deletes a pending person', async () => {
   const { admin, calls } = fakeAdmin()
   await cancelInvitation(admin, USER_ID)
   assertEquals(calls.deleted, [USER_ID])
+})
+
+Deno.test('redirectUrl points at the account page of an http(s) Origin and nothing else', () => {
+  const from = (origin?: string) =>
+    redirectUrl(
+      new Request('http://x/', origin === undefined ? {} : { headers: { Origin: origin } }),
+    )
+  assertEquals(from(), undefined)
+  assertEquals(from('http://localhost:5173'), 'http://localhost:5173/account?reset=1')
+  assertEquals(from('https://app.example.com'), 'https://app.example.com/account?reset=1')
+  assertEquals(from('https://user:pw@app.example.com/x'), 'https://app.example.com/account?reset=1')
+  assertEquals(from('javascript:alert(1)'), undefined)
+  assertEquals(from('data:text/html,x'), undefined)
+  assertEquals(from('null'), undefined)
+  assertEquals(from('not a url'), undefined)
 })

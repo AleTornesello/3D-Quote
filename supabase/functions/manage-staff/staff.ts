@@ -129,3 +129,16 @@ export async function cancelInvitation(admin: SupabaseClient, userId: string): P
   const { error } = await admin.auth.admin.deleteUser(userId)
   if (error) throw error
 }
+
+/** `<origin>/account?reset=1` from the request's Origin header; undefined lets Supabase use its Site URL. */
+export function redirectUrl(req: Request): string | undefined {
+  const origin = req.headers.get('Origin')
+  if (!origin) return undefined
+  try {
+    const url = new URL(origin)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    return `${url.origin}/account?reset=1`
+  } catch {
+    return undefined
+  }
+}

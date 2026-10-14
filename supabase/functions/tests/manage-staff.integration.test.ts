@@ -147,5 +147,8 @@ Deno.test('resend, link and cancel refuse someone who has signed in, and unknown
     )
     assertEquals([unknown.status, unknown.body.code], [404, 'staff_not_found'], action)
   }
-  assertEquals((await staffRow(await adminClient(), OWNER_ID))?.active, true)
+  const admin = await adminClient()
+  assertEquals((await staffRow(admin, OWNER_ID))?.active, true)
+  // the not_pending guard must have kept the signed-in operator's row
+  assert((await staffRow(admin, OPERATOR_ID)) !== null)
 })
