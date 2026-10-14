@@ -223,3 +223,46 @@ export function defaultCatalogChoice(
   }
   return { printer_id: null, material_id: null }
 }
+
+/** The quote's frozen VAT rate, or the shop's while it is a draft; null while settings are still loading. */
+export function vatRateFor(
+  quote: { vat_rate_pct: number | null },
+  settings: { vat_rate_pct: number } | undefined,
+): number | null {
+  return quote.vat_rate_pct ?? settings?.vat_rate_pct ?? null
+}
+
+export type QuoteTotals = { net: number; vat: number; gross: number }
+
+/**
+ * Net (the sum of the item totals), VAT and gross, worked out in integer cents. VAT is rounded half-up once, on the
+ * net. Null without items or while any item has no price.
+ */
+export function quoteTotals(
+  items: { item_total: number | null }[],
+  ratePct: number,
+): QuoteTotals | null {
+  if (items.length === 0 || items.some((item) => item.item_total === null)) return null
+  const netCents = items.reduce(
+    (sum, item) => sum + Math.round((item.item_total as number) * 100),
+    0,
+  )
+  // The rate in hundredths of a percent keeps the maths in integers.
+  const rateBasisPoints = Math.round(ratePct * 100)
+  const vatCents = Math.floor((netCents * rateBasisPoints + 5000) / 10000)
+  return { net: netCents / 100, vat: vatCents / 100, gross: (netCents + vatCents) / 100 }
+}
+
+const FORBIDDEN_IN_FILE_NAMES = /[\\/:*?"<>|]/g
+
+/** `<number>-<client name>.pdf` with anything a file system dislikes removed (functional analysis §6). */
+export function pdfFileName(number: string, clientName: string): string {
+  const client = [...clientName.replace(FORBIDDEN_IN_FILE_NAMES, '')]
+    .filter((char) => char.charCodeAt(0) >= 0x20)
+    .join('')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, '')
+  return client ? `${number}-${client}.pdf` : `${number}.pdf`
+}

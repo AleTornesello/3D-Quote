@@ -11,11 +11,14 @@ import {
   isSlicingInProgress,
   modelPath,
   parseQuoteListParams,
+  pdfFileName,
+  quoteTotals,
   safeObjectName,
   slicingState,
   toQuoteListSearch,
   unpricedItems,
   validateModelFile,
+  vatRateFor,
   type ItemJob,
 } from './quote-rules'
 
@@ -202,5 +205,68 @@ test('defaultCatalogChoice takes the newest item with both, if still active', ()
   expect(defaultCatalogChoice([], new Set(), new Set())).toEqual({
     printer_id: null,
     material_id: null,
+  })
+})
+
+describe('vatRateFor', () => {
+  test('the quote’s own rate wins', () => {
+    expect(vatRateFor({ vat_rate_pct: 22 }, { vat_rate_pct: 23 })).toBe(22)
+  })
+  test('a draft follows settings', () => {
+    expect(vatRateFor({ vat_rate_pct: null }, { vat_rate_pct: 23 })).toBe(23)
+  })
+  test('a zero rate is a rate', () => {
+    expect(vatRateFor({ vat_rate_pct: 0 }, { vat_rate_pct: 23 })).toBe(0)
+  })
+  test('is null while settings are loading', () => {
+    expect(vatRateFor({ vat_rate_pct: null }, undefined)).toBeNull()
+  })
+})
+
+describe('quoteTotals', () => {
+  const items = (...totals: (number | null)[]) => totals.map((item_total) => ({ item_total }))
+
+  test('sums the items and adds VAT', () => {
+    expect(quoteTotals(items(39.24, 10.5), 22)).toEqual({ net: 49.74, vat: 10.94, gross: 60.68 })
+  })
+  test('rounds VAT half-up to the cent', () => {
+    expect(quoteTotals(items(12.25), 22)).toEqual({ net: 12.25, vat: 2.7, gross: 14.95 })
+    expect(quoteTotals(items(0.25), 22)).toEqual({ net: 0.25, vat: 0.06, gross: 0.31 })
+  })
+  test('adds the item totals without floating-point drift', () => {
+    expect(quoteTotals(items(0.1, 0.2), 0)).toEqual({ net: 0.3, vat: 0, gross: 0.3 })
+  })
+  test('a zero rate leaves the gross equal to the net', () => {
+    expect(quoteTotals(items(10), 0)).toEqual({ net: 10, vat: 0, gross: 10 })
+  })
+  test('handles a fractional rate', () => {
+    expect(quoteTotals(items(100), 7.5)).toEqual({ net: 100, vat: 7.5, gross: 107.5 })
+  })
+  test('is null without items', () => {
+    expect(quoteTotals([], 22)).toBeNull()
+  })
+  test('is null while an item has no price', () => {
+    expect(quoteTotals(items(10, null), 22)).toBeNull()
+  })
+})
+
+describe('pdfFileName', () => {
+  test('joins the number and the client with a dash', () => {
+    expect(pdfFileName('Q-2026-0042', 'Mario Rossi')).toBe('Q-2026-0042-Mario-Rossi.pdf')
+  })
+  test('removes characters that are not allowed in file names', () => {
+    expect(pdfFileName('Q-2026-0042', 'Rossi/Bianchi: "SRL" <x>?*|\\')).toBe(
+      'Q-2026-0042-RossiBianchi-SRL-x.pdf',
+    )
+  })
+  test('keeps accented letters and collapses whitespace', () => {
+    expect(pdfFileName('Q-2026-0042', '  Società   Perù  ')).toBe('Q-2026-0042-Società-Perù.pdf')
+  })
+  test('caps the client part at 60 characters', () => {
+    const name = pdfFileName('Q-2026-0042', 'A'.repeat(100))
+    expect(name).toBe(`Q-2026-0042-${'A'.repeat(60)}.pdf`)
+  })
+  test('without a usable client name it is just the number', () => {
+    expect(pdfFileName('Q-2026-0042', ' /:? ')).toBe('Q-2026-0042.pdf')
   })
 })
