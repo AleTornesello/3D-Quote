@@ -284,6 +284,7 @@ export type Database = {
           status: string
           updated_at: string
           valid_until: string
+          vat_rate_pct: number | null
         }
         ComputedFields: never
         Insert: {
@@ -300,6 +301,7 @@ export type Database = {
           status?: string
           updated_at?: string
           valid_until: string
+          vat_rate_pct?: number | null
         }
         Update: {
           client_id?: number
@@ -315,6 +317,7 @@ export type Database = {
           status?: string
           updated_at?: string
           valid_until?: string
+          vat_rate_pct?: number | null
         }
         Relationships: [
           {
@@ -354,6 +357,7 @@ export type Database = {
           shop_phone: string | null
           shop_vat_number: string | null
           updated_at: string
+          vat_rate_pct: number
         }
         ComputedFields: never
         Insert: {
@@ -376,6 +380,7 @@ export type Database = {
           shop_phone?: string | null
           shop_vat_number?: string | null
           updated_at?: string
+          vat_rate_pct?: number
         }
         Update: {
           created_at?: string
@@ -397,6 +402,7 @@ export type Database = {
           shop_phone?: string | null
           shop_vat_number?: string | null
           updated_at?: string
+          vat_rate_pct?: number
         }
         Relationships: []
       }

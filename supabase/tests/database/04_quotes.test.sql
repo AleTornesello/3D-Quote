@@ -95,7 +95,7 @@ select is(
 );
 
 -- Sent quotes are frozen for every role
-update public.quotes set status = 'sent', sent_at = now() where notes = 'second';
+update public.quotes set status = 'sent', sent_at = now(), vat_rate_pct = 22 where notes = 'second';
 select throws_ok(
   $$update public.quotes set notes = 'late edit' where notes = 'second'$$,
   'P0001', 'quote_not_draft', 'a sent quote cannot be edited, even bypassing RLS'

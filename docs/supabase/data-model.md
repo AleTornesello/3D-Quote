@@ -128,6 +128,7 @@ migration. See [functional analysis §3.8](../frontend/functional-analysis.md#38
 | `setup_fee` | `numeric(12,2)` not null default `0` | Per item |
 | `default_markup_pct` | `numeric(6,2)` not null default `0` | Check: `>= 0` |
 | `minimum_item_price` | `numeric(12,2)` not null default `0` | |
+| `vat_rate_pct` | `numeric(5,2)` not null default `22` | Check: `0..100`. The shop's VAT rate; draft quotes follow it |
 | `quote_prefix` | `text` not null default `'Q'` | Check: 1–10 letters/digits |
 | `default_validity_days` | `smallint` not null default `30` | Check: `1..365` |
 | `pdf_terms_it`, `pdf_terms_en` | `text` | |
@@ -160,6 +161,7 @@ migration. See [functional analysis §3.8](../frontend/functional-analysis.md#38
 | `notes` | `text` | Shown on the quote |
 | `created_by` | `uuid` not null default `auth.uid()`, FK → `staff(user_id)` | Indexed |
 | `markup_override_pct` | `numeric(6,2)` | Owner only; null = use `settings.default_markup_pct`. Check: `>= 0` |
+| `vat_rate_pct` | `numeric(5,2)` | Null while the quote is a draft; `mark_quote_sent` copies `settings.vat_rate_pct` here and it never changes afterwards. Check `quotes_vat_rate_check`: null exactly when `status = 'draft'` |
 | `sent_at` | `timestamptz` | Set when status becomes `sent` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -358,7 +360,7 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 | `set_price_override(item_id bigint, total numeric, reason text) → void` | owner | Draft only. `total >= 0`, reason not blank. |
 | `clear_price_override(item_id bigint) → void` | owner | Draft only |
 | `get_quote_send_blockers(quote_id bigint) → table(quote_item_id bigint, code text)` | staff | Empty means the quote can be sent |
-| `mark_quote_sent(quote_id bigint) → void` | staff | Raises `quote_not_sendable` if there are blockers; otherwise sets `sent` and `sent_at = now()` |
+| `mark_quote_sent(quote_id bigint) → void` | staff | Raises `quote_not_sendable` if there are blockers; otherwise sets `sent` and `sent_at = now()` and freezes the VAT rate |
 | `mark_quote_accepted(quote_id bigint)`, `mark_quote_rejected(quote_id bigint) → void` | staff | `sent` quotes only |
 
 **Send blockers:**

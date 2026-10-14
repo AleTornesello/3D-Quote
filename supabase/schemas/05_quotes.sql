@@ -12,10 +12,12 @@ create table public.quotes (
   notes text,
   created_by uuid not null default auth.uid() references public.staff (user_id),
   markup_override_pct numeric(6,2) check (markup_override_pct >= 0),
+  vat_rate_pct numeric(5,2) check (vat_rate_pct between 0 and 100),
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (number_year, number_seq)
+  unique (number_year, number_seq),
+  constraint quotes_vat_rate_check check ((status = 'draft') = (vat_rate_pct is null))
 );
 
 create index quotes_client_id_idx on public.quotes (client_id);

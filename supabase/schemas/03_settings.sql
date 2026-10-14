@@ -8,6 +8,7 @@ create table public.settings (
   setup_fee numeric(12,2) not null default 0 check (setup_fee >= 0),
   default_markup_pct numeric(6,2) not null default 0 check (default_markup_pct >= 0),
   minimum_item_price numeric(12,2) not null default 0 check (minimum_item_price >= 0),
+  vat_rate_pct numeric(5,2) not null default 22 check (vat_rate_pct between 0 and 100),
   quote_prefix text not null default 'Q' check (quote_prefix ~ '^[A-Za-z0-9]{1,10}$'),
   default_validity_days smallint not null default 30 check (default_validity_days between 1 and 365),
   pdf_terms_it text,

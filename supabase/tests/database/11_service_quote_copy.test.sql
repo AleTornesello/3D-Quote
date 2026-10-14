@@ -37,7 +37,7 @@ insert into public.slicing_jobs (
 ) values
   (910101, 'failed', 1, null, null, null, null, null, null, null, null, now(), now()),
   (910101, 'succeeded', 2, 19800, 120.00, 40000.00, 266, 100.0, 80.0, 40.0, 'PrusaSlicer 2.9.0', now(), now());
-update public.quotes set status = 'sent', sent_at = now() where id = 910001;
+update public.quotes set status = 'sent', sent_at = now(), vat_rate_pct = 22 where id = 910001;
 do $$ begin perform pgmq.purge_queue('slicing_jobs'); end $$;
 
 -- Privileges

@@ -15,13 +15,13 @@ insert into public.materials (id, name, type, density_g_cm3, cost_per_kg)
 insert into public.clients (id, name) overriding system value values (900001, 'Test Client');
 -- 900001 complete draft · 900002 draft with problems · 900003 empty draft, past due
 -- 900004 sent, past due · 900005 sent, valid today · 900006 sent
-insert into public.quotes (id, client_id, created_by, status, sent_at, valid_until) overriding system value values
-  (900001, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date + 30),
-  (900002, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date + 30),
-  (900003, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date - 1),
-  (900004, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date - 1),
-  (900005, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date),
-  (900006, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date + 30);
+insert into public.quotes (id, client_id, created_by, status, sent_at, valid_until, vat_rate_pct) overriding system value values
+  (900001, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date + 30, null),
+  (900002, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date + 30, null),
+  (900003, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date - 1, null),
+  (900004, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date - 1, 22),
+  (900005, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date, 22),
+  (900006, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date + 30, 22);
 insert into public.quote_items (
   id, quote_id, model_path, original_filename, description, printer_id, material_id,
   print_time_s, filament_g, bbox_x_mm, bbox_y_mm, bbox_z_mm, computed_total

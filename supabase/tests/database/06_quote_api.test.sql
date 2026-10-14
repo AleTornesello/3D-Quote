@@ -19,7 +19,7 @@ insert into public.clients (id, name) overriding system value values (900001, 'T
 insert into public.quotes (id, client_id, created_by) overriding system value values
   (900001, 900001, '00000000-0000-4000-8000-0000000000a1'),
   (900002, 900001, '00000000-0000-4000-8000-0000000000a1');
-update public.quotes set status = 'sent', sent_at = now() where id = 900002;
+update public.quotes set status = 'sent', sent_at = now(), vat_rate_pct = 22 where id = 900002;
 insert into storage.objects (bucket_id, name) values
   ('models', '900001/u1/bare.stl'),
   ('models', '900001/u2/ready.stl'),

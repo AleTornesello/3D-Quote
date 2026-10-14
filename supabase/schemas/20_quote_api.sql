@@ -476,7 +476,11 @@ begin
   if exists (select 1 from private.get_quote_send_blockers(p_quote_id)) then
     raise exception 'quote_not_sendable';
   end if;
-  update public.quotes set status = 'sent', sent_at = now() where id = p_quote_id;
+  update public.quotes
+  set status = 'sent',
+      sent_at = now(),
+      vat_rate_pct = (select vat_rate_pct from public.settings where id = 1)
+  where id = p_quote_id;
 end;
 $$;
 

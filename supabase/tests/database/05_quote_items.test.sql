@@ -29,7 +29,7 @@ insert into public.quote_items (
    0.625, 1.5, 0.036, 0, 3, 2.06, 40, 10.00, now());
 insert into public.slicing_jobs (id, quote_item_id, status)
   overriding system value values (900001, 900001, 'succeeded');
-update public.quotes set status = 'sent', sent_at = now() where id = 900002;
+update public.quotes set status = 'sent', sent_at = now(), vat_rate_pct = 22 where id = 900002;
 
 -- Totals and overrides (as postgres)
 select is((select item_total from public.quote_items where id = 900001), 10.00::numeric, 'item_total is the computed total');

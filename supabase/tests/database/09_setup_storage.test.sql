@@ -10,9 +10,9 @@ insert into public.staff (user_id, display_name, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'Test Operator', 'operator');
 insert into public.clients (id, name) overriding system value values (900001, 'Test Client');
-insert into public.quotes (id, client_id, created_by, status, sent_at) overriding system value values
-  (900001, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null),
-  (900002, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now());
+insert into public.quotes (id, client_id, created_by, status, sent_at, vat_rate_pct) overriding system value values
+  (900001, 900001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, null),
+  (900002, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), 22);
 insert into storage.objects (bucket_id, name) values
   ('models', '900001/seed/existing.stl'),
   ('models', '900002/seed/sent.stl'),
