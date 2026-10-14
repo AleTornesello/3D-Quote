@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from './deps.ts'
-import { requireStaff } from '../_shared/auth.ts'
+import { requireOwner, requireStaff } from '../_shared/auth.ts'
 import { HttpError } from '../_shared/http.ts'
 import { AuthApiError, AuthRetryableFetchError, type SupabaseClient } from '../_shared/supabase.ts'
 
@@ -55,4 +55,57 @@ Deno.test('an Auth outage is not reported as not_authenticated', async () => {
     const thrown = await assertRejects(() => requireStaff(request, fakeAdmin(error)))
     assertEquals(thrown instanceof HttpError, false, error.message)
   }
+})
+
+/** An admin client for a signed-in user whose staff row is `staff` (null = no row). */
+function adminWithStaff(staff: { active: boolean; role: string } | null): SupabaseClient {
+  const staffQuery = {
+    select: () => staffQuery,
+    eq: () => staffQuery,
+    maybeSingle: () => Promise.resolve({ data: staff, error: null }),
+  }
+  return {
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: { id: USER_ID } }, error: null }),
+    },
+    from: () => staffQuery,
+  } as unknown as SupabaseClient
+}
+
+Deno.test('requireOwner accepts an active owner', async () => {
+  const id = await requireOwner(request, adminWithStaff({ active: true, role: 'owner' }))
+  assertEquals(id, USER_ID)
+})
+
+Deno.test('requireOwner refuses an operator with not_owner', async () => {
+  const error = await assertRejects(
+    () => requireOwner(request, adminWithStaff({ active: true, role: 'operator' })),
+    HttpError,
+  )
+  assertEquals([error.status, error.code], [403, 'not_owner'])
+})
+
+Deno.test('requireOwner refuses an inactive owner with not_staff', async () => {
+  const error = await assertRejects(
+    () => requireOwner(request, adminWithStaff({ active: false, role: 'owner' })),
+    HttpError,
+  )
+  assertEquals([error.status, error.code], [403, 'not_staff'])
+})
+
+Deno.test('requireOwner refuses a user without a staff row with not_staff', async () => {
+  const error = await assertRejects(() => requireOwner(request, adminWithStaff(null)), HttpError)
+  assertEquals([error.status, error.code], [403, 'not_staff'])
+})
+
+Deno.test('requireOwner refuses a request without a token', async () => {
+  const error = await assertRejects(
+    () =>
+      requireOwner(
+        new Request('http://localhost/functions/v1/test', { method: 'POST' }),
+        adminWithStaff({ active: true, role: 'owner' }),
+      ),
+    HttpError,
+  )
+  assertEquals([error.status, error.code], [401, 'not_authenticated'])
 })

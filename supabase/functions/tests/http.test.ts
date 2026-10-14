@@ -1,7 +1,7 @@
 // The local gateway answers preflights and adds CORS headers itself, so only these tests show what the hosted
 // functions send.
-import { assertEquals } from './deps.ts'
-import { createHandler, HttpError, json } from '../_shared/http.ts'
+import { assertEquals, assertRejects } from './deps.ts'
+import { createHandler, HttpError, json, readJsonObject } from '../_shared/http.ts'
 import { supabaseCorsHeaders } from '../_shared/supabase.ts'
 
 const URL = 'http://localhost/functions/v1/test'
@@ -71,4 +71,17 @@ Deno.test('refuses methods other than POST, with CORS headers', async () => {
   assertEquals(response.status, 400)
   assertCors(response)
   assertEquals(await response.json(), { code: 'invalid_request' })
+})
+
+const post = (body: string) => new Request('http://localhost/f', { method: 'POST', body })
+
+Deno.test('readJsonObject returns a JSON object', async () => {
+  assertEquals(await readJsonObject(post('{"action":"invite","n":1}')), { action: 'invite', n: 1 })
+})
+
+Deno.test('readJsonObject refuses anything that is not a JSON object', async () => {
+  for (const body of ['', 'not json', '[1,2]', '"text"', '42', 'null']) {
+    const error = await assertRejects(() => readJsonObject(post(body)), HttpError)
+    assertEquals([error.status, error.code], [400, 'invalid_request'])
+  }
 })

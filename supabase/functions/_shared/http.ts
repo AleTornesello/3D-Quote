@@ -53,3 +53,17 @@ export async function readQuoteId(req: Request): Promise<number> {
   }
   return id
 }
+
+/** The request body as a JSON object; anything else is `invalid_request`. */
+export async function readJsonObject(req: Request): Promise<Record<string, unknown>> {
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    throw new HttpError(400, 'invalid_request')
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new HttpError(400, 'invalid_request')
+  }
+  return body as Record<string, unknown>
+}
