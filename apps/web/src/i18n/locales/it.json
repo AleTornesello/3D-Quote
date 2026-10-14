@@ -151,6 +151,7 @@
       "purchaseCost": "Costo d'acquisto",
       "lifetimeHours": "Vita stimata (ore)",
       "power": "Potenza (W)",
+      "failureRate": "Tasso di fallimento (%)",
       "active": "Attiva"
     },
     "columns": {

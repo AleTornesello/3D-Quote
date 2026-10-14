@@ -99,6 +99,7 @@ The `staff_guard` trigger (every role):
 | `purchase_cost` | `numeric(12,2)` null | Check: `> 0`. What the printer cost. Set only when the app derived `hourly_rate` from it |
 | `lifetime_hours` | `integer` null | Check: `> 0`. Estimated life in print hours. Null exactly when `purchase_cost` is (check `printers_purchase_pair`) |
 | `power_w` | `integer` not null | Check: `> 0`. Average draw while printing, for energy cost |
+| `failure_rate` | `integer` not null default `0` | Check: `0` to `100`. Percent of prints that fail on this machine. Recorded only; pricing still uses the settings failure allowance |
 | `active` | `boolean` not null default `true` | Inactive printers can't be picked for new items |
 | `created_at`, `updated_at` | `timestamptz` | |
 

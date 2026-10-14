@@ -49,6 +49,7 @@ export function printerRow(overrides: Partial<Tables<'printers'>> = {}): Tables<
     name: 'MK4 #1',
     model: 'Prusa MK4',
     type: 'FDM',
+    failure_rate: 0,
     hourly_rate: 1.5,
     purchase_cost: null,
     lifetime_hours: null,

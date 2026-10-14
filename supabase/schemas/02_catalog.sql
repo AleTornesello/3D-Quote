@@ -10,6 +10,7 @@ create table public.printers (
   purchase_cost numeric(12,2) check (purchase_cost > 0),
   lifetime_hours integer check (lifetime_hours > 0),
   power_w integer not null check (power_w > 0),
+  failure_rate integer not null default 0 check (failure_rate between 0 and 100),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

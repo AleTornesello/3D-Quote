@@ -146,6 +146,7 @@ export function PrinterSheet({
           DIRECT_RATE_FIELDS.map(numberInput)
         )}
         {numberInput(['power_w', 'printers.fields.power'])}
+        {numberInput(['failure_rate', 'printers.fields.failureRate'])}
         <Controller
           control={control}
           name="active"

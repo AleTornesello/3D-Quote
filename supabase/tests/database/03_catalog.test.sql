@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local'),
@@ -90,6 +90,19 @@ select throws_ok(
   '23514', null, 'material types are a fixed list'
 );
 select is((select type from public.printers where id = 900001), 'FDM', 'a printer is FDM unless said otherwise');
+select is((select failure_rate from public.printers where id = 900001), 0, 'a printer has no failure rate unless said otherwise');
+select lives_ok(
+  $$insert into public.printers (name, model, hourly_rate, power_w, failure_rate) values ('Edge0', 'E', 1, 1, 0), ('Edge100', 'E', 1, 1, 100)$$,
+  'a failure rate can be 0 or 100'
+);
+select throws_ok(
+  $$insert into public.printers (name, model, hourly_rate, power_w, failure_rate) values ('Over', 'O', 1, 1, 101)$$,
+  '23514', null, 'a failure rate over 100 is rejected'
+);
+select throws_ok(
+  $$insert into public.printers (name, model, hourly_rate, power_w, failure_rate) values ('Under', 'O', 1, 1, -1)$$,
+  '23514', null, 'a negative failure rate is rejected'
+);
 select lives_ok(
   $$insert into public.printers (name, model, type, hourly_rate, power_w) values ('Resin', 'R', 'SLA', 1, 1)$$,
   'a printer can be SLA'

@@ -53,6 +53,7 @@ test('creates a printer, accepting Italian decimals', async () => {
   await user.type(within(sheet).getByLabelText('Modello'), 'Bambu Lab X1C')
   await user.type(within(sheet).getByLabelText('Costo orario'), '2,5')
   await user.type(within(sheet).getByLabelText('Potenza (W)'), '180')
+  await user.type(within(sheet).getByLabelText('Tasso di fallimento (%)'), '5')
   await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
 
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -67,6 +68,7 @@ test('creates a printer, accepting Italian decimals', async () => {
       purchase_cost: null,
       lifetime_hours: null,
       power_w: 180,
+      failure_rate: 5,
       active: true,
     },
   })
@@ -78,6 +80,20 @@ async function fillBasics(user: ReturnType<typeof renderApp>['user'], sheet: HTM
   await user.type(within(sheet).getByLabelText('Modello'), 'Bambu Lab X1C')
   await user.type(within(sheet).getByLabelText('Potenza (W)'), '180')
 }
+
+test('the failure rate must be a whole number from 0 to 100', async () => {
+  const { db, user } = renderApp('/printers', { session })
+  await user.click(await screen.findByRole('button', { name: 'Nuova stampante' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
+  await fillBasics(user, sheet)
+  await user.type(within(sheet).getByLabelText('Costo orario'), '2')
+  const rate = within(sheet).getByLabelText('Tasso di fallimento (%)')
+  await user.clear(rate)
+  await user.type(rate, '101')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+  expect(await within(sheet).findByText(/tra 0 e 100/i)).toBeInTheDocument()
+  expect(db.calls('printers').filter((c) => c.op === 'insert')).toHaveLength(0)
+})
 
 test('the hourly cost can be calculated from the purchase cost and the life', async () => {
   const { db, user } = renderApp('/printers', { session })

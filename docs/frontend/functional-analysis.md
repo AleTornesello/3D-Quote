@@ -196,6 +196,7 @@ unavailable.
 | Machine rate (per hour) | *Enter directly*: required, ≥ 0. Wear and depreciation only — energy is separate. |
 | Purchase cost, estimated life (hours) | *Calculate from purchase cost*: both required; cost > 0, life a whole number of hours > 0. The machine rate is purchase cost ÷ life, rounded to cents, and shown under the fields as you type. Both are kept, so they can be corrected later. Switching back to *Enter directly* keeps the calculated rate in the field and clears the purchase figures. |
 | Power (W) | Required, > 0. Average draw while printing; used for energy cost. |
+| Failure rate (%) | Whole number from 0 to 100; default 0. For now it is only recorded: pricing still uses the failure allowance from Settings. |
 | Active | Inactive printers can't be chosen for new items; existing items keep them. |
 
 Only the resulting machine rate is used in pricing, however it was entered. Printers used by any item can't be deleted, only deactivated. Changing a printer's rates affects Draft quotes on

@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          failure_rate: number
           hourly_rate: number
           id: number
           lifetime_hours: number | null
@@ -112,6 +113,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          failure_rate?: number
           hourly_rate: number
           id?: never
           lifetime_hours?: number | null
@@ -125,6 +127,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          failure_rate?: number
           hourly_rate?: number
           id?: never
           lifetime_hours?: number | null

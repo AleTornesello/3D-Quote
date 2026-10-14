@@ -30,6 +30,7 @@ export const printerSchema = z
     purchase_cost: z.string(),
     lifetime_hours: z.string(),
     power_w: numberField({ gt: 0, decimals: 0, rangeError: 'validation.positive' }),
+    failure_rate: numberField({ min: 0, max: 100, decimals: 0, rangeError: 'validation.percent' }),
     active: z.boolean(),
   })
   .superRefine((form, ctx) => {
@@ -63,6 +64,7 @@ export function printerToForm(printer: Printer | null, locale: Locale): PrinterF
     purchase_cost: toInputNumber(printer?.purchase_cost, locale, 2),
     lifetime_hours: toInputNumber(printer?.lifetime_hours, locale),
     power_w: toInputNumber(printer?.power_w, locale),
+    failure_rate: toInputNumber(printer?.failure_rate ?? 0, locale),
     active: printer?.active ?? true,
   }
 }
@@ -82,6 +84,7 @@ export function formToPrinter(form: PrinterForm): PrinterValues {
     purchase_cost: purchase ? number(form.purchase_cost) : null,
     lifetime_hours: purchase ? number(form.lifetime_hours) : null,
     power_w: number(form.power_w),
+    failure_rate: number(form.failure_rate),
     active: form.active,
   }
 }

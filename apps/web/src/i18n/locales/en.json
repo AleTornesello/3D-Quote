@@ -151,6 +151,7 @@
       "purchaseCost": "Purchase cost",
       "lifetimeHours": "Estimated life (hours)",
       "power": "Power (W)",
+      "failureRate": "Failure rate (%)",
       "active": "Active"
     },
     "columns": {
