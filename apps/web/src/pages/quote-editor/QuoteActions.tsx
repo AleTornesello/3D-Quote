@@ -1,4 +1,4 @@
-import { Copy, Send, Trash2 } from 'lucide-react'
+import { Copy, FileDown, Send, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -10,10 +10,11 @@ import { toAppError } from '@/data/errors'
 import type { QuoteItem } from '@/data/quote-items'
 import { isSlicingInProgress } from '@/data/quote-rules'
 import { useDeleteQuote, useDuplicateQuote, useMarkQuote, type Quote } from '@/data/quotes'
+import { ExportPdfDialog } from '@/pdf/ExportPdfDialog'
 import { ConfirmActionDialog } from './ConfirmActionDialog'
 import { SendQuoteDialog } from './SendQuoteDialog'
 
-type OpenDialog = 'send' | 'accepted' | 'rejected' | 'delete' | null
+type OpenDialog = 'send' | 'accepted' | 'rejected' | 'delete' | 'export' | null
 
 /** The actions the quote's status allows (functional analysis §4). */
 export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[] }) {
@@ -26,6 +27,7 @@ export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[
   const [dialog, setDialog] = useState<OpenDialog>(null)
   const [error, setError] = useState<string | null>(null)
   const slicing = items.some(isSlicingInProgress)
+  const unpriced = items.length === 0 || items.some((item) => item.item_total === null)
 
   function close() {
     setDialog(null)
@@ -93,6 +95,20 @@ export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[
         <Copy aria-hidden />
         {t('quotes.editor.duplicate')}
       </Button>
+      <Button
+        variant="outline"
+        disabled={unpriced}
+        aria-describedby={unpriced ? 'export-hint' : undefined}
+        onClick={() => setDialog('export')}
+      >
+        <FileDown aria-hidden />
+        {t('quotes.pdf.export')}
+      </Button>
+      {unpriced && items.length > 0 && (
+        <span id="export-hint" className="self-center text-sm text-muted-foreground">
+          {t('quotes.pdf.needsPrices')}
+        </span>
+      )}
       {quote.status === 'draft' && isOwner && (
         <Button variant="outline" onClick={() => setDialog('delete')}>
           <Trash2 aria-hidden />
@@ -101,6 +117,7 @@ export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[
       )}
 
       {dialog === 'send' && <SendQuoteDialog quote={quote} items={items} onClose={close} />}
+      {dialog === 'export' && <ExportPdfDialog quote={quote} items={items} onClose={close} />}
       {(dialog === 'accepted' || dialog === 'rejected') && (
         <ConfirmActionDialog
           title={t(

@@ -302,6 +302,19 @@
       "totalInclVat": "Totale IVA inclusa",
       "recalculate": "Ricalcola prezzi"
     },
+    "pdf": {
+      "export": "Esporta PDF",
+      "needsPrices": "Ogni articolo deve avere un prezzo prima dell'esportazione.",
+      "title": "Esporta {{number}}",
+      "language": "Lingua del PDF",
+      "italian": "Italiano",
+      "english": "English",
+      "draftNote": "I PDF delle bozze hanno la filigrana BOZZA.",
+      "download": "Scarica",
+      "creating": "Creazione del PDF…",
+      "error": "Impossibile creare il PDF. Riprova.",
+      "logoWarning": "Impossibile caricare il logo: il PDF è stato creato senza."
+    },
     "item": {
       "description": "Descrizione",
       "download": "Scarica {{name}}",

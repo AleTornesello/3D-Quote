@@ -302,6 +302,19 @@
       "totalInclVat": "Total incl. VAT",
       "recalculate": "Recalculate prices"
     },
+    "pdf": {
+      "export": "Export PDF",
+      "needsPrices": "Every item needs a price before exporting.",
+      "title": "Export {{number}}",
+      "language": "PDF language",
+      "italian": "Italiano",
+      "english": "English",
+      "draftNote": "Draft PDFs carry a DRAFT watermark.",
+      "download": "Download",
+      "creating": "Creating PDF…",
+      "error": "The PDF couldn't be created. Try again.",
+      "logoWarning": "The logo couldn't be loaded; the PDF was created without it."
+    },
     "item": {
       "description": "Description",
       "download": "Download {{name}}",
