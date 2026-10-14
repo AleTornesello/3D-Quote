@@ -14,6 +14,7 @@ export const settingsSchema = z.object({
   setup_fee: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
   default_markup_pct: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
   minimum_item_price: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
+  vat_rate_pct: numberField({ min: 0, max: 100, decimals: 2, rangeError: 'validation.percent' }),
   currency: z
     .string()
     .trim()
@@ -46,6 +47,7 @@ export function settingsToForm(settings: Settings, locale: Locale): SettingsForm
     setup_fee: toInputNumber(settings.setup_fee, locale, 2),
     default_markup_pct: toInputNumber(settings.default_markup_pct, locale),
     minimum_item_price: toInputNumber(settings.minimum_item_price, locale, 2),
+    vat_rate_pct: toInputNumber(settings.vat_rate_pct, locale),
     currency: settings.currency,
     quote_prefix: settings.quote_prefix,
     default_validity_days: String(settings.default_validity_days),
@@ -73,6 +75,7 @@ export function changedSettings(
     setup_fee: number(form.setup_fee),
     default_markup_pct: number(form.default_markup_pct),
     minimum_item_price: number(form.minimum_item_price),
+    vat_rate_pct: number(form.vat_rate_pct),
     currency: form.currency.trim().toUpperCase(),
     quote_prefix: form.quote_prefix.trim(),
     default_validity_days: number(form.default_validity_days),

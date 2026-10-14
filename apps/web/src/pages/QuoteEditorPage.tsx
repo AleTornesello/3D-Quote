@@ -89,6 +89,7 @@ function QuoteEditor({ quote }: { quote: Quote }) {
         )}
         {items.isSuccess && (
           <QuoteTotals
+            quote={quote}
             items={itemList}
             editable={editable}
             pricing={pricing.pricing}

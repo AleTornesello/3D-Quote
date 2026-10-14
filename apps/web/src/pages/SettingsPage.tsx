@@ -129,6 +129,7 @@ function SettingsEditor({ settings }: { settings: Settings }) {
         {field('failure_allowance_pct', 'settings.pricing.failure', { inputMode: 'decimal' })}
         {field('setup_fee', 'settings.pricing.setupFee', { inputMode: 'decimal' })}
         {field('default_markup_pct', 'settings.pricing.markup', { inputMode: 'decimal' })}
+        {field('vat_rate_pct', 'settings.pricing.vat', { inputMode: 'decimal' })}
         {field('minimum_item_price', 'settings.pricing.minimum', { inputMode: 'decimal' })}
         {field('currency', 'settings.pricing.currency')}
       </SettingsCard>
@@ -193,6 +194,7 @@ function SettingsView({ settings }: { settings: Settings }) {
             label={t('settings.pricing.markup')}
             value={percent(settings.default_markup_pct)}
           />
+          <ReadOnlyField label={t('settings.pricing.vat')} value={percent(settings.vat_rate_pct)} />
           <ReadOnlyField
             label={t('settings.pricing.minimum')}
             value={format.currency(settings.minimum_item_price)}

@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { FakeDb, FunctionHandler, Row } from '@/test/fake-db'
+import type { Tables } from '@/lib/database.types'
 import { fakeSession } from '@/test/fake-supabase'
 import { clientRow, jobRow, materialRow, printerRow, quoteItemRow, quoteRow } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
@@ -15,13 +16,23 @@ afterEach(() => vi.useRealTimers())
 
 function renderLive(
   items: Row[],
-  opts: { status?: string; functions?: Record<string, FunctionHandler> } = {},
+  opts: {
+    status?: string
+    quote?: Partial<Tables<'quotes'>>
+    functions?: Record<string, FunctionHandler>
+  } = {},
 ) {
   return renderApp('/quotes/7', {
     session,
     tables: {
       quotes: [
-        quoteRow({ id: 7, number: 'Q-2026-0007', client_id: 1, status: opts.status ?? 'draft' }),
+        quoteRow({
+          id: 7,
+          number: 'Q-2026-0007',
+          client_id: 1,
+          status: opts.status ?? 'draft',
+          ...opts.quote,
+        }),
       ],
       clients: [clientRow({ id: 1 })],
       quote_items: items,
@@ -162,7 +173,7 @@ test('Recalculate prices calls price-quote even when everything is priced', asyn
   await waitFor(() => expect(db.functionCalls('price-quote')).toHaveLength(1))
 })
 
-test('the total sums the item totals', async () => {
+test('the total shows net, VAT and gross', async () => {
   renderLive([
     quoteItemRow({ id: 31, ...priced }),
     quoteItemRow({
@@ -174,14 +185,27 @@ test('the total sums the item totals', async () => {
     }),
   ])
   const total = await screen.findByRole('region', { name: 'Totale' })
-  expect(await within(total).findByText('49,74 €')).toBeInTheDocument()
-  expect(within(total).getByText('Prezzi IVA esclusa.')).toBeInTheDocument()
+  expect(await within(total).findByText(/49,74/)).toBeInTheDocument()
+  expect(within(total).getByText('Imponibile')).toBeInTheDocument()
+  expect(within(total).getByText('IVA (22 %)')).toBeInTheDocument()
+  expect(within(total).getByText(/10,94/)).toBeInTheDocument()
+  expect(within(total).getByText('Totale IVA inclusa')).toBeInTheDocument()
+  expect(within(total).getByText(/60,68/)).toBeInTheDocument()
 })
 
-test('the total is — while an item has no price', async () => {
+test('the total lines are — while an item has no price', async () => {
   renderLive([quoteItemRow({ id: 31, ...priced }), quoteItemRow({ id: 32, description: 'Perno' })])
   const total = await screen.findByRole('region', { name: 'Totale' })
-  expect(within(total).getByText('—')).toBeInTheDocument()
+  expect(within(total).getAllByText('—')).toHaveLength(3)
+})
+
+test('a sent quote shows its frozen VAT rate, not the shop’s', async () => {
+  renderLive([quoteItemRow({ id: 31, ...priced, item_total: 100, computed_total: 100 })], {
+    quote: { status: 'sent', sent_at: '2026-10-12T08:00:00Z', vat_rate_pct: 10 },
+  })
+  const total = await screen.findByRole('region', { name: 'Totale' })
+  expect(await within(total).findByText('IVA (10 %)')).toBeInTheDocument()
+  expect(within(total).getByText(/110,00/)).toBeInTheDocument()
 })
 
 test('a failed pricing call offers Retry', async () => {

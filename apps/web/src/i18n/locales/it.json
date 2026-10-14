@@ -297,7 +297,9 @@
       "outcomeBody": "Lo stato non potrà più essere cambiato.",
       "deleteTitle": "Eliminare {{number}}?",
       "total": "Totale",
-      "netOfVat": "Prezzi IVA esclusa.",
+      "netTotal": "Imponibile",
+      "vat": "IVA ({{rate}} %)",
+      "totalInclVat": "Totale IVA inclusa",
       "recalculate": "Ricalcola prezzi"
     },
     "item": {
@@ -385,6 +387,7 @@
       "failure": "Margine per stampe fallite (%)",
       "setupFee": "Costo di avvio",
       "markup": "Ricarico predefinito (%)",
+      "vat": "Aliquota IVA (%)",
       "minimum": "Prezzo minimo per articolo",
       "currency": "Valuta"
     },

@@ -297,7 +297,9 @@
       "outcomeBody": "The status can't be changed afterwards.",
       "deleteTitle": "Delete {{number}}?",
       "total": "Total",
-      "netOfVat": "Prices net of VAT.",
+      "netTotal": "Net total",
+      "vat": "VAT ({{rate}} %)",
+      "totalInclVat": "Total incl. VAT",
       "recalculate": "Recalculate prices"
     },
     "item": {
@@ -385,6 +387,7 @@
       "failure": "Failure allowance (%)",
       "setupFee": "Setup fee",
       "markup": "Default markup (%)",
+      "vat": "VAT rate (%)",
       "minimum": "Minimum item price",
       "currency": "Currency"
     },

@@ -165,3 +165,35 @@ test('a failed background refetch keeps the unsaved edits and offers Retry', asy
   expect(screen.getByLabelText('Costo di avvio')).toHaveValue('4,5')
   expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument()
 })
+
+test('owners edit the VAT rate', async () => {
+  const { db, user } = renderApp('/settings', { session })
+  const rate = await screen.findByLabelText('Aliquota IVA (%)')
+  expect(rate).toHaveValue('22')
+  await user.clear(rate)
+  await user.type(rate, '23')
+  await user.click(screen.getByRole('button', { name: 'Salva' }))
+  expect(await screen.findByText('Salvato.')).toBeInTheDocument()
+  expect(db.calls('settings')).toContainEqual({
+    op: 'update',
+    filters: [['eq', 'id', 1]],
+    values: { vat_rate_pct: 23 },
+  })
+})
+
+test('the VAT rate must be between 0 and 100', async () => {
+  const { db, user } = renderApp('/settings', { session })
+  const rate = await screen.findByLabelText('Aliquota IVA (%)')
+  await user.clear(rate)
+  await user.type(rate, '101')
+  await user.click(screen.getByRole('button', { name: 'Salva' }))
+  expect(await screen.findByText('Deve essere tra 0 e 100.')).toBeInTheDocument()
+  expect(db.calls('settings').filter((call) => call.op === 'update')).toHaveLength(0)
+})
+
+test('operators see the VAT rate read-only', async () => {
+  renderApp('/settings', { session, staff: operatorStaff })
+  expect(await screen.findByText('Aliquota IVA (%)')).toBeInTheDocument()
+  expect(screen.getByText('22 %')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Aliquota IVA (%)')).not.toBeInTheDocument()
+})
