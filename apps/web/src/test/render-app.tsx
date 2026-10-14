@@ -53,7 +53,15 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
         const client = fake.table('clients').find((c) => c.id === row.client_id)
         const creator = fake.table('staff').find((s) => s.user_id === row.created_by)
         return {
-          client: client ? { id: client.id, name: client.name, company: client.company } : null,
+          client: client
+            ? {
+                id: client.id,
+                name: client.name,
+                company: client.company,
+                email: client.email,
+                phone: client.phone,
+              }
+            : null,
           creator: { display_name: creator?.display_name ?? '' },
         }
       },

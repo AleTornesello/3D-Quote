@@ -144,7 +144,7 @@ export function useSetMarkupOverride() {
   })
 }
 export type Quote = Tables<'quotes'> & {
-  client: ClientOption
+  client: ClientOption & { email: string | null; phone: string | null }
   creator: { display_name: string }
 }
 
@@ -157,7 +157,7 @@ export function useQuote(id: number | null) {
     queryFn: async (): Promise<Quote | null> => {
       const { data, error } = await supabase
         .from('quotes')
-        .select('*, client:clients(id, name, company), creator:staff(display_name)')
+        .select('*, client:clients(id, name, company, email, phone), creator:staff(display_name)')
         .eq('id', id as number)
         .maybeSingle()
       if (error) throw toAppError(error)

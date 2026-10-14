@@ -448,5 +448,26 @@
       "weak": "That password is too weak.",
       "same": "The new password must be different from the current one."
     }
+  },
+  "pdf": {
+    "title": "Quote",
+    "date": "Date",
+    "validUntil": "Valid until",
+    "client": "Client",
+    "vatNumber": "VAT no. {{value}}",
+    "columns": {
+      "description": "Description",
+      "material": "Material",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "total": "Total"
+    },
+    "netTotal": "Net total",
+    "vat": "VAT ({{rate}} %)",
+    "totalInclVat": "Total incl. VAT",
+    "notes": "Notes",
+    "watermark": "DRAFT",
+    "page": "Page",
+    "of": "of"
   }
 }

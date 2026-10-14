@@ -448,5 +448,26 @@
       "weak": "La password è troppo debole.",
       "same": "La nuova password deve essere diversa da quella attuale."
     }
+  },
+  "pdf": {
+    "title": "Preventivo",
+    "date": "Data",
+    "validUntil": "Valido fino al",
+    "client": "Cliente",
+    "vatNumber": "P.IVA {{value}}",
+    "columns": {
+      "description": "Descrizione",
+      "material": "Materiale",
+      "quantity": "Qtà",
+      "unitPrice": "Prezzo unitario",
+      "total": "Totale"
+    },
+    "netTotal": "Imponibile",
+    "vat": "IVA ({{rate}} %)",
+    "totalInclVat": "Totale IVA inclusa",
+    "notes": "Note",
+    "watermark": "BOZZA",
+    "page": "Pagina",
+    "of": "di"
   }
 }
