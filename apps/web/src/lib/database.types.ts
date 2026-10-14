@@ -97,51 +97,42 @@ export type Database = {
       printers: {
         Row: {
           active: boolean
-          build_x_mm: number
-          build_y_mm: number
-          build_z_mm: number
           created_at: string
           hourly_rate: number
           id: number
           lifetime_hours: number | null
           model: string
           name: string
-          nozzle_diameter_mm: number
           power_w: number
           purchase_cost: number | null
+          type: string
           updated_at: string
         }
         ComputedFields: never
         Insert: {
           active?: boolean
-          build_x_mm: number
-          build_y_mm: number
-          build_z_mm: number
           created_at?: string
           hourly_rate: number
           id?: never
           lifetime_hours?: number | null
           model: string
           name: string
-          nozzle_diameter_mm?: number
           power_w: number
           purchase_cost?: number | null
+          type?: string
           updated_at?: string
         }
         Update: {
           active?: boolean
-          build_x_mm?: number
-          build_y_mm?: number
-          build_z_mm?: number
           created_at?: string
           hourly_rate?: number
           id?: never
           lifetime_hours?: number | null
           model?: string
           name?: string
-          nozzle_diameter_mm?: number
           power_w?: number
           purchase_cost?: number | null
+          type?: string
           updated_at?: string
         }
         Relationships: []

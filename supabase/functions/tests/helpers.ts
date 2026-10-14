@@ -131,9 +131,6 @@ export async function createCatalog(admin: SupabaseClient): Promise<Catalog> {
     admin.from('printers').insert({
       name: `itest printer ${tag}`,
       model: 'Test',
-      build_x_mm: 250,
-      build_y_mm: 210,
-      build_z_mm: 220,
       hourly_rate: 1.5,
       power_w: 120,
     }).select('id').single(),

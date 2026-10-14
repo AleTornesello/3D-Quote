@@ -6,7 +6,6 @@ import {
   defaultCatalogChoice,
   descriptionFromFilename,
   expiresSoon,
-  fitsPrinter,
   hasFilters,
   isSlicingInProgress,
   modelPath,
@@ -139,16 +138,6 @@ describe('slicingState', () => {
     expect(isSlicingInProgress(item({ job: job({ status: 'failed' }) }))).toBe(false)
     expect(isSlicingInProgress(item({ printer_id: null }))).toBe(false)
   })
-})
-
-test('fitsPrinter compares each axis with the build volume', () => {
-  const printer = { build_x_mm: 250, build_y_mm: 210, build_z_mm: 220 }
-  const box = (x: number, y: number, z: number) => ({ bbox_x_mm: x, bbox_y_mm: y, bbox_z_mm: z })
-  expect(fitsPrinter(box(250, 210, 220), printer)).toBe(true)
-  expect(fitsPrinter(box(250.1, 10, 10), printer)).toBe(false)
-  expect(fitsPrinter(box(10, 211, 10), printer)).toBe(false)
-  expect(fitsPrinter(box(10, 10, 221), printer)).toBe(false)
-  expect(fitsPrinter({ bbox_x_mm: null, bbox_y_mm: null, bbox_z_mm: null }, printer)).toBe(true)
 })
 
 describe('model files', () => {

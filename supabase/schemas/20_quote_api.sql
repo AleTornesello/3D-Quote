@@ -432,7 +432,6 @@ begin
   return query
   select i.id, b.code
   from public.quote_items i
-  left join public.printers p on p.id = i.printer_id
   left join lateral (
     select j.status
     from public.slicing_jobs j
@@ -445,9 +444,7 @@ begin
       (case when i.printer_id is null or i.material_id is null then 'missing_printer_or_material' end),
       (case when lj.status is distinct from 'succeeded' or i.print_time_s is null or i.filament_g is null
               or i.bbox_x_mm is null then 'not_sliced' end),
-      (case when i.item_total is null then 'not_priced' end),
-      (case when i.bbox_x_mm > p.build_x_mm or i.bbox_y_mm > p.build_y_mm or i.bbox_z_mm > p.build_z_mm
-            then 'does_not_fit' end)
+      (case when i.item_total is null then 'not_priced' end)
   ) as b (code)
   where i.quote_id = p_quote_id and b.code is not null
   order by i.id, b.code;

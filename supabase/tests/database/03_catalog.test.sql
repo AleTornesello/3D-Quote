@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(28);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local'),
@@ -9,8 +9,8 @@ insert into auth.users (id, email) values
 insert into public.staff (user_id, display_name, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'Test Operator', 'operator');
-insert into public.printers (id, name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
-  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 250, 210, 220, 1.50, 120);
+insert into public.printers (id, name, model, hourly_rate, power_w)
+  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 1.50, 120);
 insert into public.materials (id, name, type, density_g_cm3, cost_per_kg)
   overriding system value values (900001, 'Test PLA', 'PLA', 1.24, 25.00);
 insert into public.clients (id, name)
@@ -30,8 +30,8 @@ select ok(exists (select 1 from public.printers where id = 900001), 'operators s
 select ok(exists (select 1 from public.materials where id = 900001), 'operators see materials');
 select is((select count(*)::int from public.settings), 1, 'operators see the settings row');
 select throws_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
-    values ('X', 'Y', 1, 1, 1, 1, 1)$$,
+  $$insert into public.printers (name, model, hourly_rate, power_w)
+    values ('X', 'Y', 1, 1)$$,
   '42501', null, 'operators cannot add printers'
 );
 select results_eq(
@@ -89,30 +89,34 @@ select throws_ok(
   $$insert into public.materials (name, type, density_g_cm3, cost_per_kg) values ('Wood', 'WOOD', 1, 1)$$,
   '23514', null, 'material types are a fixed list'
 );
+select is((select type from public.printers where id = 900001), 'FDM', 'a printer is FDM unless said otherwise');
+select lives_ok(
+  $$insert into public.printers (name, model, type, hourly_rate, power_w) values ('Resin', 'R', 'SLA', 1, 1)$$,
+  'a printer can be SLA'
+);
 select throws_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
-    values ('Zero', 'Z', 0, 1, 1, 1, 1)$$,
-  '23514', null, 'the build volume must be positive'
+  $$insert into public.printers (name, model, type, hourly_rate, power_w) values ('Odd', 'O', 'SLS', 1, 1)$$,
+  '23514', null, 'printer types are a fixed list'
 );
 
 select lives_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
-    values ('Bought', 'B', 1, 1, 1, 0.83, 1, 500, 600)$$,
+  $$insert into public.printers (name, model, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Bought', 'B', 0.83, 1, 500, 600)$$,
   'a printer can keep its purchase cost and life in hours'
 );
 select throws_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost)
-    values ('Half', 'H', 1, 1, 1, 1, 1, 500)$$,
+  $$insert into public.printers (name, model, hourly_rate, power_w, purchase_cost)
+    values ('Half', 'H', 1, 1, 500)$$,
   '23514', null, 'the purchase cost and the life come together'
 );
 select throws_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
-    values ('Free', 'F', 1, 1, 1, 1, 1, 0, 600)$$,
+  $$insert into public.printers (name, model, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Free', 'F', 1, 1, 0, 600)$$,
   '23514', null, 'the purchase cost must be positive'
 );
 select throws_ok(
-  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
-    values ('Dead', 'D', 1, 1, 1, 1, 1, 500, 0)$$,
+  $$insert into public.printers (name, model, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Dead', 'D', 1, 1, 500, 0)$$,
   '23514', null, 'the life in hours must be positive'
 );
 

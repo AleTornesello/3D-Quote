@@ -39,9 +39,9 @@ update public.settings set
   minimum_item_price = 10.00
 where id = 1;
 
-insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w) values
-  ('MK4 #1', 'Prusa MK4', 250, 210, 220, 1.50, 120),
-  ('X1C #1', 'Bambu Lab X1 Carbon', 256, 256, 256, 2.00, 180);
+insert into public.printers (name, model, hourly_rate, power_w) values
+  ('MK4 #1', 'Prusa MK4', 1.50, 120),
+  ('X1C #1', 'Bambu Lab X1 Carbon', 2.00, 180);
 
 insert into public.materials (name, type, color, density_g_cm3, cost_per_kg) values
   ('Prusament PLA Galaxy Black', 'PLA', 'Black', 1.24, 25.00),

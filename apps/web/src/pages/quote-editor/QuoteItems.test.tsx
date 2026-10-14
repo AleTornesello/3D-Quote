@@ -215,21 +215,6 @@ test('shows each slicing state', async () => {
   await waitFor(() => expect(db.rpcCalls('retry_slicing')).toEqual([{ item_id: 46 }]))
 })
 
-test('warns when the model does not fit the printer', async () => {
-  renderItems([
-    quoteItemRow({
-      id: 31,
-      ...sliced,
-      print_time_s: 100,
-      bbox_x_mm: 300,
-      bbox_y_mm: 10,
-      bbox_z_mm: 10,
-      job: jobRow({ status: 'succeeded' }),
-    }),
-  ])
-  expect(await within(await card()).findByText('Non entra in MK4 #1')).toBeInTheDocument()
-})
-
 const priced = {
   ...sliced,
   quantity: 2,

@@ -29,21 +29,7 @@ export function PrintersPage() {
       cell: (p) => <span className="font-medium">{p.name}</span>,
     },
     { key: 'model', header: t('printers.fields.model'), cell: (p) => p.model },
-    {
-      key: 'volume',
-      header: t('printers.columns.buildVolume'),
-      cell: (p) =>
-        t('printers.volumeValue', {
-          x: format.number(p.build_x_mm),
-          y: format.number(p.build_y_mm),
-          z: format.number(p.build_z_mm),
-        }),
-    },
-    {
-      key: 'nozzle',
-      header: t('printers.columns.nozzle'),
-      cell: (p) => `${format.number(p.nozzle_diameter_mm, 2)} mm`,
-    },
+    { key: 'type', header: t('printers.fields.type'), cell: (p) => p.type },
     {
       key: 'rate',
       header: t('printers.fields.hourlyRate'),

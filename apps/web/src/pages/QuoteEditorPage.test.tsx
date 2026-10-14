@@ -116,7 +116,7 @@ test('Mark as sent lists what is missing', async () => {
     rpc: {
       get_quote_send_blockers: () => [
         { quote_item_id: null, code: 'valid_until_past' },
-        { quote_item_id: 31, code: 'does_not_fit' },
+        { quote_item_id: 31, code: 'not_priced' },
       ],
     },
   })
@@ -125,7 +125,7 @@ test('Mark as sent lists what is missing', async () => {
     name: 'Q-2026-0007 non può ancora essere inviato',
   })
   expect(within(dialog).getByText('La data di validità è passata.')).toBeInTheDocument()
-  expect(await within(dialog).findByText('Staffa: non entra in MK4 #1.')).toBeInTheDocument()
+  expect(await within(dialog).findByText('Staffa: il prezzo non è calcolato.')).toBeInTheDocument()
   expect(
     within(dialog).queryByRole('button', { name: 'Segna come inviato' }),
   ).not.toBeInTheDocument()

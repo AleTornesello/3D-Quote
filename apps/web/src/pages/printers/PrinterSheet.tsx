@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { toAppError } from '@/data/errors'
-import { useSavePrinter, type Printer } from '@/data/printers'
+import { PRINTER_TYPES, useSavePrinter, type Printer } from '@/data/printers'
 import { toInputNumber } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
 import {
@@ -25,12 +25,6 @@ import {
 
 type NumberField = readonly [keyof PrinterForm, string]
 
-const SIZE_FIELDS: readonly NumberField[] = [
-  ['build_x_mm', 'printers.fields.buildX'],
-  ['build_y_mm', 'printers.fields.buildY'],
-  ['build_z_mm', 'printers.fields.buildZ'],
-  ['nozzle_diameter_mm', 'printers.fields.nozzle'],
-]
 const DIRECT_RATE_FIELDS: readonly NumberField[] = [['hourly_rate', 'printers.fields.hourlyRate']]
 const PURCHASE_RATE_FIELDS: readonly NumberField[] = [
   ['purchase_cost', 'printers.fields.purchaseCost'],
@@ -118,7 +112,15 @@ export function PrinterSheet({
         >
           <Input id="printer-model" aria-invalid={!!errors.model} {...register('model')} />
         </FormField>
-        {SIZE_FIELDS.map(numberInput)}
+        <FormField id="printer-type" label={t('printers.fields.type')}>
+          <NativeSelect id="printer-type" className="w-full" {...register('type')}>
+            {PRINTER_TYPES.map((type) => (
+              <NativeSelectOption key={type} value={type}>
+                {type}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </FormField>
         <FormField id="printer-rate_mode" label={t('printers.fields.rateMode')}>
           <NativeSelect id="printer-rate_mode" className="w-full" {...rateModeField}>
             {RATE_MODES.map((mode: RateMode) => (

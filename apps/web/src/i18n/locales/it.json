@@ -145,10 +145,7 @@
     "fields": {
       "name": "Nome",
       "model": "Modello",
-      "buildX": "Volume X (mm)",
-      "buildY": "Volume Y (mm)",
-      "buildZ": "Volume Z (mm)",
-      "nozzle": "Ugello (mm)",
+      "type": "Tipo",
       "hourlyRate": "Costo orario",
       "rateMode": "Calcolo del costo orario",
       "purchaseCost": "Costo d'acquisto",
@@ -157,11 +154,8 @@
       "active": "Attiva"
     },
     "columns": {
-      "buildVolume": "Volume di stampa",
-      "nozzle": "Ugello",
       "power": "Potenza"
     },
-    "volumeValue": "{{x}} × {{y}} × {{z}} mm",
     "rateValue": "{{value}}/h",
     "calculatedRate": "Costo orario calcolato",
     "rateModes": {
@@ -297,8 +291,7 @@
         "valid_until_past": "La data di validità è passata.",
         "missing_printer_or_material": "{{item}}: scegli stampante e materiale.",
         "not_sliced": "{{item}}: lo slicing non è completato.",
-        "not_priced": "{{item}}: il prezzo non è calcolato.",
-        "does_not_fit": "{{item}}: non entra in {{printer}}."
+        "not_priced": "{{item}}: il prezzo non è calcolato."
       },
       "acceptTitle": "Segnare {{number}} come accettato?",
       "rejectTitle": "Segnare {{number}} come rifiutato?",
@@ -340,7 +333,6 @@
       "layerHeight": "Altezza layer (mm)",
       "infill": "Riempimento (%)",
       "supports": "Supporti",
-      "doesNotFit": "Non entra in {{printer}}",
       "slicing": {
         "waiting": "Scegli stampante e materiale",
         "queued": "In attesa dello slicing",

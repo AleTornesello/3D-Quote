@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Printer, PrinterValues } from '@/data/printers'
+import { PRINTER_TYPES, type Printer, type PrinterValues } from '@/data/printers'
 import { toInputNumber, type Locale } from '@/lib/format'
 import { numberField, parseDecimal, requiredText } from '@/lib/forms'
 
@@ -23,10 +23,7 @@ export const printerSchema = z
   .object({
     name: requiredText(),
     model: requiredText(),
-    build_x_mm: numberField({ gt: 0, decimals: 1, rangeError: 'validation.positive' }),
-    build_y_mm: numberField({ gt: 0, decimals: 1, rangeError: 'validation.positive' }),
-    build_z_mm: numberField({ gt: 0, decimals: 1, rangeError: 'validation.positive' }),
-    nozzle_diameter_mm: numberField({ gt: 0, decimals: 2, rangeError: 'validation.positive' }),
+    type: z.enum(PRINTER_TYPES),
     rate_mode: z.enum(RATE_MODES),
     // Only the fields of the chosen mode are checked (below).
     hourly_rate: z.string(),
@@ -60,10 +57,7 @@ export function printerToForm(printer: Printer | null, locale: Locale): PrinterF
   return {
     name: printer?.name ?? '',
     model: printer?.model ?? '',
-    build_x_mm: toInputNumber(printer?.build_x_mm, locale),
-    build_y_mm: toInputNumber(printer?.build_y_mm, locale),
-    build_z_mm: toInputNumber(printer?.build_z_mm, locale),
-    nozzle_diameter_mm: toInputNumber(printer?.nozzle_diameter_mm ?? 0.4, locale, 2),
+    type: PRINTER_TYPES.find((type) => type === printer?.type) ?? 'FDM',
     rate_mode: printer?.purchase_cost != null ? 'purchase' : 'direct',
     hourly_rate: toInputNumber(printer?.hourly_rate, locale, 2),
     purchase_cost: toInputNumber(printer?.purchase_cost, locale, 2),
@@ -81,10 +75,7 @@ export function formToPrinter(form: PrinterForm): PrinterValues {
   return {
     name: form.name.trim(),
     model: form.model.trim(),
-    build_x_mm: number(form.build_x_mm),
-    build_y_mm: number(form.build_y_mm),
-    build_z_mm: number(form.build_z_mm),
-    nozzle_diameter_mm: number(form.nozzle_diameter_mm),
+    type: form.type,
     hourly_rate: purchase
       ? (hourlyRateFromPurchase(form.purchase_cost, form.lifetime_hours) as number)
       : number(form.hourly_rate),

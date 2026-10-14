@@ -8,8 +8,8 @@ insert into auth.users (id, email) values
 insert into public.staff (user_id, display_name, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'Test Operator', 'operator');
-insert into public.printers (id, name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
-  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 250, 210, 220, 1.50, 120);
+insert into public.printers (id, name, model, hourly_rate, power_w)
+  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 1.50, 120);
 insert into public.materials (id, name, type, density_g_cm3, cost_per_kg)
   overriding system value values (900001, 'Test PLA', 'PLA', 1.24, 25.00);
 insert into public.clients (id, name) overriding system value values (900001, 'Test Client');
@@ -38,7 +38,7 @@ select is_empty($$select * from public.get_quote_send_blockers(900001)$$, 'a com
 select results_eq(
   $$select quote_item_id, code from public.get_quote_send_blockers(900002)$$,
   $$values (900002::bigint, 'missing_printer_or_material'::text), (900002, 'not_priced'), (900002, 'not_sliced'),
-           (900003, 'does_not_fit'), (900003, 'not_priced'), (900003, 'not_sliced')$$,
+           (900003, 'not_priced'), (900003, 'not_sliced')$$,
   'each incomplete item is reported with its reasons'
 );
 select results_eq(

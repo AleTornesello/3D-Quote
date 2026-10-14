@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
-import { usePrinters } from '@/data/printers'
 import type { QuoteItem } from '@/data/quote-items'
 import { useMarkQuote, useSendBlockers, type Quote, type SendBlocker } from '@/data/quotes'
 
@@ -28,7 +27,6 @@ export function SendQuoteDialog({
 }) {
   const { t } = useTranslation()
   const blockers = useSendBlockers(quote.id, true)
-  const printers = usePrinters()
   const mark = useMarkQuote()
   const [error, setError] = useState<string | null>(null)
 
@@ -47,10 +45,8 @@ export function SendQuoteDialog({
 
   function describe(blocker: SendBlocker) {
     const item = items.find((candidate) => candidate.id === blocker.quote_item_id)
-    const printer = printers.data?.find((candidate) => candidate.id === item?.printer_id)
     return t(`quotes.editor.blockers.${blocker.code}`, {
       item: item?.description ?? '',
-      printer: printer?.name ?? '',
     })
   }
 

@@ -145,19 +145,6 @@ export function isSlicingInProgress(item: SlicingInput): boolean {
   return kind === 'queued' || kind === 'slicing'
 }
 
-type Bbox = { bbox_x_mm: number | null; bbox_y_mm: number | null; bbox_z_mm: number | null }
-type BuildVolume = { build_x_mm: number; build_y_mm: number; build_z_mm: number }
-
-/** False when any axis of the sliced model is larger than the printer's; true while there are no results. */
-export function fitsPrinter(item: Bbox, printer: BuildVolume): boolean {
-  if (item.bbox_x_mm === null || item.bbox_y_mm === null || item.bbox_z_mm === null) return true
-  return (
-    item.bbox_x_mm <= printer.build_x_mm &&
-    item.bbox_y_mm <= printer.build_y_mm &&
-    item.bbox_z_mm <= printer.build_z_mm
-  )
-}
-
 /** The `models` bucket's limit: 100 MiB. */
 export const MAX_MODEL_BYTES = 100 * 1024 * 1024
 export const MAX_PARALLEL_UPLOADS = 3

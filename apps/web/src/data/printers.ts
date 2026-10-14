@@ -4,6 +4,9 @@ import { useSupabase } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
 import { queryKeys } from './query-keys'
 
+export const PRINTER_TYPES = ['FDM', 'SLA'] as const
+export type PrinterType = (typeof PRINTER_TYPES)[number]
+
 export type Printer = Tables<'printers'>
 export type PrinterValues = Omit<TablesInsert<'printers'>, 'id' | 'created_at' | 'updated_at'>
 

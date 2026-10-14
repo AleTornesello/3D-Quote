@@ -1,11 +1,10 @@
-import { FileBox, Trash2, TriangleAlert } from 'lucide-react'
+import { FileBox, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
-import { usePrinters } from '@/data/printers'
 import {
   useClearPriceOverride,
   useModelDownload,
@@ -15,7 +14,6 @@ import {
   useUpdateItemSettings,
   type QuoteItem,
 } from '@/data/quote-items'
-import { fitsPrinter } from '@/data/quote-rules'
 import { InlineField } from './InlineField'
 import { ItemPrice } from './ItemPrice'
 import { ItemSettings } from './ItemSettings'
@@ -32,7 +30,6 @@ export function ItemCard({
   notCalculated: boolean
 }) {
   const { t } = useTranslation()
-  const printers = usePrinters()
   const update = useUpdateItem()
   const settings = useUpdateItemSettings()
   const retry = useRetrySlicing()
@@ -44,7 +41,6 @@ export function ItemCard({
   // One flag for the whole card, so nothing can be edited while any of its changes is being saved.
   const busy =
     update.isPending || settings.isPending || retry.isPending || clear.isPending || remove.isPending
-  const printer = printers.data?.find((p) => p.id === item.printer_id)
   const titleId = `item-${item.id}-title`
 
   async function openDownload() {
@@ -122,12 +118,6 @@ export function ItemCard({
         update={update}
       />
       <SlicingStatus item={item} editable={editable} busy={busy} retry={retry} />
-      {printer && !fitsPrinter(item, printer) && (
-        <p className="flex items-center gap-2 text-sm font-medium text-destructive">
-          <TriangleAlert aria-hidden className="size-4" />
-          {t('quotes.item.doesNotFit', { printer: printer.name })}
-        </p>
-      )}
       <ItemPrice
         item={item}
         editable={editable}

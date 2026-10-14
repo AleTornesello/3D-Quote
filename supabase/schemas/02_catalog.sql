@@ -4,10 +4,7 @@ create table public.printers (
   id bigint generated always as identity primary key,
   name text not null unique check (btrim(name) <> ''),
   model text not null check (btrim(model) <> ''),
-  build_x_mm numeric(6,1) not null check (build_x_mm > 0),
-  build_y_mm numeric(6,1) not null check (build_y_mm > 0),
-  build_z_mm numeric(6,1) not null check (build_z_mm > 0),
-  nozzle_diameter_mm numeric(3,2) not null default 0.40 check (nozzle_diameter_mm > 0),
+  type text not null default 'FDM' check (type in ('FDM', 'SLA')),
   hourly_rate numeric(12,2) not null check (hourly_rate >= 0),
   -- Optional: when set, the app derived hourly_rate from them (purchase_cost / lifetime_hours). Pricing reads hourly_rate only.
   purchase_cost numeric(12,2) check (purchase_cost > 0),

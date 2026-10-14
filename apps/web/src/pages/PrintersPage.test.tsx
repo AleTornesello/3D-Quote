@@ -17,8 +17,7 @@ test('lists printers with formatted values', async () => {
   renderApp('/printers', { session, tables: { printers: [mk4()] } })
   const row = await screen.findByRole('row', { name: /MK4 #1/ })
   expect(within(row).getByText('Prusa MK4')).toBeInTheDocument()
-  expect(within(row).getByText('250 × 210 × 220 mm')).toBeInTheDocument()
-  expect(within(row).getByText('0,40 mm')).toBeInTheDocument()
+  expect(within(row).getByText('FDM')).toBeInTheDocument()
   expect(within(row).getByText('1,50 €/h')).toBeInTheDocument()
   expect(within(row).getByText('120 W')).toBeInTheDocument()
 })
@@ -52,9 +51,6 @@ test('creates a printer, accepting Italian decimals', async () => {
   const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
   await user.type(within(sheet).getByLabelText('Nome'), 'X1C #1')
   await user.type(within(sheet).getByLabelText('Modello'), 'Bambu Lab X1C')
-  await user.type(within(sheet).getByLabelText('Volume X (mm)'), '256')
-  await user.type(within(sheet).getByLabelText('Volume Y (mm)'), '256')
-  await user.type(within(sheet).getByLabelText('Volume Z (mm)'), '256')
   await user.type(within(sheet).getByLabelText('Costo orario'), '2,5')
   await user.type(within(sheet).getByLabelText('Potenza (W)'), '180')
   await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
@@ -66,10 +62,7 @@ test('creates a printer, accepting Italian decimals', async () => {
     values: {
       name: 'X1C #1',
       model: 'Bambu Lab X1C',
-      build_x_mm: 256,
-      build_y_mm: 256,
-      build_z_mm: 256,
-      nozzle_diameter_mm: 0.4,
+      type: 'FDM',
       hourly_rate: 2.5,
       purchase_cost: null,
       lifetime_hours: null,
@@ -83,9 +76,6 @@ test('creates a printer, accepting Italian decimals', async () => {
 async function fillBasics(user: ReturnType<typeof renderApp>['user'], sheet: HTMLElement) {
   await user.type(within(sheet).getByLabelText('Nome'), 'X1C #1')
   await user.type(within(sheet).getByLabelText('Modello'), 'Bambu Lab X1C')
-  await user.type(within(sheet).getByLabelText('Volume X (mm)'), '256')
-  await user.type(within(sheet).getByLabelText('Volume Y (mm)'), '256')
-  await user.type(within(sheet).getByLabelText('Volume Z (mm)'), '256')
   await user.type(within(sheet).getByLabelText('Potenza (W)'), '180')
 }
 
@@ -190,13 +180,46 @@ test('switching back to a typed rate keeps the calculated one and clears the pur
   )
 })
 
+test('a new printer is FDM by default and can be made SLA', async () => {
+  const { db, user } = renderApp('/printers', { session })
+  await user.click(await screen.findByRole('button', { name: 'Nuova stampante' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
+  const type = within(sheet).getByLabelText('Tipo')
+  expect(type).toHaveValue('FDM')
+  await fillBasics(user, sheet)
+  await user.selectOptions(type, 'SLA')
+  await user.type(within(sheet).getByLabelText('Costo orario'), '3')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  await waitFor(() =>
+    expect(db.calls('printers')).toContainEqual({
+      op: 'insert',
+      filters: [],
+      values: expect.objectContaining({ type: 'SLA' }),
+    }),
+  )
+})
+
+test('the type of an existing printer can be changed', async () => {
+  const { db, user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
+  const sheet = await openEdit(user)
+  await user.selectOptions(within(sheet).getByLabelText('Tipo'), 'SLA')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  await waitFor(() =>
+    expect(db.calls('printers')).toContainEqual({
+      op: 'update',
+      filters: [['eq', 'id', 1]],
+      values: expect.objectContaining({ type: 'SLA' }),
+    }),
+  )
+})
+
 test('shows field errors and does not save invalid values', async () => {
   const { db, user } = renderApp('/printers', { session })
   await user.click(await screen.findByRole('button', { name: 'Nuova stampante' }))
   const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
-  const nozzle = within(sheet).getByLabelText('Ugello (mm)')
-  await user.clear(nozzle)
-  await user.type(nozzle, '0')
+  await user.type(within(sheet).getByLabelText('Potenza (W)'), '0')
   await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
 
   expect((await within(sheet).findAllByText('Campo obbligatorio.')).length).toBeGreaterThan(0)
@@ -207,7 +230,7 @@ test('shows field errors and does not save invalid values', async () => {
 test('edits a printer', async () => {
   const { db, user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
   const sheet = await openEdit(user)
-  expect(within(sheet).getByLabelText('Ugello (mm)')).toHaveValue('0,40')
+  expect(within(sheet).getByLabelText('Tipo')).toHaveValue('FDM')
   const name = within(sheet).getByLabelText('Nome')
   await user.clear(name)
   await user.type(name, 'MK4 #2')
@@ -217,7 +240,7 @@ test('edits a printer', async () => {
   expect(db.calls('printers')).toContainEqual({
     op: 'update',
     filters: [['eq', 'id', 1]],
-    values: expect.objectContaining({ name: 'MK4 #2', hourly_rate: 1.5, nozzle_diameter_mm: 0.4 }),
+    values: expect.objectContaining({ name: 'MK4 #2', hourly_rate: 1.5, type: 'FDM' }),
   })
 })
 

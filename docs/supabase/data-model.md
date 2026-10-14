@@ -94,8 +94,7 @@ The `staff_guard` trigger (every role):
 | `id` | `bigint` identity PK | |
 | `name` | `text` not null unique | Shop's name for the machine, e.g. "MK4 #2" |
 | `model` | `text` not null | Manufacturer model, e.g. "Prusa MK4" |
-| `build_x_mm`, `build_y_mm`, `build_z_mm` | `numeric(6,1)` not null | Build volume. Check: `> 0` |
-| `nozzle_diameter_mm` | `numeric(3,2)` not null default `0.40` | |
+| `type` | `text` not null default `'FDM'` | Printing technology. Check: `FDM` or `SLA`. Recorded only; nothing reads it yet |
 | `hourly_rate` | `numeric(12,2)` not null | Machine cost per hour (wear, depreciation); energy is separate. The only cost pricing reads. When `purchase_cost` is set it equals `purchase_cost / lifetime_hours`, rounded to cents by the web app |
 | `purchase_cost` | `numeric(12,2)` null | Check: `> 0`. What the printer cost. Set only when the app derived `hourly_rate` from it |
 | `lifetime_hours` | `integer` null | Check: `> 0`. Estimated life in print hours. Null exactly when `purchase_cost` is (check `printers_purchase_pair`) |
@@ -194,7 +193,7 @@ quote, raises `quote_not_draft`.
 | `supports` | `boolean` not null default `false` | |
 | `print_time_s` | `integer` | From the newest succeeded slicing job; null until sliced |
 | `filament_g` | `numeric(10,2)` | Same |
-| `bbox_x_mm`, `bbox_y_mm`, `bbox_z_mm` | `numeric(6,1)` | Same; checked against the printer's build volume |
+| `bbox_x_mm`, `bbox_y_mm`, `bbox_z_mm` | `numeric(6,1)` | Same, for information; printers have no build volume, so nothing checks it |
 | `material_cost`, `machine_cost`, `energy_cost`, `failure_cost`, `setup_fee`, `markup_amount` | `numeric(14,4)` | Price breakdown, full precision ([pricing rules](../frontend/functional-analysis.md#5-pricing-rules)) |
 | `markup_pct` | `numeric(6,2)` | Markup % used for this computation |
 | `computed_total` | `numeric(12,2)` | After minimum price, rounded |
@@ -375,7 +374,6 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 | `missing_printer_or_material` | Item has no printer or no material |
 | `not_sliced` | Item's newest job is not `succeeded`, or the item has no results |
 | `not_priced` | `item_total` is null |
-| `does_not_fit` | Any bbox axis exceeds the printer's build volume on the same axis |
 
 **Worker functions** (`service_role` only; each changes the job, the item and the queue message in one transaction).
 `worker_complete_job` and `worker_fail_job` raise `job_message_mismatch` when `msg_id` is still queued but carries a

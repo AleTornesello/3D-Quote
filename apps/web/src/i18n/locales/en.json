@@ -145,10 +145,7 @@
     "fields": {
       "name": "Name",
       "model": "Model",
-      "buildX": "Build X (mm)",
-      "buildY": "Build Y (mm)",
-      "buildZ": "Build Z (mm)",
-      "nozzle": "Nozzle (mm)",
+      "type": "Type",
       "hourlyRate": "Hourly rate",
       "rateMode": "Hourly rate method",
       "purchaseCost": "Purchase cost",
@@ -157,11 +154,8 @@
       "active": "Active"
     },
     "columns": {
-      "buildVolume": "Build volume",
-      "nozzle": "Nozzle",
       "power": "Power"
     },
-    "volumeValue": "{{x}} × {{y}} × {{z}} mm",
     "rateValue": "{{value}}/h",
     "calculatedRate": "Calculated hourly rate",
     "rateModes": {
@@ -297,8 +291,7 @@
         "valid_until_past": "The valid-until date has passed.",
         "missing_printer_or_material": "{{item}}: choose printer and material.",
         "not_sliced": "{{item}}: slicing hasn't finished.",
-        "not_priced": "{{item}}: price not calculated.",
-        "does_not_fit": "{{item}}: doesn't fit on {{printer}}."
+        "not_priced": "{{item}}: price not calculated."
       },
       "acceptTitle": "Mark {{number}} as accepted?",
       "rejectTitle": "Mark {{number}} as rejected?",
@@ -340,7 +333,6 @@
       "layerHeight": "Layer height (mm)",
       "infill": "Infill (%)",
       "supports": "Supports",
-      "doesNotFit": "Doesn't fit on {{printer}}",
       "slicing": {
         "waiting": "Choose printer and material",
         "queued": "Waiting to slice",

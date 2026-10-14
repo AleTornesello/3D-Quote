@@ -9,8 +9,8 @@ insert into auth.users (id, email) values
 insert into public.staff (user_id, display_name, role) values
   ('00000000-0000-4000-8000-0000000000a1', 'Test Owner', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'Test Operator', 'operator');
-insert into public.printers (id, name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
-  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 250, 210, 220, 1.50, 120);
+insert into public.printers (id, name, model, hourly_rate, power_w)
+  overriding system value values (900001, 'Test MK4', 'Prusa MK4', 1.50, 120);
 insert into public.materials (id, name, type, density_g_cm3, cost_per_kg)
   overriding system value values (900001, 'Test PLA', 'PLA', 1.24, 25.00);
 insert into public.clients (id, name) overriding system value values (900001, 'Test Client');

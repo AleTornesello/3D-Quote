@@ -142,8 +142,6 @@ Rules when editing a Draft item:
   again. The previous price disappears until the new results arrive.
 - Changing **quantity** or **description** does not re-slice; quantity re-prices immediately.
 - **Remove item** asks for confirmation and deletes the item and its file.
-- If the sliced model's bounding box does not fit the printer's build volume, the item shows
-  "Doesn't fit on <printer>" and the quote can't be sent until it's fixed.
 
 **Price override (owner only)**
 - On an item's breakdown: **Override price** sets the item total by hand and requires a reason (free text, shown
@@ -181,7 +179,7 @@ unavailable.
 
 ### 3.6 Printers
 
-**List:** name, model, build volume, nozzle, hourly rate, power, active. Operators see it read-only.
+**List:** name, model, type, hourly rate, power, active. Operators see it read-only.
 
 **Printer form (owner)**
 
@@ -189,8 +187,7 @@ unavailable.
 |---|---|
 | Name | Required, unique. |
 | Model | Required. |
-| Build volume X / Y / Z (mm) | Required, each > 0. |
-| Nozzle diameter (mm) | Required, > 0; default 0.40. |
+| Type | FDM or SLA; FDM is preselected for a new printer. For now it is only recorded and shown: it does not change slicing, pricing or which materials can be chosen. |
 | Hourly rate method | *Enter directly* (default) or *Calculate from purchase cost*. A printer saved with a purchase cost reopens in the second mode. |
 | Machine rate (per hour) | *Enter directly*: required, ≥ 0. Wear and depreciation only — energy is separate. |
 | Purchase cost, estimated life (hours) | *Calculate from purchase cost*: both required; cost > 0, life a whole number of hours > 0. The machine rate is purchase cost ÷ life, rounded to cents, and shown under the fields as you type. Both are kept, so they can be corrected later. Switching back to *Enter directly* keeps the calculated rate in the field and clears the purchase figures. |
@@ -280,7 +277,7 @@ stateDiagram-v2
 | Sent | Nothing | Mark accepted, Mark rejected, Duplicate, Export PDF |
 | Accepted / Rejected / Expired | Nothing | Duplicate, Export PDF |
 
-- **Mark as sent** requires: at least one item; every item sliced, priced and fitting its printer; valid until is
+- **Mark as sent** requires: at least one item; every item sliced and priced; valid until is
   today or later. If something is missing, the dialog lists what. On success the sent date is recorded and prices
   are frozen: later changes to rates, printers or materials never change a sent quote.
 - **Expired** is set automatically once a day for Sent quotes whose valid-until date has passed.
