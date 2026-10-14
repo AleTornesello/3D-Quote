@@ -16,7 +16,9 @@ async function rasteriseSvg(svg: Blob): Promise<string> {
     const image = new Image()
     image.src = url
     await image.decode()
-    const scale = Math.min(1, MAX_SIDE_PX / Math.max(image.naturalWidth, image.naturalHeight, 1))
+    // A viewBox-only SVG can report a size of 0: nothing to draw.
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error('svg has no size')
+    const scale = MAX_SIDE_PX / Math.max(image.naturalWidth, image.naturalHeight)
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))

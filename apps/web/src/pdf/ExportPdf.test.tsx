@@ -83,7 +83,10 @@ test('Export PDF waits until every item has a price', async () => {
 
 test('Export PDF is disabled for a quote without items', async () => {
   renderEditor({ items: [] })
-  expect(await exportButton()).toBeDisabled()
+  const button = await exportButton()
+  expect(button).toBeDisabled()
+  const hint = await screen.findByText('Aggiungi almeno un articolo prima di esportare.')
+  expect(button).toHaveAttribute('aria-describedby', hint.id)
 })
 
 test('the dialog offers the UI language and builds the PDF in the chosen one', async () => {

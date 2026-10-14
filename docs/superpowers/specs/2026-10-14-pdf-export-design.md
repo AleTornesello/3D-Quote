@@ -123,7 +123,7 @@ other rates; `0`–`100`, two decimals; saved with the rest of the card.
   - **Language:** Italiano / English radio buttons, defaulting to the UI language;
   - on drafts, a note: "Draft PDFs carry a DRAFT watermark.";
   - **Download** (spinner while the PDF is built) and **Cancel**.
-- On success the file downloads and the dialog closes. On failure an error toast says "The PDF couldn't be
+- On success the file downloads and the dialog closes. On failure an inline error (`role="alert"`) in the dialog says "The PDF couldn't be
   created", and the dialog stays open so the user can try again.
 
 ### Code
@@ -214,7 +214,7 @@ watermark on a draft and its absence on a sent quote, and that 40 items produce 
 - Export PDF is visible in every status for both roles, and disabled with its reason while an item has no price;
 - the dialog defaults to the UI language; the chosen language, the data and the file name reach the renderer, and
   the download happens;
-- a renderer failure shows the error toast and keeps the dialog open; a logo that fails to load shows the warning
+- a renderer failure shows the inline error alert and keeps the dialog open; a logo that fails to load shows the warning
   toast and the PDF is still created;
 - the editor shows Net total, VAT with the rate, and Total incl. VAT, with the frozen rate on a sent quote and the
   settings rate on a draft;

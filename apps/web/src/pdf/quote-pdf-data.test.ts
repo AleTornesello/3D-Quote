@@ -197,4 +197,11 @@ describe('toQuotePdfData', () => {
     expect(() => build({ items: [item({ item_total: null })] })).toThrow('quote_not_priced')
     expect(() => build({ items: [] })).toThrow('quote_not_priced')
   })
+
+  test('refuses to build without a VAT rate (a database without the vat_rate_pct columns)', () => {
+    const noRate = { ...settingsRow, vat_rate_pct: undefined } as unknown as typeof settingsRow
+    expect(() =>
+      build({ settings: noRate, quote: quote({ vat_rate_pct: undefined } as never) }),
+    ).toThrow('vat_rate_missing')
+  })
 })

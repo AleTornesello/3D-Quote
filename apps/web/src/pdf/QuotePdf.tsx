@@ -62,9 +62,17 @@ const styles = StyleSheet.create({
   },
 })
 
-function TableRow({ values, head }: { values: QuotePdfRow; head?: boolean }) {
+function TableRow({
+  values,
+  head,
+  fixed,
+}: {
+  values: QuotePdfRow
+  head?: boolean
+  fixed?: boolean
+}) {
   return (
-    <View style={head ? [styles.row, styles.head] : styles.row} wrap={false}>
+    <View style={head ? [styles.row, styles.head] : styles.row} wrap={false} fixed={fixed}>
       <Text style={styles.description}>{values.description}</Text>
       <Text style={styles.material}>{values.material}</Text>
       <Text style={styles.quantity}>{values.quantity}</Text>
@@ -117,17 +125,12 @@ export function QuotePdf({ data }: { data: QuotePdfData }) {
           ))}
         </View>
 
-        <TableRow values={data.columns} head />
-        {/* The header again on every page after the first. */}
-        <View
-          fixed
-          render={({ pageNumber }) =>
-            pageNumber > 1 ? <TableRow values={data.columns} head /> : null
-          }
-        />
-        {data.rows.map((values, index) => (
-          <TableRow key={index} values={values} />
-        ))}
+        <View>
+          <TableRow values={data.columns} head fixed />
+          {data.rows.map((values, index) => (
+            <TableRow key={index} values={values} />
+          ))}
+        </View>
 
         <View style={styles.totals} wrap={false}>
           {data.totals.map((line) => (

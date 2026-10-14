@@ -66,9 +66,33 @@ test('a long quote continues on the next pages with the table header repeated', 
   const pages = await pagesOf(sampleQuotePdfData({}, 40))
   expect(pages.length).toBeGreaterThan(1)
   pages.forEach((page, index) => {
-    expect(page).toContain('Descrizione')
+    // Every page that holds item rows repeats the header.
+    if (page.includes('Staffa')) expect(page).toContain('Descrizione')
     expect(page).toContain(`Pagina ${index + 1} di ${pages.length}`)
   })
+  expect(pages.filter((page) => page.includes('Staffa')).length).toBeGreaterThan(1)
   expect(pages.join(' ')).toContain('Staffa 40')
   expect(pages[0]).not.toContain('Staffa 40')
+})
+
+test('the table header is not repeated on a page without table rows', async () => {
+  // 25 rows fill page 1; the totals spill over to page 2.
+  const pages = await pagesOf(sampleQuotePdfData({}, 25))
+  expect(pages).toHaveLength(2)
+  expect(pages[0]).toContain('Descrizione')
+  expect(pages[0]).toContain('Staffa 25')
+  expect(pages[1]).toContain('Totale IVA inclusa')
+  expect(pages[1]).not.toContain('Staffa')
+  expect(pages[1]).not.toContain('Descrizione')
+})
+
+test('very long terms on their own page do not get a table header', async () => {
+  const terms = Array.from({ length: 120 }, (_, n) => `Condizione numero ${n + 1}.`).join('\n')
+  const pages = await pagesOf(sampleQuotePdfData({ terms }, 2))
+  expect(pages.length).toBeGreaterThan(1)
+  const last = pages[pages.length - 1]
+  expect(last).toContain('Condizione numero 120.')
+  expect(last).not.toContain('Staffa')
+  expect(last).not.toContain('Descrizione')
+  expect(pages[0]).toContain('Descrizione')
 })

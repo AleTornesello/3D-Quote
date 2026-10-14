@@ -104,9 +104,9 @@ export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[
         <FileDown aria-hidden />
         {t('quotes.pdf.export')}
       </Button>
-      {unpriced && items.length > 0 && (
+      {unpriced && (
         <span id="export-hint" className="self-center text-sm text-muted-foreground">
-          {t('quotes.pdf.needsPrices')}
+          {t(items.length === 0 ? 'quotes.pdf.needsItems' : 'quotes.pdf.needsPrices')}
         </span>
       )}
       {quote.status === 'draft' && isOwner && (

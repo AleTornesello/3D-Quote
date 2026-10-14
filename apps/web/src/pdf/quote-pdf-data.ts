@@ -71,6 +71,8 @@ export function toQuotePdfData({
   const locale = localeFor(language)
   const money = (value: number) => formatCurrency(value, locale, settings.currency)
   const rate = vatRateFor(quote, settings) ?? settings.vat_rate_pct
+  // An old schema without the vat_rate_pct columns leaves the rate undefined: never print NaN.
+  if (!Number.isFinite(rate)) throw new Error('vat_rate_missing')
   const totals = quoteTotals(items, rate)
   if (totals === null) throw new Error('quote_not_priced')
 

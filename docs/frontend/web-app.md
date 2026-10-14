@@ -121,6 +121,9 @@ apps/web/src/
   (Cyrillic, Greek…) don't until a font is embedded.
 - **VAT:** `settings.vat_rate_pct` is the shop rate; `mark_quote_sent` copies it onto the quote. `vatRateFor` and
   `quoteTotals` (`src/data/quote-rules.ts`) work in integer cents; the editor's totals and the PDF use them.
+  **Deploying:** the two `vat_rate` migrations (`<ts>_vat_rate`, `<ts>_vat_rate_setup`) must be applied to the cloud
+  project (via the Supabase MCP, when asked) before or together with this build: the app needs both `vat_rate_pct`
+  columns. Without them Settings can't save and the editor totals show —; the PDF download fails into its error alert.
 - **Test fake:** `FakeDb#configure({ defaults, embeds, writable })` adds what the database would: `renderApp` fills
   a new quote's defaults and embeds its `client` and `creator`, gives items an empty `job` unless seeded, and lets
   updates and deletes reach draft quotes only (the RLS policy). A `range` starting past the last row fails with

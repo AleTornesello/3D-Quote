@@ -304,6 +304,7 @@
     },
     "pdf": {
       "export": "Esporta PDF",
+      "needsItems": "Aggiungi almeno un articolo prima di esportare.",
       "needsPrices": "Ogni articolo deve avere un prezzo prima dell'esportazione.",
       "title": "Esporta {{number}}",
       "language": "Lingua del PDF",
