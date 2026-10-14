@@ -53,6 +53,8 @@ export function printerRow(overrides: Partial<Tables<'printers'>> = {}): Tables<
     build_z_mm: 220,
     nozzle_diameter_mm: 0.4,
     hourly_rate: 1.5,
+    purchase_cost: null,
+    lifetime_hours: null,
     power_w: 120,
     active: true,
     created_at: CREATED,

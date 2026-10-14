@@ -103,10 +103,12 @@ export type Database = {
           created_at: string
           hourly_rate: number
           id: number
+          lifetime_hours: number | null
           model: string
           name: string
           nozzle_diameter_mm: number
           power_w: number
+          purchase_cost: number | null
           updated_at: string
         }
         ComputedFields: never
@@ -118,10 +120,12 @@ export type Database = {
           created_at?: string
           hourly_rate: number
           id?: never
+          lifetime_hours?: number | null
           model: string
           name: string
           nozzle_diameter_mm?: number
           power_w: number
+          purchase_cost?: number | null
           updated_at?: string
         }
         Update: {
@@ -132,10 +136,12 @@ export type Database = {
           created_at?: string
           hourly_rate?: number
           id?: never
+          lifetime_hours?: number | null
           model?: string
           name?: string
           nozzle_diameter_mm?: number
           power_w?: number
+          purchase_cost?: number | null
           updated_at?: string
         }
         Relationships: []

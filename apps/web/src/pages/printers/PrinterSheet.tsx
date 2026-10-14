@@ -1,26 +1,41 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { FormField } from '@/components/FormField'
 import { FormSheet } from '@/components/FormSheet'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { toAppError } from '@/data/errors'
 import { useSavePrinter, type Printer } from '@/data/printers'
+import { toInputNumber } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
-import { formToPrinter, printerSchema, printerToForm, type PrinterForm } from './printer-form'
+import {
+  RATE_MODES,
+  formToPrinter,
+  hourlyRateFromPurchase,
+  printerSchema,
+  printerToForm,
+  type PrinterForm,
+  type RateMode,
+} from './printer-form'
 
-const NUMBER_FIELDS = [
+type NumberField = readonly [keyof PrinterForm, string]
+
+const SIZE_FIELDS: readonly NumberField[] = [
   ['build_x_mm', 'printers.fields.buildX'],
   ['build_y_mm', 'printers.fields.buildY'],
   ['build_z_mm', 'printers.fields.buildZ'],
   ['nozzle_diameter_mm', 'printers.fields.nozzle'],
-  ['hourly_rate', 'printers.fields.hourlyRate'],
-  ['power_w', 'printers.fields.power'],
-] as const
+]
+const DIRECT_RATE_FIELDS: readonly NumberField[] = [['hourly_rate', 'printers.fields.hourlyRate']]
+const PURCHASE_RATE_FIELDS: readonly NumberField[] = [
+  ['purchase_cost', 'printers.fields.purchaseCost'],
+  ['lifetime_hours', 'printers.fields.lifetimeHours'],
+]
 
 /** New printer when `printer` is null. */
 export function PrinterSheet({
@@ -31,7 +46,8 @@ export function PrinterSheet({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const { locale } = useFormat()
+  const format = useFormat()
+  const { locale } = format
   const save = useSavePrinter()
   const [formError, setFormError] = useState<string | null>(null)
   const {
@@ -39,11 +55,36 @@ export function PrinterSheet({
     control,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<PrinterForm>({
     resolver: zodResolver(printerSchema),
     defaultValues: printerToForm(printer, locale),
   })
+  const [rateMode, purchaseCost, lifetimeHours] = useWatch({
+    control,
+    name: ['rate_mode', 'purchase_cost', 'lifetime_hours'],
+  })
+  const calculatedRate = hourlyRateFromPurchase(purchaseCost, lifetimeHours)
+  const rateModeField = register('rate_mode', {
+    // Leaving purchase mode keeps the calculated rate as the typed one, so nothing is lost.
+    onChange: (event) => {
+      if (event.target.value === 'direct' && calculatedRate !== null) {
+        setValue('hourly_rate', toInputNumber(calculatedRate, locale, 2), { shouldDirty: true })
+      }
+    },
+  })
+
+  const numberInput = ([name, label]: NumberField) => (
+    <FormField key={name} id={`printer-${name}`} label={t(label)} error={errors[name]?.message}>
+      <Input
+        id={`printer-${name}`}
+        inputMode="decimal"
+        aria-invalid={!!errors[name]}
+        {...register(name)}
+      />
+    </FormField>
+  )
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
@@ -77,21 +118,32 @@ export function PrinterSheet({
         >
           <Input id="printer-model" aria-invalid={!!errors.model} {...register('model')} />
         </FormField>
-        {NUMBER_FIELDS.map(([name, label]) => (
-          <FormField
-            key={name}
-            id={`printer-${name}`}
-            label={t(label)}
-            error={errors[name]?.message}
-          >
-            <Input
-              id={`printer-${name}`}
-              inputMode="decimal"
-              aria-invalid={!!errors[name]}
-              {...register(name)}
-            />
-          </FormField>
-        ))}
+        {SIZE_FIELDS.map(numberInput)}
+        <FormField id="printer-rate_mode" label={t('printers.fields.rateMode')}>
+          <NativeSelect id="printer-rate_mode" className="w-full" {...rateModeField}>
+            {RATE_MODES.map((mode: RateMode) => (
+              <NativeSelectOption key={mode} value={mode}>
+                {t(`printers.rateModes.${mode}`)}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </FormField>
+        {rateMode === 'purchase' ? (
+          <>
+            {PURCHASE_RATE_FIELDS.map(numberInput)}
+            <p aria-live="polite" className="text-sm text-muted-foreground">
+              {t('printers.calculatedRate')}:{' '}
+              <span className="font-medium text-foreground">
+                {calculatedRate === null
+                  ? '—'
+                  : t('printers.rateValue', { value: format.currency(calculatedRate) })}
+              </span>
+            </p>
+          </>
+        ) : (
+          DIRECT_RATE_FIELDS.map(numberInput)
+        )}
+        {numberInput(['power_w', 'printers.fields.power'])}
         <Controller
           control={control}
           name="active"

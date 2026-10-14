@@ -9,10 +9,14 @@ create table public.printers (
   build_z_mm numeric(6,1) not null check (build_z_mm > 0),
   nozzle_diameter_mm numeric(3,2) not null default 0.40 check (nozzle_diameter_mm > 0),
   hourly_rate numeric(12,2) not null check (hourly_rate >= 0),
+  -- Optional: when set, the app derived hourly_rate from them (purchase_cost / lifetime_hours). Pricing reads hourly_rate only.
+  purchase_cost numeric(12,2) check (purchase_cost > 0),
+  lifetime_hours integer check (lifetime_hours > 0),
   power_w integer not null check (power_w > 0),
   active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint printers_purchase_pair check ((purchase_cost is null) = (lifetime_hours is null))
 );
 
 alter table public.printers enable row level security;

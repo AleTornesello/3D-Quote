@@ -150,6 +150,9 @@
       "buildZ": "Build Z (mm)",
       "nozzle": "Nozzle (mm)",
       "hourlyRate": "Hourly rate",
+      "rateMode": "Hourly rate method",
+      "purchaseCost": "Purchase cost",
+      "lifetimeHours": "Estimated life (hours)",
       "power": "Power (W)",
       "active": "Active"
     },
@@ -160,6 +163,11 @@
     },
     "volumeValue": "{{x}} × {{y}} × {{z}} mm",
     "rateValue": "{{value}}/h",
+    "calculatedRate": "Calculated hourly rate",
+    "rateModes": {
+      "direct": "Enter directly",
+      "purchase": "Calculate from purchase cost"
+    },
     "toggleActive": "Toggle {{name}} active",
     "duplicateName": "A printer with this name already exists.",
     "deleteTitle": "Delete printer {{name}}?",

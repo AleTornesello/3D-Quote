@@ -150,6 +150,9 @@
       "buildZ": "Volume Z (mm)",
       "nozzle": "Ugello (mm)",
       "hourlyRate": "Costo orario",
+      "rateMode": "Calcolo del costo orario",
+      "purchaseCost": "Costo d'acquisto",
+      "lifetimeHours": "Vita stimata (ore)",
       "power": "Potenza (W)",
       "active": "Attiva"
     },
@@ -160,6 +163,11 @@
     },
     "volumeValue": "{{x}} × {{y}} × {{z}} mm",
     "rateValue": "{{value}}/h",
+    "calculatedRate": "Costo orario calcolato",
+    "rateModes": {
+      "direct": "Inserisci direttamente",
+      "purchase": "Calcola dal costo d'acquisto"
+    },
     "toggleActive": "Attiva/disattiva {{name}}",
     "duplicateName": "Esiste già una stampante con questo nome.",
     "deleteTitle": "Eliminare la stampante {{name}}?",

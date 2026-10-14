@@ -71,11 +71,123 @@ test('creates a printer, accepting Italian decimals', async () => {
       build_z_mm: 256,
       nozzle_diameter_mm: 0.4,
       hourly_rate: 2.5,
+      purchase_cost: null,
+      lifetime_hours: null,
       power_w: 180,
       active: true,
     },
   })
   expect(await screen.findByRole('row', { name: /X1C #1/ })).toBeInTheDocument()
+})
+
+async function fillBasics(user: ReturnType<typeof renderApp>['user'], sheet: HTMLElement) {
+  await user.type(within(sheet).getByLabelText('Nome'), 'X1C #1')
+  await user.type(within(sheet).getByLabelText('Modello'), 'Bambu Lab X1C')
+  await user.type(within(sheet).getByLabelText('Volume X (mm)'), '256')
+  await user.type(within(sheet).getByLabelText('Volume Y (mm)'), '256')
+  await user.type(within(sheet).getByLabelText('Volume Z (mm)'), '256')
+  await user.type(within(sheet).getByLabelText('Potenza (W)'), '180')
+}
+
+test('the hourly cost can be calculated from the purchase cost and the life', async () => {
+  const { db, user } = renderApp('/printers', { session })
+  await user.click(await screen.findByRole('button', { name: 'Nuova stampante' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
+  await fillBasics(user, sheet)
+  await user.selectOptions(
+    within(sheet).getByLabelText('Calcolo del costo orario'),
+    "Calcola dal costo d'acquisto",
+  )
+  expect(within(sheet).queryByLabelText('Costo orario')).not.toBeInTheDocument()
+  await user.type(within(sheet).getByLabelText("Costo d'acquisto"), '500')
+  expect(within(sheet).getByText('—')).toBeInTheDocument()
+  await user.type(within(sheet).getByLabelText('Vita stimata (ore)'), '600')
+  expect(within(sheet).getByText(/0,83/)).toBeInTheDocument()
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(db.calls('printers')).toContainEqual({
+    op: 'insert',
+    filters: [],
+    values: expect.objectContaining({
+      hourly_rate: 0.83,
+      purchase_cost: 500,
+      lifetime_hours: 600,
+    }),
+  })
+})
+
+test('purchase mode asks for both values and does not save without them', async () => {
+  const { db, user } = renderApp('/printers', { session })
+  await user.click(await screen.findByRole('button', { name: 'Nuova stampante' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Nuova stampante' })
+  await fillBasics(user, sheet)
+  await user.selectOptions(
+    within(sheet).getByLabelText('Calcolo del costo orario'),
+    "Calcola dal costo d'acquisto",
+  )
+  await user.type(within(sheet).getByLabelText("Costo d'acquisto"), '500')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  expect(await within(sheet).findByText('Campo obbligatorio.')).toBeInTheDocument()
+  expect(db.calls('printers').filter((call) => call.op === 'insert')).toHaveLength(0)
+})
+
+test('a printer with a purchase cost reopens in purchase mode and can be corrected', async () => {
+  const bought = printerRow({
+    id: 1,
+    name: 'MK4 #1',
+    hourly_rate: 0.83,
+    purchase_cost: 500,
+    lifetime_hours: 600,
+  })
+  const { db, user } = renderApp('/printers', { session, tables: { printers: [bought] } })
+  const sheet = await openEdit(user)
+  expect(within(sheet).getByLabelText('Calcolo del costo orario')).toHaveValue('purchase')
+  const hours = within(sheet).getByLabelText('Vita stimata (ore)')
+  expect(hours).toHaveValue('600')
+  await user.clear(hours)
+  await user.type(hours, '1000')
+  expect(within(sheet).getByText(/0,50/)).toBeInTheDocument()
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  await waitFor(() =>
+    expect(db.calls('printers')).toContainEqual({
+      op: 'update',
+      filters: [['eq', 'id', 1]],
+      values: expect.objectContaining({ hourly_rate: 0.5, lifetime_hours: 1000 }),
+    }),
+  )
+})
+
+test('switching back to a typed rate keeps the calculated one and clears the purchase figures', async () => {
+  const bought = printerRow({
+    id: 1,
+    name: 'MK4 #1',
+    hourly_rate: 0.83,
+    purchase_cost: 500,
+    lifetime_hours: 600,
+  })
+  const { db, user } = renderApp('/printers', { session, tables: { printers: [bought] } })
+  const sheet = await openEdit(user)
+  await user.selectOptions(
+    within(sheet).getByLabelText('Calcolo del costo orario'),
+    'Inserisci direttamente',
+  )
+  expect(within(sheet).getByLabelText('Costo orario')).toHaveValue('0,83')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+
+  await waitFor(() =>
+    expect(db.calls('printers')).toContainEqual({
+      op: 'update',
+      filters: [['eq', 'id', 1]],
+      values: expect.objectContaining({
+        hourly_rate: 0.83,
+        purchase_cost: null,
+        lifetime_hours: null,
+      }),
+    }),
+  )
 })
 
 test('shows field errors and does not save invalid values', async () => {

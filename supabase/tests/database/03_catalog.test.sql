@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(26);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000a1', 'owner@test.local'),
@@ -93,6 +93,27 @@ select throws_ok(
   $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w)
     values ('Zero', 'Z', 0, 1, 1, 1, 1)$$,
   '23514', null, 'the build volume must be positive'
+);
+
+select lives_ok(
+  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Bought', 'B', 1, 1, 1, 0.83, 1, 500, 600)$$,
+  'a printer can keep its purchase cost and life in hours'
+);
+select throws_ok(
+  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost)
+    values ('Half', 'H', 1, 1, 1, 1, 1, 500)$$,
+  '23514', null, 'the purchase cost and the life come together'
+);
+select throws_ok(
+  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Free', 'F', 1, 1, 1, 1, 1, 0, 600)$$,
+  '23514', null, 'the purchase cost must be positive'
+);
+select throws_ok(
+  $$insert into public.printers (name, model, build_x_mm, build_y_mm, build_z_mm, hourly_rate, power_w, purchase_cost, lifetime_hours)
+    values ('Dead', 'D', 1, 1, 1, 1, 1, 500, 0)$$,
+  '23514', null, 'the life in hours must be positive'
 );
 
 reset role;
