@@ -197,7 +197,7 @@ New keys in `it` and `en`:
 
 **Unit (Vitest):**
 
-- `quoteTotals`: sums, half-up rounding on cents (net 12.25 at 22 % gives VAT 2.70, where floating point would give 2.69), a 0 % rate, `null` with no
+- `quoteTotals`: sums, half-up rounding on cents (net 12.25 at 22 % gives VAT 2.70, net 0.25 gives 0.06), a 0 % rate, `null` with no
   items or an unpriced item;
 - `vatRateFor`: the quote's rate wins; a draft uses settings;
 - `pdfFileName`: forbidden characters, whitespace runs, the 60-character cap, accents kept;
