@@ -2,7 +2,7 @@ import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { AppError, fromFunctionCode } from './errors'
 
-export type EdgeFunctionName = 'price-quote' | 'duplicate-quote'
+export type EdgeFunctionName = 'price-quote' | 'duplicate-quote' | 'manage-staff'
 
 async function codeOf(error: FunctionsHttpError): Promise<string> {
   try {

@@ -432,6 +432,10 @@
     }
   },
   "staff": {
+    "errors": {
+      "emailRegistered": "This email already has an account.",
+      "notPending": "This person has already signed in; the invitation can't be changed."
+    },
     "note": "Inviting or removing people still happens in the Supabase dashboard.",
     "empty": "No staff yet.",
     "roleFor": "Role of {{name}}",

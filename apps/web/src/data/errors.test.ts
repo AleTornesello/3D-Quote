@@ -98,3 +98,23 @@ describe('fromUploadResponse', () => {
     expect(fromUploadResponse(status, body)).toMatchObject({ kind, messageKey })
   })
 })
+
+describe('fromFunctionCode: manage-staff', () => {
+  test('not_owner is a permission problem', () => {
+    expect(fromFunctionCode('not_owner').kind).toBe('forbidden')
+  })
+  test('staff_not_found is not found', () => {
+    expect(fromFunctionCode('staff_not_found').kind).toBe('notFound')
+  })
+  test('email_already_registered is a duplicate on the email field', () => {
+    const error = fromFunctionCode('email_already_registered')
+    expect(error.kind).toBe('duplicate')
+    expect(error.field).toBe('email')
+    expect(error.messageKey).toBe('staff.errors.emailRegistered')
+  })
+  test('not_pending explains that the person already signed in', () => {
+    const error = fromFunctionCode('not_pending')
+    expect(error.kind).toBe('invalid')
+    expect(error.messageKey).toBe('staff.errors.notPending')
+  })
+})

@@ -432,6 +432,10 @@
     }
   },
   "staff": {
+    "errors": {
+      "emailRegistered": "Questa email ha già un account.",
+      "notPending": "Questa persona ha già effettuato l'accesso: l'invito non può essere modificato."
+    },
     "note": "Per invitare o rimuovere persone si usa ancora la dashboard di Supabase.",
     "empty": "Nessun membro del personale.",
     "roleFor": "Ruolo di {{name}}",

@@ -102,6 +102,18 @@ export function fromFunctionCode(code: string, cause?: unknown): AppError {
       return new AppError('notDraft', { cause })
     case 'duplicate_failed':
       return new AppError('unknown', { messageKey: 'errors.duplicateFailed', cause })
+    case 'not_owner':
+      return new AppError('forbidden', { cause })
+    case 'staff_not_found':
+      return new AppError('notFound', { cause })
+    case 'email_already_registered':
+      return new AppError('duplicate', {
+        field: 'email',
+        messageKey: 'staff.errors.emailRegistered',
+        cause,
+      })
+    case 'not_pending':
+      return new AppError('invalid', { messageKey: 'staff.errors.notPending', cause })
     default:
       return new AppError('unknown', { cause })
   }
