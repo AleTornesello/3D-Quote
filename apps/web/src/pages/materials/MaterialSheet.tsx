@@ -21,6 +21,8 @@ import { toInputNumber } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
 import { formToMaterial, materialSchema, materialToForm, type MaterialForm } from './material-form'
 
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
+
 /** New material when `material` is null. */
 export function MaterialSheet({
   material,
@@ -98,7 +100,40 @@ export function MaterialSheet({
           </NativeSelect>
         </FormField>
         <FormField id="material-color" label={t('materials.fields.color')}>
-          <Input id="material-color" {...register('color')} />
+          <Controller
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <div className="flex items-center gap-2">
+                <input
+                  id="material-color"
+                  type="color"
+                  value={HEX_COLOR.test(field.value) ? field.value : '#000000'}
+                  onChange={(event) => {
+                    field.onChange(event.target.value)
+                  }}
+                  className="h-9 w-14 cursor-pointer rounded-md border bg-transparent p-1"
+                />
+                {field.value ? (
+                  <>
+                    <span className="text-sm text-muted-foreground">{field.value}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        field.onChange('')
+                      }}
+                    >
+                      {t('common.clear')}
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
+              </div>
+            )}
+          />
         </FormField>
         <FormField
           id="material-cost"

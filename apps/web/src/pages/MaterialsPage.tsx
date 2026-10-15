@@ -33,7 +33,25 @@ export function MaterialsPage() {
       header: t('materials.fields.type'),
       cell: (m) => (m.type === 'other' ? t('materials.types.other') : m.type),
     },
-    { key: 'color', header: t('materials.fields.color'), cell: (m) => m.color ?? '—' },
+    {
+      key: 'color',
+      header: t('materials.fields.color'),
+      cell: (m) =>
+        m.color ? (
+          <span className="inline-flex items-center gap-2">
+            {/^#[0-9a-f]{6}$/i.test(m.color) && (
+              <span
+                aria-hidden
+                className="size-4 rounded-full border"
+                style={{ backgroundColor: m.color }}
+              />
+            )}
+            {m.color}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
     {
       key: 'cost',
       header: t('materials.fields.costPerKg'),
