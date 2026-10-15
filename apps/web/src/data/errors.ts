@@ -41,6 +41,7 @@ function fieldFromConstraint(message: string): string | undefined {
 const INVALID_MESSAGES: Record<string, string> = {
   printer_inactive: 'errors.printerInactive',
   material_inactive: 'errors.materialInactive',
+  consumable_inactive: 'errors.consumableInactive',
   invalid_override: 'errors.invalidOverride',
   invalid_markup: 'errors.invalidMarkup',
 }

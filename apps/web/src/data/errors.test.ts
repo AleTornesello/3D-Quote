@@ -118,3 +118,9 @@ describe('fromFunctionCode: manage-staff', () => {
     expect(error.messageKey).toBe('staff.errors.notPending')
   })
 })
+
+test('an inactive consumable maps to its own message', () => {
+  const error = toAppError({ code: '22023', message: 'consumable_inactive' })
+  expect(error.kind).toBe('invalid')
+  expect(error.messageKey).toBe('errors.consumableInactive')
+})

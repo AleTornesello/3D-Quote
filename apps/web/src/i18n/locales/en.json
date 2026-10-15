@@ -70,6 +70,7 @@
     "modelNotFound": "The model file wasn't found.",
     "printerInactive": "The chosen printer is deactivated.",
     "materialInactive": "The chosen material is deactivated.",
+    "consumableInactive": "This consumable is not active.",
     "invalidOverride": "Enter a valid price and a reason.",
     "invalidMarkup": "The markup can't be negative.",
     "duplicateFailed": "The quote couldn't be copied. Nothing was created.",

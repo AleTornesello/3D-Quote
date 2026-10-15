@@ -70,6 +70,7 @@
     "modelNotFound": "Il file del modello non è stato trovato.",
     "printerInactive": "La stampante scelta è disattivata.",
     "materialInactive": "Il materiale scelto è disattivato.",
+    "consumableInactive": "Questo consumabile non è attivo.",
     "invalidOverride": "Inserisci un prezzo valido e un motivo.",
     "invalidMarkup": "Il ricarico non può essere negativo.",
     "duplicateFailed": "Non è stato possibile copiare il preventivo. Non è stato creato nulla.",

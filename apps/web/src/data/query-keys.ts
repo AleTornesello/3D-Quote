@@ -4,6 +4,7 @@ import type { QuoteListParams } from './quote-rules'
 export const queryKeys = {
   printers: ['printers'] as const,
   materials: ['materials'] as const,
+  consumables: ['consumables'] as const,
   clientsAll: ['clients'] as const,
   clientLists: ['clients', 'list'] as const,
   clients: (search: string) => ['clients', 'list', search] as const,
@@ -15,6 +16,7 @@ export const queryKeys = {
   quotesList: (params: QuoteListParams) => ['quotes', 'list', params] as const,
   quote: (id: number) => ['quotes', 'detail', id] as const,
   quoteItems: (id: number) => ['quotes', 'items', id] as const,
+  quoteConsumables: (id: number) => ['quotes', 'consumables', id] as const,
   sendBlockers: (id: number) => ['quotes', 'blockers', id] as const,
   settings: ['settings'] as const,
   logoUrl: (path: string) => ['settings', 'logo', path] as const,

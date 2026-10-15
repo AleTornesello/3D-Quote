@@ -75,6 +75,43 @@ export function materialRow(overrides: Partial<Tables<'materials'>> = {}): Table
   }
 }
 
+export function consumableRow(
+  overrides: Partial<Tables<'consumables'>> = {},
+): Tables<'consumables'> {
+  return {
+    id: nextId++,
+    name: 'Vite M3',
+    unit: 'pz',
+    unit_price: 0.1,
+    stock: 10,
+    active: true,
+    created_at: CREATED,
+    updated_at: CREATED,
+    ...overrides,
+  }
+}
+
+/** A quote line as the lines query returns it, with the consumable's name, unit and stock embedded. */
+export function quoteConsumableRow(
+  overrides: Partial<Tables<'quote_consumables'>> & {
+    consumable?: { name: string; unit: string; stock: number }
+  } = {},
+) {
+  const { consumable = { name: 'Vite M3', unit: 'pz', stock: 10 }, ...rest } = overrides
+  return {
+    id: nextId++,
+    quote_id: 7,
+    consumable_id: 1,
+    quantity: 1,
+    unit_price: 0.1,
+    line_total: (rest.quantity ?? 1) * (rest.unit_price ?? 0.1),
+    created_at: CREATED,
+    updated_at: CREATED,
+    ...rest,
+    consumable,
+  }
+}
+
 /** A client row as the clients list query returns it, embedded quote count and newest quote included. */
 export function clientRow(
   overrides: Partial<Tables<'clients'>> & { quoteCount?: number; lastQuoteAt?: string | null } = {},

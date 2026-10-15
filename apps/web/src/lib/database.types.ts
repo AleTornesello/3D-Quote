@@ -57,6 +57,40 @@ export type Database = {
         }
         Relationships: []
       }
+      consumables: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          name: string
+          stock: number
+          unit: string
+          unit_price: number
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name: string
+          stock?: number
+          unit?: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          name?: string
+          stock?: number
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       materials: {
         Row: {
           active: boolean
@@ -139,6 +173,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      quote_consumables: {
+        Row: {
+          consumable_id: number
+          created_at: string
+          id: number
+          line_total: number | null
+          quantity: number
+          quote_id: number
+          unit_price: number
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          consumable_id: number
+          created_at?: string
+          id?: never
+          line_total?: never
+          quantity: number
+          quote_id: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          consumable_id?: number
+          created_at?: string
+          id?: never
+          line_total?: never
+          quantity?: number
+          quote_id?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quote_consumables_consumable_id_fkey'
+            columns: ['consumable_id']
+            isOneToOne: false
+            referencedRelation: 'consumables'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quote_consumables_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quote_consumables_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes_list'
+            referencedColumns: ['id']
+          },
+        ]
       }
       quote_items: {
         Row: {
@@ -541,6 +631,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_quote_consumable: {
+        Args: { consumable_id: number; quantity: number; quote_id: number }
+        Returns: number
+      }
       clear_price_override: { Args: { item_id: number }; Returns: undefined }
       create_quote_item: {
         Args: {

@@ -259,3 +259,24 @@ describe('pdfFileName', () => {
     expect(pdfFileName('Q-2026-0042', ' /:? ')).toBe('Q-2026-0042.pdf')
   })
 })
+
+describe('quoteTotals with consumables', () => {
+  test('adds the consumable lines to the net before VAT', () => {
+    expect(quoteTotals([{ item_total: 10 }], 22, [{ line_total: 0.3 }, { line_total: 1 }])).toEqual(
+      {
+        net: 11.3,
+        vat: 2.49,
+        gross: 13.79,
+      },
+    )
+  })
+
+  test('without consumables the result is unchanged', () => {
+    expect(quoteTotals([{ item_total: 10 }], 22)).toEqual({ net: 10, vat: 2.2, gross: 12.2 })
+  })
+
+  test('still null without items or with an unpriced item', () => {
+    expect(quoteTotals([], 22, [{ line_total: 5 }])).toBeNull()
+    expect(quoteTotals([{ item_total: null }], 22, [{ line_total: 5 }])).toBeNull()
+  })
+})

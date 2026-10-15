@@ -222,17 +222,22 @@ export function vatRateFor(
 export type QuoteTotals = { net: number; vat: number; gross: number }
 
 /**
- * Net (the sum of the item totals), VAT and gross, worked out in integer cents. VAT is rounded half-up once, on the
- * net. Null without items or while any item has no price.
+ * Net (the item totals plus the consumable lines), VAT and gross, worked out in integer cents. VAT is rounded
+ * half-up once, on the net. Null without items or while any item has no price.
  */
 export function quoteTotals(
   items: { item_total: number | null }[],
   ratePct: number,
+  consumables: { line_total: number }[] = [],
 ): QuoteTotals | null {
   if (items.length === 0 || items.some((item) => item.item_total === null)) return null
-  const netCents = items.reduce(
+  const itemCents = items.reduce(
     (sum, item) => sum + Math.round((item.item_total as number) * 100),
     0,
+  )
+  const netCents = consumables.reduce(
+    (sum, line) => sum + Math.round(line.line_total * 100),
+    itemCents,
   )
   // The rate in hundredths of a percent keeps the maths in integers.
   const rateBasisPoints = Math.round(ratePct * 100)
