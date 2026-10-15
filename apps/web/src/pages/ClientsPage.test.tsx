@@ -23,6 +23,61 @@ test('lists clients with their quote count and last quote date', async () => {
   expect(within(other).getAllByText('—').length).toBeGreaterThan(0)
 })
 
+const names = () =>
+  screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('cell')[0].textContent)
+
+test('sorts by name by default and by a column when its header is clicked', async () => {
+  const { user } = renderApp('/clients', {
+    session,
+    tables: {
+      clients: [
+        mario(),
+        lucia(),
+        clientRow({
+          id: 3,
+          name: 'anna Bianchi',
+          company: 'Bianchi Srl',
+          quoteCount: 5,
+          lastQuoteAt: '2026-09-01T10:00:00Z',
+        }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /Mario Rossi/ })
+  // Case-insensitive, whatever order the server returned.
+  expect(names()).toEqual(['anna Bianchi', 'Lucia Verdi', 'Mario Rossi'])
+  expect(screen.getByRole('columnheader', { name: 'Nome' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+
+  await user.click(screen.getByRole('button', { name: 'Nome' }))
+  expect(names()).toEqual(['Mario Rossi', 'Lucia Verdi', 'anna Bianchi'])
+  expect(screen.getByRole('columnheader', { name: 'Nome' })).toHaveAttribute(
+    'aria-sort',
+    'descending',
+  )
+
+  // Counts and dates start from the highest; clients without one stay last either way.
+  await user.click(screen.getByRole('button', { name: 'Preventivi' }))
+  expect(names()).toEqual(['anna Bianchi', 'Mario Rossi', 'Lucia Verdi'])
+  await user.click(screen.getByRole('button', { name: 'Ultimo preventivo' }))
+  expect(names()).toEqual(['Mario Rossi', 'anna Bianchi', 'Lucia Verdi'])
+  await user.click(screen.getByRole('button', { name: 'Ultimo preventivo' }))
+  expect(names()).toEqual(['anna Bianchi', 'Mario Rossi', 'Lucia Verdi'])
+
+  // Text starts from A; a missing company goes last.
+  await user.click(screen.getByRole('button', { name: 'Azienda' }))
+  expect(names()).toEqual(['anna Bianchi', 'Mario Rossi', 'Lucia Verdi'])
+  expect(screen.getByRole('columnheader', { name: 'Azienda' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+})
+
 test('the Edit button and a double-click on the row open the client; a single click does not', async () => {
   const { router, user } = renderApp('/clients', {
     session,

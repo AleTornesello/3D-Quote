@@ -174,7 +174,8 @@ Rules when editing a Draft item:
 
 ### 3.5 Clients
 
-**List:** name, company, email, phone, number of quotes, last quote date. Search by name/company/email. New client.
+**List:** name, company, email, phone, number of quotes, last quote date. Search by name/company/email. Sort by
+name (default), company, email, number of quotes or last quote date. New client.
 
 **Client form**
 
