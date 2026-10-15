@@ -1,7 +1,9 @@
-import { Clock, Pencil, Plus } from 'lucide-react'
+import { Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
+import { useStaff } from '@/auth/staff-context'
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { DataTable, type Column, type TableQuery } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -14,7 +16,8 @@ import {
   type QuoteListParams,
   type QuoteSort,
 } from '@/data/quote-rules'
-import { QUOTES_PAGE_SIZE, useQuotesList, type QuoteListRow } from '@/data/quotes'
+import { toAppError } from '@/data/errors'
+import { QUOTES_PAGE_SIZE, useDeleteQuote, useQuotesList, type QuoteListRow } from '@/data/quotes'
 import { shopToday } from '@/lib/format'
 import { useFormat } from '@/lib/use-format'
 import { NewQuoteSheet } from './quotes/NewQuoteSheet'
@@ -29,6 +32,10 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const params = parseQuoteListParams(searchParams)
   const list = useQuotesList(params)
+  const { isOwner } = useStaff()
+  const remove = useDeleteQuote()
+  const [deleting, setDeleting] = useState<QuoteListRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [today] = useState(shopToday)
 
   const search = searchParams.toString()
@@ -62,6 +69,21 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
     update({ q: '', status: [], client: null, from: null, to: null, page: DEFAULT_QUOTE_LIST.page })
 
   const edit = (q: QuoteListRow) => navigate(`/quotes/${q.id}`)
+
+  function closeDelete() {
+    setDeleting(null)
+    setDeleteError(null)
+  }
+
+  async function confirmDelete(q: QuoteListRow) {
+    setDeleteError(null)
+    try {
+      await remove.mutateAsync(q.id)
+      closeDelete()
+    } catch (caught) {
+      setDeleteError(t(toAppError(caught).messageKey))
+    }
+  }
 
   const columns: Column<QuoteListRow>[] = [
     {
@@ -129,14 +151,27 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
       header: <span className="sr-only">{t('common.actions')}</span>,
       className: 'text-right',
       cell: (q) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('common.editItem', { name: q.number })}
-          onClick={() => edit(q)}
-        >
-          <Pencil aria-hidden />
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('common.editItem', { name: q.number })}
+            onClick={() => edit(q)}
+          >
+            <Pencil aria-hidden />
+          </Button>
+          {/* Only the owner can delete, and only drafts (as in the editor). */}
+          {isOwner && q.status === 'draft' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('common.deleteItem', { name: q.number })}
+              onClick={() => setDeleting(q)}
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          )}
+        </div>
       ),
     },
   ]
@@ -188,6 +223,15 @@ export function QuotesPage({ creating = false }: { creating?: boolean }) {
           )
         }
       />
+      {deleting && (
+        <ConfirmDeleteDialog
+          title={t('quotes.editor.deleteTitle', { number: deleting.number })}
+          pending={remove.isPending}
+          error={deleteError}
+          onConfirm={() => void confirmDelete(deleting)}
+          onCancel={closeDelete}
+        />
+      )}
       {creating && <NewQuoteSheet clientId={params.client} onClose={() => navigate('/quotes')} />}
     </section>
   )

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { fakeSession } from '@/test/fake-supabase'
-import { clientRow, quoteListRow } from '@/test/fixtures'
+import { clientRow, operatorStaff, quoteListRow, quoteRow } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
 
 const session = fakeSession()
@@ -244,6 +244,47 @@ test('the Edit button and a double-click on the row open the quote; a single cli
   await router.navigate('/quotes')
   await user.click(await screen.findByRole('button', { name: 'Modifica Q-2026-0043' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/quotes/43'))
+})
+
+test('the owner deletes a draft from its row, after confirming', async () => {
+  const { db, user } = renderApp('/quotes', {
+    session,
+    tables: {
+      quotes: [quoteRow({ id: 42 })],
+      quotes_list: [quoteListRow({ id: 42 }), quoteListRow({ id: 43, status: 'sent' })],
+    },
+  })
+  await screen.findByRole('row', { name: /Q-2026-0042/ })
+  expect(screen.queryByRole('button', { name: 'Elimina Q-2026-0043' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Elimina Q-2026-0042' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0042?' })
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  expect(db.calls('quotes')).toContainEqual({ op: 'delete', filters: [['eq', 'id', 42]] })
+})
+
+test('deleting from the list a draft that has meanwhile been sent explains why', async () => {
+  const { db, user } = renderApp('/quotes', {
+    session,
+    tables: { quotes: [quoteRow({ id: 42 })], quotes_list: [quoteListRow({ id: 42 })] },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Elimina Q-2026-0042' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0042?' })
+  db.table('quotes')[0].status = 'sent'
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  expect(
+    await within(dialog).findByText('Il preventivo non è più una bozza e non si può modificare.'),
+  ).toBeInTheDocument()
+})
+
+test('operators get no Delete button', async () => {
+  renderApp('/quotes', {
+    session,
+    staff: operatorStaff,
+    tables: { quotes_list: [quoteListRow({ id: 42 })] },
+  })
+  await screen.findByRole('row', { name: /Q-2026-0042/ })
+  expect(screen.queryByRole('button', { name: 'Elimina Q-2026-0042' })).not.toBeInTheDocument()
 })
 
 test('New quote opens /quotes/new', async () => {
