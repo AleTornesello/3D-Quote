@@ -56,6 +56,79 @@ test('says when no printer has the chosen type', async () => {
   expect(screen.getByText('Nessuna stampante di questo tipo.')).toBeInTheDocument()
 })
 
+const names = () =>
+  screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('cell')[0].textContent)
+
+test('sorts by name by default, numbers in names in numeric order', async () => {
+  renderApp('/printers', {
+    session,
+    tables: {
+      printers: [
+        printerRow({ id: 1, name: 'MK4 #10' }),
+        printerRow({ id: 2, name: 'mk4 #2' }),
+        printerRow({ id: 3, name: 'Form 4' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /Form 4/ })
+  expect(names()).toEqual(['Form 4', 'mk4 #2', 'MK4 #10'])
+  expect(screen.getByRole('columnheader', { name: 'Nome' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+})
+
+test('a header click sorts by that column, numbers from the highest; a second click reverses it', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    tables: {
+      printers: [
+        printerRow({ id: 1, name: 'A', hourly_rate: 2, type: 'SLA' }),
+        printerRow({ id: 2, name: 'B', hourly_rate: 3, type: 'FDM' }),
+        printerRow({ id: 3, name: 'C', hourly_rate: 2, type: 'FDM' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /^A/ })
+
+  await user.click(screen.getByRole('button', { name: 'Costo orario' }))
+  // Equal rates keep the name order.
+  expect(names()).toEqual(['B', 'A', 'C'])
+  expect(screen.getByRole('columnheader', { name: 'Costo orario' })).toHaveAttribute(
+    'aria-sort',
+    'descending',
+  )
+  await user.click(screen.getByRole('button', { name: 'Costo orario' }))
+  expect(names()).toEqual(['A', 'C', 'B'])
+
+  await user.click(screen.getByRole('button', { name: 'Tipo' }))
+  expect(names()).toEqual(['B', 'C', 'A'])
+  expect(screen.getByRole('columnheader', { name: 'Tipo' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+})
+
+test('the sort applies to the filtered list too', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    tables: {
+      printers: [
+        printerRow({ id: 1, name: 'A', power_w: 100 }),
+        printerRow({ id: 2, name: 'B', power_w: 300 }),
+        printerRow({ id: 3, name: 'C', power_w: 200, type: 'SLA' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /^A/ })
+  await user.click(screen.getByRole('button', { name: 'Potenza' }))
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'FDM')
+  expect(names()).toEqual(['B', 'A'])
+})
+
 test('a failed load shows the error and Retry reloads', async () => {
   const { db, user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
   db.failNext('printers', NETWORK_FAILURE)
