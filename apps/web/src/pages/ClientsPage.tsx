@@ -1,12 +1,15 @@
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { useStaff } from '@/auth/staff-context'
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useClients, type ClientListRow } from '@/data/clients'
+import { useClients, useDeleteClient, type ClientListRow } from '@/data/clients'
+import { toAppError } from '@/data/errors'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
 import { useFormat } from '@/lib/use-format'
 import { ClientSheet } from './clients/ClientSheet'
@@ -19,7 +22,27 @@ export function ClientsPage() {
   const clients = useClients(debounced)
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
+  const { isOwner } = useStaff()
+  const remove = useDeleteClient()
+  const [deleting, setDeleting] = useState<ClientListRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const edit = (c: ClientListRow) => navigate(`/clients/${c.id}`)
+
+  function closeDelete() {
+    setDeleting(null)
+    setDeleteError(null)
+  }
+
+  async function confirmDelete(c: ClientListRow) {
+    setDeleteError(null)
+    try {
+      await remove.mutateAsync(c.id)
+      closeDelete()
+    } catch (error) {
+      const appError = toAppError(error)
+      setDeleteError(t(appError.kind === 'inUse' ? 'clients.inUse' : appError.messageKey))
+    }
+  }
 
   const columns: Column<ClientListRow>[] = [
     {
@@ -46,14 +69,27 @@ export function ClientsPage() {
       header: <span className="sr-only">{t('common.actions')}</span>,
       className: 'text-right',
       cell: (c) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('common.editItem', { name: c.name })}
-          onClick={() => edit(c)}
-        >
-          <Pencil aria-hidden />
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('common.editItem', { name: c.name })}
+            onClick={() => edit(c)}
+          >
+            <Pencil aria-hidden />
+          </Button>
+          {/* Only the owner can delete, and only clients without quotes (as on the client's page). */}
+          {isOwner && c.quoteCount === 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('common.deleteItem', { name: c.name })}
+              onClick={() => setDeleting(c)}
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          )}
+        </div>
       ),
     },
   ]
@@ -85,6 +121,15 @@ export function ClientsPage() {
         empty={t(debounced.trim() ? 'clients.noMatches' : 'clients.empty')}
         onRowDoubleClick={edit}
       />
+      {deleting && (
+        <ConfirmDeleteDialog
+          title={t('clients.detail.deleteTitle', { name: deleting.name })}
+          pending={remove.isPending}
+          error={deleteError}
+          onConfirm={() => void confirmDelete(deleting)}
+          onCancel={closeDelete}
+        />
+      )}
       {creating && <ClientSheet onClose={() => setCreating(false)} />}
     </section>
   )

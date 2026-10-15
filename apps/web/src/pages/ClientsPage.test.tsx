@@ -38,6 +38,38 @@ test('the Edit button and a double-click on the row open the client; a single cl
   await waitFor(() => expect(router.state.location.pathname).toBe('/clients/2'))
 })
 
+test('the owner deletes a client without quotes from its row, after confirming', async () => {
+  const { db, user } = renderApp('/clients', { session, tables: { clients: [mario(), lucia()] } })
+  await screen.findByRole('row', { name: /Mario Rossi/ })
+  expect(screen.queryByRole('button', { name: 'Elimina Mario Rossi' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Elimina Lucia Verdi' }))
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Eliminare il cliente Lucia Verdi?',
+  })
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  expect(db.calls('clients')).toContainEqual({ op: 'delete', filters: [['eq', 'id', 2]] })
+})
+
+test('deleting from the list a client that has meanwhile got a quote explains why', async () => {
+  const { db, user } = renderApp('/clients', { session, tables: { clients: [lucia()] } })
+  await user.click(await screen.findByRole('button', { name: 'Elimina Lucia Verdi' }))
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Eliminare il cliente Lucia Verdi?',
+  })
+  db.failNext('clients', { code: '23503', message: 'violates foreign key constraint' })
+  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
+  expect(
+    await within(dialog).findByText('Il cliente ha dei preventivi e non può essere eliminato.'),
+  ).toBeInTheDocument()
+})
+
+test('operators get no Delete button', async () => {
+  renderApp('/clients', { session, staff: operatorStaff, tables: { clients: [lucia()] } })
+  await screen.findByRole('row', { name: /Lucia Verdi/ })
+  expect(screen.queryByRole('button', { name: 'Elimina Lucia Verdi' })).not.toBeInTheDocument()
+})
+
 test('shows an empty state', async () => {
   renderApp('/clients', { session })
   expect(await screen.findByText('Nessun cliente.')).toBeInTheDocument()
