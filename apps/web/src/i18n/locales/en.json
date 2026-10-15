@@ -9,6 +9,7 @@
     "clients": "Clients",
     "printers": "Printers",
     "materials": "Materials",
+    "consumables": "Consumables",
     "settings": "Settings",
     "staff": "Staff",
     "account": "Account",
@@ -193,6 +194,22 @@
     "toggleActive": "Toggle {{name}} active",
     "deleteTitle": "Delete material {{name}}?",
     "inUse": "This material is used by quote items — deactivate it instead."
+  },
+  "consumables": {
+    "empty": "No consumables yet.",
+    "new": "New consumable",
+    "edit": "Edit consumable",
+    "fields": {
+      "name": "Name",
+      "unit": "Unit",
+      "unitPrice": "Unit price",
+      "stock": "Available",
+      "active": "Active"
+    },
+    "stockValue": "{{value}} {{unit}}",
+    "toggleActive": "Toggle {{name}} active",
+    "deleteTitle": "Delete consumable {{name}}?",
+    "inUse": "This consumable is used by quotes — deactivate it instead."
   },
   "clients": {
     "empty": "No clients yet.",

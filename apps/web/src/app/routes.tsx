@@ -6,6 +6,7 @@ import { AppShell } from '@/layout/AppShell'
 import { AccountPage } from '@/pages/AccountPage'
 import { ClientDetailPage } from '@/pages/ClientDetailPage'
 import { ClientsPage } from '@/pages/ClientsPage'
+import { ConsumablesPage } from '@/pages/ConsumablesPage'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MaterialsPage } from '@/pages/MaterialsPage'
@@ -21,6 +22,7 @@ import { SECTIONS } from './sections'
 /** Sections with a real page; the others still show the "coming soon" placeholder. */
 const SECTION_PAGES: Partial<Record<string, ReactElement>> = {
   '/clients': <ClientsPage />,
+  '/consumables': <ConsumablesPage />,
   '/materials': <MaterialsPage />,
   '/printers': <PrintersPage />,
   '/quotes': <QuotesPage />,

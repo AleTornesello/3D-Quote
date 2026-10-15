@@ -1,4 +1,13 @@
-import { FileText, Layers, Printer, Settings, UserCog, Users, type LucideIcon } from 'lucide-react'
+import {
+  FileText,
+  Layers,
+  Package,
+  Printer,
+  Settings,
+  UserCog,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 
 /** Sidebar sections, in order (functional analysis §2). `ownerOnly` sections are hidden from operators. */
 export const SECTIONS: { path: string; labelKey: string; icon: LucideIcon; ownerOnly?: boolean }[] =
@@ -7,6 +16,7 @@ export const SECTIONS: { path: string; labelKey: string; icon: LucideIcon; owner
     { path: '/clients', labelKey: 'nav.clients', icon: Users },
     { path: '/printers', labelKey: 'nav.printers', icon: Printer },
     { path: '/materials', labelKey: 'nav.materials', icon: Layers },
+    { path: '/consumables', labelKey: 'nav.consumables', icon: Package },
     { path: '/settings', labelKey: 'nav.settings', icon: Settings },
     { path: '/staff', labelKey: 'nav.staff', icon: UserCog, ownerOnly: true },
   ]

@@ -9,6 +9,7 @@
     "clients": "Clienti",
     "printers": "Stampanti",
     "materials": "Materiali",
+    "consumables": "Consumabili",
     "settings": "Impostazioni",
     "staff": "Personale",
     "account": "Account",
@@ -193,6 +194,22 @@
     "toggleActive": "Attiva/disattiva {{name}}",
     "deleteTitle": "Eliminare il materiale {{name}}?",
     "inUse": "Il materiale è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
+  },
+  "consumables": {
+    "empty": "Nessun consumabile.",
+    "new": "Nuovo consumabile",
+    "edit": "Modifica consumabile",
+    "fields": {
+      "name": "Nome",
+      "unit": "Unità",
+      "unitPrice": "Prezzo unitario",
+      "stock": "Disponibili",
+      "active": "Attivo"
+    },
+    "stockValue": "{{value}} {{unit}}",
+    "toggleActive": "Attiva/disattiva {{name}}",
+    "deleteTitle": "Eliminare il consumabile {{name}}?",
+    "inUse": "Il consumabile è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
   },
   "clients": {
     "empty": "Nessun cliente.",
