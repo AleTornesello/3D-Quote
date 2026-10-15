@@ -216,7 +216,8 @@ their next recalculation and never affects Sent quotes.
 
 ### 3.7 Materials
 
-**List:** name, type, colour, cost per kg, density, active. Operators see it read-only.
+**List:** name, type, colour, cost per kg, density, active. Search by name, filter by type. Sort by name (default),
+type, colour, cost per kg or density. Operators see it read-only.
 
 **Material form (owner)**
 

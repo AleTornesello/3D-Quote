@@ -21,6 +21,36 @@ import {
 import { useFormat } from '@/lib/use-format'
 import { MaterialSheet } from './materials/MaterialSheet'
 
+type MaterialSort = 'name' | 'type' | 'color' | 'cost' | 'density'
+type SortDir = 'asc' | 'desc'
+
+/** Costs and densities open from the highest value; text from A. */
+const DESC_FIRST: readonly MaterialSort[] = ['cost', 'density']
+
+/** Missing values go last in both directions; ties fall back to the name. */
+function sortMaterials(
+  rows: Material[],
+  value: (m: Material) => string | number | null,
+  dir: SortDir,
+  collator: Intl.Collator,
+) {
+  const sign = dir === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const x = value(a)
+    const y = value(b)
+    if (x === null || y === null) {
+      if (x !== y) return x === null ? 1 : -1
+    } else {
+      const order =
+        typeof x === 'number' && typeof y === 'number'
+          ? x - y
+          : collator.compare(String(x), String(y))
+      if (order !== 0) return sign * order
+    }
+    return collator.compare(a.name, b.name) || a.id - b.id
+  })
+}
+
 export function MaterialsPage() {
   const { t } = useTranslation()
   const { isOwner } = useStaff()
@@ -32,21 +62,35 @@ export function MaterialsPage() {
   const [deleting, setDeleting] = useState<Material | null>(null)
   const [type, setType] = useState<MaterialType | null>(null)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<{ key: MaterialSort; dir: SortDir }>({
+    key: 'name',
+    dir: 'asc',
+  })
+  const typeLabel = (m: Material) => (m.type === 'other' ? t('materials.types.other') : m.type)
+
+  function onSort(key: string) {
+    const next = key as MaterialSort
+    if (next === sort.key) setSort({ key: next, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
+    else setSort({ key: next, dir: DESC_FIRST.includes(next) ? 'desc' : 'asc' })
+  }
 
   const columns: Column<Material>[] = [
     {
       key: 'name',
       header: t('materials.fields.name'),
+      sortKey: 'name',
       cell: (m) => <span className="font-medium">{m.name}</span>,
     },
     {
       key: 'type',
       header: t('materials.fields.type'),
-      cell: (m) => (m.type === 'other' ? t('materials.types.other') : m.type),
+      sortKey: 'type',
+      cell: typeLabel,
     },
     {
       key: 'color',
       header: t('materials.fields.color'),
+      sortKey: 'color',
       cell: (m) =>
         m.color ? (
           <span className="inline-flex items-center gap-2">
@@ -66,11 +110,13 @@ export function MaterialsPage() {
     {
       key: 'cost',
       header: t('materials.fields.costPerKg'),
+      sortKey: 'cost',
       cell: (m) => t('materials.costValue', { value: format.currency(m.cost_per_kg) }),
     },
     {
       key: 'density',
       header: t('materials.columns.density'),
+      sortKey: 'density',
       cell: (m) => t('materials.densityValue', { value: format.number(m.density_g_cm3, 2) }),
     },
     {
@@ -116,18 +162,33 @@ export function MaterialsPage() {
     })
   }
 
-  // Few materials, all loaded: the filters run here rather than in the query.
+  // Few materials, all loaded: the filters and the sort run here rather than in the query.
   const needle = search.trim().toLocaleLowerCase()
   const filtering = type !== null || needle !== ''
+  const sortValue: Record<MaterialSort, (m: Material) => string | number | null> = {
+    name: (m) => m.name,
+    type: typeLabel,
+    color: (m) => m.color || null,
+    cost: (m) => m.cost_per_kg,
+    density: (m) => m.density_g_cm3,
+  }
+  const filtered = filtering
+    ? materials.data?.filter(
+        (m) => (type === null || m.type === type) && m.name.toLocaleLowerCase().includes(needle),
+      )
+    : materials.data
   const tableQuery: TableQuery<Material> = {
     isPending: materials.isPending,
     isError: materials.isError,
     error: materials.error,
-    data: filtering
-      ? materials.data?.filter(
-          (m) => (type === null || m.type === type) && m.name.toLocaleLowerCase().includes(needle),
-        )
-      : materials.data,
+    data:
+      filtered &&
+      sortMaterials(
+        filtered,
+        sortValue[sort.key],
+        sort.dir,
+        new Intl.Collator(format.locale, { numeric: true }),
+      ),
     refetch: materials.refetch,
   }
 
@@ -179,6 +240,7 @@ export function MaterialsPage() {
         rowKey={(m) => m.id}
         caption={t('nav.materials')}
         onRowDoubleClick={isOwner ? setEditing : undefined}
+        sort={{ key: sort.key, dir: sort.dir, onSort }}
         empty={t(filtering ? 'materials.noMatches' : 'materials.empty')}
       />
       {editing && (

@@ -103,6 +103,98 @@ test('says when no material matches the search', async () => {
   expect(screen.getByText('Nessun materiale corrisponde ai filtri.')).toBeInTheDocument()
 })
 
+const names = () =>
+  screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('cell')[0].textContent)
+
+test('sorts by name by default, numbers in names in numeric order', async () => {
+  renderApp('/materials', {
+    session,
+    tables: {
+      materials: [
+        materialRow({ id: 1, name: 'PLA #10' }),
+        materialRow({ id: 2, name: 'pla #2' }),
+        materialRow({ id: 3, name: 'Generic' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /Generic/ })
+  expect(names()).toEqual(['Generic', 'pla #2', 'PLA #10'])
+  expect(screen.getByRole('columnheader', { name: 'Nome' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+})
+
+test('a header click sorts by that column, numbers from the highest; a second click reverses it', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: {
+      materials: [
+        materialRow({ id: 1, name: 'A', cost_per_kg: 20, type: 'PLA' }),
+        materialRow({ id: 2, name: 'B', cost_per_kg: 30, type: 'other' }),
+        materialRow({ id: 3, name: 'C', cost_per_kg: 20, type: 'ABS' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /^A/ })
+
+  await user.click(screen.getByRole('button', { name: 'Costo al kg' }))
+  // Equal costs keep the name order.
+  expect(names()).toEqual(['B', 'A', 'C'])
+  expect(screen.getByRole('columnheader', { name: 'Costo al kg' })).toHaveAttribute(
+    'aria-sort',
+    'descending',
+  )
+  await user.click(screen.getByRole('button', { name: 'Costo al kg' }))
+  expect(names()).toEqual(['A', 'C', 'B'])
+
+  // Types sort by the label shown: "Altro", not "other".
+  await user.click(screen.getByRole('button', { name: 'Tipo' }))
+  expect(names()).toEqual(['C', 'B', 'A'])
+  expect(screen.getByRole('columnheader', { name: 'Tipo' })).toHaveAttribute(
+    'aria-sort',
+    'ascending',
+  )
+})
+
+test('materials without a colour stay last either way', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: {
+      materials: [
+        materialRow({ id: 1, name: 'A', color: null }),
+        materialRow({ id: 2, name: 'B', color: 'White' }),
+        materialRow({ id: 3, name: 'C', color: 'Black' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /^A/ })
+  await user.click(screen.getByRole('button', { name: 'Colore' }))
+  expect(names()).toEqual(['C', 'B', 'A'])
+  await user.click(screen.getByRole('button', { name: 'Colore' }))
+  expect(names()).toEqual(['B', 'C', 'A'])
+})
+
+test('the sort applies to the filtered list too', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: {
+      materials: [
+        materialRow({ id: 1, name: 'A', density_g_cm3: 1.1 }),
+        materialRow({ id: 2, name: 'B', density_g_cm3: 1.3 }),
+        materialRow({ id: 3, name: 'C', density_g_cm3: 1.2, type: 'PETG' }),
+      ],
+    },
+  })
+  await screen.findByRole('row', { name: /^A/ })
+  await user.click(screen.getByRole('button', { name: 'Densità' }))
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'PLA')
+  expect(names()).toEqual(['B', 'A'])
+})
+
 test('operators see the list without owner actions', async () => {
   renderApp('/materials', { session, staff: operatorStaff, tables: { materials: [pla()] } })
   await screen.findByRole('row', { name: /Prusament PLA/ })
