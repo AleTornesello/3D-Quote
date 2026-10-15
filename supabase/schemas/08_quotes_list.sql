@@ -1,5 +1,5 @@
 -- The quotes list (home page). security_invoker: the caller's RLS on every joined table applies.
--- total is null while the quote has no items or any item has no price, so the list shows "—".
+-- total is null while the quote has no items or any item has no price, so the list shows "—"; otherwise it is the items plus the quote's consumable lines.
 
 create view public.quotes_list
 with (security_invoker = true) as
@@ -19,7 +19,7 @@ select
   q.created_by,
   s.display_name as created_by_name,
   i.item_count,
-  case when i.item_count > 0 and i.unpriced_count = 0 then i.total end as total
+  case when i.item_count > 0 and i.unpriced_count = 0 then i.total + k.total end as total
 from public.quotes q
 join public.clients c on c.id = q.client_id
 join public.staff s on s.user_id = q.created_by
@@ -30,4 +30,9 @@ cross join lateral (
     sum(qi.item_total) as total
   from public.quote_items qi
   where qi.quote_id = q.id
-) i;
+) i
+cross join lateral (
+  select coalesce(sum(qc.line_total), 0) as total
+  from public.quote_consumables qc
+  where qc.quote_id = q.id
+) k;

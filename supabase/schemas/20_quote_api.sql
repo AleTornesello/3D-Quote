@@ -428,6 +428,14 @@ begin
   if v_quote.valid_until < private.shop_today() then
     return query select null::bigint, 'valid_until_past'::text;
   end if;
+  if exists (
+    select 1
+    from public.quote_consumables qc
+    join public.consumables c on c.id = qc.consumable_id
+    where qc.quote_id = p_quote_id and qc.quantity > c.stock
+  ) then
+    return query select null::bigint, 'insufficient_stock'::text;
+  end if;
 
   return query
   select i.id, b.code
@@ -470,9 +478,19 @@ as $$
 begin
   perform private.require_staff();
   perform private.require_draft_quote(p_quote_id);
+  -- Lock the consumables first, in id order, so two sends can't spend the same stock.
+  perform c.id
+  from public.consumables c
+  where c.id in (select consumable_id from public.quote_consumables where quote_id = p_quote_id)
+  order by c.id
+  for update;
   if exists (select 1 from private.get_quote_send_blockers(p_quote_id)) then
     raise exception 'quote_not_sendable';
   end if;
+  update public.consumables c
+  set stock = c.stock - qc.quantity
+  from public.quote_consumables qc
+  where qc.quote_id = p_quote_id and qc.consumable_id = c.id;
   update public.quotes
   set status = 'sent',
       sent_at = now(),
@@ -488,6 +506,44 @@ security invoker
 set search_path = ''
 as $$
   select private.mark_quote_sent($1);
+$$;
+
+-- add_quote_consumable: adds a line at the consumable's current price, or raises the quantity of the existing one.
+
+create or replace function private.add_quote_consumable(p_quote_id bigint, p_consumable_id bigint, p_quantity integer)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_price numeric;
+  v_id bigint;
+begin
+  perform private.require_staff();
+  perform private.require_draft_quote(p_quote_id);
+
+  select unit_price into v_price from public.consumables where id = p_consumable_id and active;
+  if not found then
+    raise exception 'consumable_inactive' using errcode = '22023';
+  end if;
+
+  insert into public.quote_consumables (quote_id, consumable_id, quantity, unit_price)
+  values (p_quote_id, p_consumable_id, p_quantity, v_price)
+  on conflict (quote_id, consumable_id)
+    do update set quantity = public.quote_consumables.quantity + excluded.quantity
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+create or replace function public.add_quote_consumable(quote_id bigint, consumable_id bigint, quantity integer)
+returns bigint
+language sql
+security invoker
+set search_path = ''
+as $$
+  select private.add_quote_consumable($1, $2, $3);
 $$;
 
 -- Accepted / rejected: only from sent. Internal helper shared by the two functions below.

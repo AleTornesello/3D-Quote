@@ -85,3 +85,33 @@ create policy quote_items_delete on public.quote_items
 -- slicing_jobs: read-only for staff
 create policy slicing_jobs_select on public.slicing_jobs
   for select to authenticated using ((select private.is_staff()));
+
+-- consumables: staff read, owners write
+create policy consumables_select on public.consumables
+  for select to authenticated using ((select private.is_staff()));
+create policy consumables_insert on public.consumables
+  for insert to authenticated with check ((select private.is_owner()));
+create policy consumables_update on public.consumables
+  for update to authenticated using ((select private.is_owner())) with check ((select private.is_owner()));
+create policy consumables_delete on public.consumables
+  for delete to authenticated using ((select private.is_owner()));
+
+-- quote_consumables: staff read; staff edit and remove lines of draft quotes (adding goes through add_quote_consumable)
+create policy quote_consumables_select on public.quote_consumables
+  for select to authenticated using ((select private.is_staff()));
+create policy quote_consumables_update on public.quote_consumables
+  for update to authenticated
+  using (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  )
+  with check (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  );
+create policy quote_consumables_delete on public.quote_consumables
+  for delete to authenticated
+  using (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  );

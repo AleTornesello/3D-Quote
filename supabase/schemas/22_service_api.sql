@@ -103,6 +103,13 @@ begin
       perform private.enqueue_slicing_job(v_item_id);
     end if;
   end loop;
+
+  -- Consumable lines of active consumables, at today's price.
+  insert into public.quote_consumables (quote_id, consumable_id, quantity, unit_price)
+  select p_new_id, qc.consumable_id, qc.quantity, c.unit_price
+  from public.quote_consumables qc
+  join public.consumables c on c.id = qc.consumable_id
+  where qc.quote_id = p_source_id and c.active;
 end;
 $$;
 

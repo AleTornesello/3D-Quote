@@ -73,3 +73,13 @@ to service_role;
 
 -- storage policy helper
 grant execute on function private.can_upload_model(text), private.can_change_model(text) to authenticated;
+
+
+-- consumables (the quote_consumables update is a column grant in the consumables_setup migration)
+grant insert, update, delete on public.consumables to authenticated;
+grant delete on public.quote_consumables to authenticated;
+
+grant execute on function
+  public.add_quote_consumable(bigint, bigint, integer),
+  private.add_quote_consumable(bigint, bigint, integer)
+to authenticated;
