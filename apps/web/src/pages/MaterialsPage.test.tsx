@@ -29,6 +29,37 @@ test('shows an empty state', async () => {
   expect(await screen.findByText('Nessun materiale.')).toBeInTheDocument()
 })
 
+test('filters the list by material type', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: {
+      materials: [pla(), materialRow({ id: 2, name: 'Generic', type: 'other', color: null })],
+    },
+  })
+  await screen.findByRole('row', { name: /Generic/ })
+  const filter = screen.getByRole('combobox', { name: 'Filtra per tipo' })
+  expect(filter).toHaveValue('')
+
+  await user.selectOptions(filter, 'Altro')
+  expect(screen.getByRole('row', { name: /Generic/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Prusament PLA/ })).not.toBeInTheDocument()
+
+  await user.selectOptions(filter, 'PLA')
+  expect(screen.getByRole('row', { name: /Prusament PLA/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Generic/ })).not.toBeInTheDocument()
+
+  await user.selectOptions(filter, 'Tutti i tipi')
+  expect(screen.getByRole('row', { name: /Prusament PLA/ })).toBeInTheDocument()
+  expect(screen.getByRole('row', { name: /Generic/ })).toBeInTheDocument()
+})
+
+test('says when no material has the chosen type', async () => {
+  const { user } = renderApp('/materials', { session, tables: { materials: [pla()] } })
+  await screen.findByRole('row', { name: /Prusament PLA/ })
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'PETG')
+  expect(screen.getByText('Nessun materiale di questo tipo.')).toBeInTheDocument()
+})
+
 test('operators see the list without owner actions', async () => {
   renderApp('/materials', { session, staff: operatorStaff, tables: { materials: [pla()] } })
   await screen.findByRole('row', { name: /Prusament PLA/ })

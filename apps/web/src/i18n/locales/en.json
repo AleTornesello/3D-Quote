@@ -177,6 +177,9 @@
   },
   "materials": {
     "empty": "No materials yet.",
+    "typeFilter": "Filter by type",
+    "allTypes": "All types",
+    "noMatches": "No materials of this type.",
     "new": "New material",
     "edit": "Edit material",
     "fields": {
