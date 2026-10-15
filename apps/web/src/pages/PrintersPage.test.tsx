@@ -53,7 +53,50 @@ test('says when no printer has the chosen type', async () => {
   const { user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
   await screen.findByRole('row', { name: /MK4 #1/ })
   await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'SLA')
-  expect(screen.getByText('Nessuna stampante di questo tipo.')).toBeInTheDocument()
+  expect(screen.getByText('Nessuna stampante corrisponde ai filtri.')).toBeInTheDocument()
+})
+
+test('searches the list by name or model', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    tables: {
+      printers: [mk4(), printerRow({ id: 2, name: 'Resin bay', model: 'Formlabs Form 4' })],
+    },
+  })
+  await screen.findByRole('row', { name: /Resin bay/ })
+  const search = screen.getByRole('searchbox', { name: 'Cerca per nome o modello' })
+
+  await user.type(search, 'resin')
+  expect(screen.getByRole('row', { name: /Resin bay/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /MK4 #1/ })).not.toBeInTheDocument()
+
+  await user.clear(search)
+  await user.type(search, '  PRUSA ')
+  expect(screen.getByRole('row', { name: /MK4 #1/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Resin bay/ })).not.toBeInTheDocument()
+
+  await user.clear(search)
+  expect(screen.getByRole('row', { name: /MK4 #1/ })).toBeInTheDocument()
+  expect(screen.getByRole('row', { name: /Resin bay/ })).toBeInTheDocument()
+})
+
+test('the search combines with the type filter', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    tables: { printers: [mk4(), printerRow({ id: 2, name: 'MK4 resin', type: 'SLA' })] },
+  })
+  await screen.findByRole('row', { name: /MK4 resin/ })
+  await user.type(screen.getByRole('searchbox', { name: 'Cerca per nome o modello' }), 'mk4')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'SLA')
+  expect(screen.getByRole('row', { name: /MK4 resin/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /MK4 #1/ })).not.toBeInTheDocument()
+})
+
+test('says when no printer matches the search', async () => {
+  const { user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
+  await screen.findByRole('row', { name: /MK4 #1/ })
+  await user.type(screen.getByRole('searchbox', { name: 'Cerca per nome o modello' }), 'bambu')
+  expect(screen.getByText('Nessuna stampante corrisponde ai filtri.')).toBeInTheDocument()
 })
 
 const names = () =>

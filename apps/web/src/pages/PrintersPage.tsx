@@ -6,6 +6,7 @@ import { DataTable, type Column, type TableQuery } from '@/components/DataTable'
 import { DeleteCatalogItemDialog } from '@/components/DeleteCatalogItemDialog'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { toAppError } from '@/data/errors'
@@ -52,6 +53,7 @@ export function PrintersPage() {
   const [editing, setEditing] = useState<Printer | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Printer | null>(null)
   const [type, setType] = useState<PrinterType | null>(null)
+  const [search, setSearch] = useState('')
   const [sort, setSort] = useState<{ key: PrinterSort; dir: 'asc' | 'desc' }>({
     key: 'name',
     dir: 'asc',
@@ -136,7 +138,8 @@ export function PrintersPage() {
     })
   }
 
-  // Few printers, all loaded: the type filter and the sort run here rather than in the query.
+  // Few printers, all loaded: the filters and the sort run here rather than in the query.
+  const term = search.trim().toLocaleLowerCase()
   const collator = new Intl.Collator(localeFor(i18n.language), {
     numeric: true,
     sensitivity: 'base',
@@ -145,6 +148,12 @@ export function PrintersPage() {
   const byName = comparePrinters('name', collator)
   const rows = printers.data
     ?.filter((p) => type === null || p.type === type)
+    .filter(
+      (p) =>
+        !term ||
+        p.name.toLocaleLowerCase().includes(term) ||
+        p.model.toLocaleLowerCase().includes(term),
+    )
     .sort((a, b) => (sort.dir === 'asc' ? 1 : -1) * byKey(a, b) || byName(a, b))
   const tableQuery: TableQuery<Printer> = {
     isPending: printers.isPending,
@@ -172,21 +181,30 @@ export function PrintersPage() {
           {t(toAppError(save.error).messageKey)}
         </p>
       )}
-      <NativeSelect
-        aria-label={t('printers.typeFilter')}
-        value={type ?? ''}
-        onChange={(event) =>
-          setType(PRINTER_TYPES.find((value) => value === event.target.value) ?? null)
-        }
-        className="mb-4"
-      >
-        <NativeSelectOption value="">{t('printers.allTypes')}</NativeSelectOption>
-        {PRINTER_TYPES.map((value) => (
-          <NativeSelectOption key={value} value={value}>
-            {value}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Input
+          type="search"
+          aria-label={t('printers.search')}
+          placeholder={t('printers.search')}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="max-w-sm"
+        />
+        <NativeSelect
+          aria-label={t('printers.typeFilter')}
+          value={type ?? ''}
+          onChange={(event) =>
+            setType(PRINTER_TYPES.find((value) => value === event.target.value) ?? null)
+          }
+        >
+          <NativeSelectOption value="">{t('printers.allTypes')}</NativeSelectOption>
+          {PRINTER_TYPES.map((value) => (
+            <NativeSelectOption key={value} value={value}>
+              {value}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </div>
       <DataTable
         query={tableQuery}
         columns={columns}
@@ -194,7 +212,7 @@ export function PrintersPage() {
         caption={t('nav.printers')}
         onRowDoubleClick={isOwner ? setEditing : undefined}
         sort={{ key: sort.key, dir: sort.dir, onSort }}
-        empty={t(type ? 'printers.noMatches' : 'printers.empty')}
+        empty={t(type || term ? 'printers.noMatches' : 'printers.empty')}
       />
       {editing && (
         <PrinterSheet
