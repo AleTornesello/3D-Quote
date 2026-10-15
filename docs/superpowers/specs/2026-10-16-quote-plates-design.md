@@ -33,7 +33,7 @@ with `supabase db diff`, plus hand-written data migration of the existing items.
 ### `quote_plates`
 
 `id`, `quote_id` (cascade), `description` (non-blank), `printer_id` (nullable, restrict), `print_time_s`
-(nullable, `>= 0`), `quantity integer > 0` default 1, the price columns of `quote_items` (`material_cost`,
+(nullable, `> 0`), `quantity integer > 0` default 1, the price columns of `quote_items` (`material_cost`,
 `machine_cost`, `energy_cost`, `failure_cost`, `setup_fee`, `markup_amount`, `markup_pct`, `computed_total`,
 `priced_at`), `override_total`, `override_reason` with the same check, generated `plate_total =
 coalesce(override_total, computed_total)`, timestamps.
@@ -83,7 +83,7 @@ indexes on both foreign keys.
 
 One migration: create the two tables; insert one plate per item (description, printer, `print_time_s`, quantity,
 price columns, override) and one material row per item that has both a material and `filament_g` (grams = per-copy
-`filament_g`); drop `quote_items`. Items missing data become incomplete plates. Slicing jobs are left in place.
+`filament_g`); drop `quote_items`. Items missing data become incomplete plates. The slicing queue, `slicing_jobs` and the worker/item functions are dropped with `quote_items` (they reference it); the upload UI is deleted, since a new upload system is coming.
 
 ## Testing
 
