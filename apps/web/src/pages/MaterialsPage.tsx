@@ -6,6 +6,7 @@ import { DataTable, type Column, type TableQuery } from '@/components/DataTable'
 import { DeleteCatalogItemDialog } from '@/components/DeleteCatalogItemDialog'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { toAppError } from '@/data/errors'
@@ -30,6 +31,7 @@ export function MaterialsPage() {
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Material | null>(null)
   const [type, setType] = useState<MaterialType | null>(null)
+  const [search, setSearch] = useState('')
 
   const columns: Column<Material>[] = [
     {
@@ -114,12 +116,18 @@ export function MaterialsPage() {
     })
   }
 
-  // Few materials, all loaded: the type filter runs here rather than in the query.
+  // Few materials, all loaded: the filters run here rather than in the query.
+  const needle = search.trim().toLocaleLowerCase()
+  const filtering = type !== null || needle !== ''
   const tableQuery: TableQuery<Material> = {
     isPending: materials.isPending,
     isError: materials.isError,
     error: materials.error,
-    data: type ? materials.data?.filter((m) => m.type === type) : materials.data,
+    data: filtering
+      ? materials.data?.filter(
+          (m) => (type === null || m.type === type) && m.name.toLocaleLowerCase().includes(needle),
+        )
+      : materials.data,
     refetch: materials.refetch,
   }
 
@@ -141,28 +149,37 @@ export function MaterialsPage() {
           {t(toAppError(save.error).messageKey)}
         </p>
       )}
-      <NativeSelect
-        aria-label={t('materials.typeFilter')}
-        value={type ?? ''}
-        onChange={(event) =>
-          setType(MATERIAL_TYPES.find((value) => value === event.target.value) ?? null)
-        }
-        className="mb-4"
-      >
-        <NativeSelectOption value="">{t('materials.allTypes')}</NativeSelectOption>
-        {MATERIAL_TYPES.map((value) => (
-          <NativeSelectOption key={value} value={value}>
-            {value === 'other' ? t('materials.types.other') : value}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <Input
+          type="search"
+          aria-label={t('materials.search')}
+          placeholder={t('materials.search')}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="max-w-xs"
+        />
+        <NativeSelect
+          aria-label={t('materials.typeFilter')}
+          value={type ?? ''}
+          onChange={(event) =>
+            setType(MATERIAL_TYPES.find((value) => value === event.target.value) ?? null)
+          }
+        >
+          <NativeSelectOption value="">{t('materials.allTypes')}</NativeSelectOption>
+          {MATERIAL_TYPES.map((value) => (
+            <NativeSelectOption key={value} value={value}>
+              {value === 'other' ? t('materials.types.other') : value}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </div>
       <DataTable
         query={tableQuery}
         columns={columns}
         rowKey={(m) => m.id}
         caption={t('nav.materials')}
         onRowDoubleClick={isOwner ? setEditing : undefined}
-        empty={t(type ? 'materials.noMatches' : 'materials.empty')}
+        empty={t(filtering ? 'materials.noMatches' : 'materials.empty')}
       />
       {editing && (
         <MaterialSheet

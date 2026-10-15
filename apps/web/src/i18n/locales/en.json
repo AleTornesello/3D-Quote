@@ -180,7 +180,8 @@
     "empty": "No materials yet.",
     "typeFilter": "Filter by type",
     "allTypes": "All types",
-    "noMatches": "No materials of this type.",
+    "noMatches": "No materials match these filters.",
+    "search": "Search by name",
     "new": "New material",
     "edit": "Edit material",
     "fields": {

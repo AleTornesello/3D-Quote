@@ -57,7 +57,50 @@ test('says when no material has the chosen type', async () => {
   const { user } = renderApp('/materials', { session, tables: { materials: [pla()] } })
   await screen.findByRole('row', { name: /Prusament PLA/ })
   await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'PETG')
-  expect(screen.getByText('Nessun materiale di questo tipo.')).toBeInTheDocument()
+  expect(screen.getByText('Nessun materiale corrisponde ai filtri.')).toBeInTheDocument()
+})
+
+test('searches the list by name', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: {
+      materials: [pla(), materialRow({ id: 2, name: 'Generic', type: 'other', color: null })],
+    },
+  })
+  await screen.findByRole('row', { name: /Generic/ })
+  const search = screen.getByRole('searchbox', { name: 'Cerca per nome' })
+
+  await user.type(search, 'gener')
+  expect(screen.getByRole('row', { name: /Generic/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Prusament PLA/ })).not.toBeInTheDocument()
+
+  await user.clear(search)
+  await user.type(search, '  PRUSAMENT ')
+  expect(screen.getByRole('row', { name: /Prusament PLA/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Generic/ })).not.toBeInTheDocument()
+
+  await user.clear(search)
+  expect(screen.getByRole('row', { name: /Prusament PLA/ })).toBeInTheDocument()
+  expect(screen.getByRole('row', { name: /Generic/ })).toBeInTheDocument()
+})
+
+test('the search combines with the type filter', async () => {
+  const { user } = renderApp('/materials', {
+    session,
+    tables: { materials: [pla(), materialRow({ id: 2, name: 'Prusament PETG', type: 'PETG' })] },
+  })
+  await screen.findByRole('row', { name: /Prusament PETG/ })
+  await user.type(screen.getByRole('searchbox', { name: 'Cerca per nome' }), 'prusament')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'PETG')
+  expect(screen.getByRole('row', { name: /Prusament PETG/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Prusament PLA/ })).not.toBeInTheDocument()
+})
+
+test('says when no material matches the search', async () => {
+  const { user } = renderApp('/materials', { session, tables: { materials: [pla()] } })
+  await screen.findByRole('row', { name: /Prusament PLA/ })
+  await user.type(screen.getByRole('searchbox', { name: 'Cerca per nome' }), 'nylon')
+  expect(screen.getByText('Nessun materiale corrisponde ai filtri.')).toBeInTheDocument()
 })
 
 test('operators see the list without owner actions', async () => {
