@@ -280,7 +280,9 @@ Owner only.
 
 Goods that go into an assembly but are not printed (bolts, screws, inserts…), with the quantity in stock.
 
-**List:** name, unit price, stock (with its unit), active. Operators see it read-only.
+**List:** name, unit price, available / total (e.g. "40 / 50 pz"), active. Available is the stock; total adds the
+units held by sent quotes, which come back if those quotes are rejected or expire. Accepted quotes count as used.
+Operators see it read-only.
 
 **Consumable form (owner)**
 

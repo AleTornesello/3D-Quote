@@ -6,15 +6,24 @@ import { queryKeys } from './query-keys'
 
 export type Consumable = Tables<'consumables'>
 export type ConsumableValues = Omit<TablesInsert<'consumables'>, 'id' | 'created_at' | 'updated_at'>
+/** `stock` is what is still available; `reserved` is held by sent quotes and comes back if they're rejected or expire. */
+export type ConsumableListRow = Consumable & { reserved: number }
 
 export function useConsumables() {
   const supabase = useSupabase()
   return useQuery({
     queryKey: queryKeys.consumables,
-    queryFn: async () => {
-      const { data, error } = await supabase.from('consumables').select('*').order('name')
+    queryFn: async (): Promise<ConsumableListRow[]> => {
+      const { data, error } = await supabase
+        .from('consumables')
+        .select('*, reserved:quote_consumables(quantity, quotes!inner(status))')
+        .eq('reserved.quotes.status', 'sent')
+        .order('name')
       if (error) throw toAppError(error)
-      return data
+      return data.map(({ reserved, ...consumable }) => ({
+        ...consumable,
+        reserved: reserved.reduce((sum, line) => sum + line.quantity, 0),
+      }))
     },
   })
 }

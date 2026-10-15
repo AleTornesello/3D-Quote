@@ -7,15 +7,27 @@ import { renderApp } from '@/test/render-app'
 const session = fakeSession()
 const bolt = () => consumableRow({ id: 1, name: 'Vite M3', unit: 'pz', unit_price: 0.1, stock: 10 })
 
-test('lists consumables with price and available quantity', async () => {
-  renderApp('/consumables', {
+test('lists consumables with price and available out of total quantity', async () => {
+  const { db } = renderApp('/consumables', {
     session,
-    tables: { consumables: [bolt(), consumableRow({ id: 2, name: 'Inserto M3', stock: 0 })] },
+    tables: {
+      consumables: [
+        bolt(),
+        consumableRow({ id: 2, name: 'Inserto M3', stock: 0, reserved: [3, 5] }),
+      ],
+    },
   })
   const row = await screen.findByRole('row', { name: /Vite M3/ })
+  expect(screen.getByRole('columnheader', { name: 'Disponibili / totale' })).toBeInTheDocument()
   expect(within(row).getByText('0,10 €')).toBeInTheDocument()
-  expect(within(row).getByText('10 pz')).toBeInTheDocument()
-  expect(screen.getByRole('row', { name: /Inserto M3/ })).toBeInTheDocument()
+  expect(within(row).getByText('10 / 10 pz')).toBeInTheDocument()
+  // Units held by sent quotes count towards the total, not the available quantity.
+  const insert = screen.getByRole('row', { name: /Inserto M3/ })
+  expect(within(insert).getByText('0 / 8 pz')).toBeInTheDocument()
+  expect(db.calls('consumables')).toContainEqual({
+    op: 'select',
+    filters: [['eq', 'reserved.quotes.status', 'sent']],
+  })
 })
 
 test('shows an empty state', async () => {

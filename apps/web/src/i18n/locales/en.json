@@ -216,7 +216,10 @@
       "stock": "Available",
       "active": "Active"
     },
-    "stockValue": "{{value}} {{unit}}",
+    "columns": {
+      "stock": "Available / total"
+    },
+    "stockOfTotal": "{{available}} / {{total}} {{unit}}",
     "toggleActive": "Toggle {{name}} active",
     "deleteTitle": "Delete consumable {{name}}?",
     "inUse": "This consumable is used by quotes — deactivate it instead."

@@ -174,7 +174,9 @@ class FakeQuery implements PromiseLike<Result> {
     if (failure) return result(null, postgrestError(failure), 400)
 
     const rows = this.db.table(this.tableName)
-    const matching = () => rows.filter((row) => this.filters.every((f) => matches(row, f)))
+    // A filter on an embedded resource (`embed.column`) only trims the embed, which the seed already holds as wanted.
+    const filters = this.filters.filter((f) => f[0] === 'or' || !f[1].includes('.'))
+    const matching = () => rows.filter((row) => filters.every((f) => matches(row, f)))
     const writable = () => matching().filter((row) => this.db.isWritable(this.tableName, row))
     let affected: Row[]
     if (this.op === 'insert') {

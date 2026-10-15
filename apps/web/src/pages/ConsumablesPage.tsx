@@ -12,6 +12,7 @@ import {
   useDeleteConsumable,
   useSaveConsumable,
   type Consumable,
+  type ConsumableListRow,
 } from '@/data/consumables'
 import { toAppError } from '@/data/errors'
 import { useFormat } from '@/lib/use-format'
@@ -27,7 +28,7 @@ export function ConsumablesPage() {
   const [editing, setEditing] = useState<Consumable | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Consumable | null>(null)
 
-  const columns: Column<Consumable>[] = [
+  const columns: Column<ConsumableListRow>[] = [
     {
       key: 'name',
       header: t('consumables.fields.name'),
@@ -40,8 +41,13 @@ export function ConsumablesPage() {
     },
     {
       key: 'stock',
-      header: t('consumables.fields.stock'),
-      cell: (c) => t('consumables.stockValue', { value: format.number(c.stock), unit: c.unit }),
+      header: t('consumables.columns.stock'),
+      cell: (c) =>
+        t('consumables.stockOfTotal', {
+          available: format.number(c.stock),
+          total: format.number(c.stock + c.reserved),
+          unit: c.unit,
+        }),
     },
     {
       key: 'active',

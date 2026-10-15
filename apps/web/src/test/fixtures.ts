@@ -75,9 +75,11 @@ export function materialRow(overrides: Partial<Tables<'materials'>> = {}): Table
   }
 }
 
+/** A consumable row as the consumables list query returns it, with the lines of sent quotes (`reserved`) embedded. */
 export function consumableRow(
-  overrides: Partial<Tables<'consumables'>> = {},
-): Tables<'consumables'> {
+  overrides: Partial<Tables<'consumables'>> & { reserved?: number[] } = {},
+) {
+  const { reserved = [], ...rest } = overrides
   return {
     id: nextId++,
     name: 'Vite M3',
@@ -87,7 +89,8 @@ export function consumableRow(
     active: true,
     created_at: CREATED,
     updated_at: CREATED,
-    ...overrides,
+    ...rest,
+    reserved: reserved.map((quantity) => ({ quantity, quotes: { status: 'sent' } })),
   }
 }
 

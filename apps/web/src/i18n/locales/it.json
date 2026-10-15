@@ -216,7 +216,10 @@
       "stock": "Disponibili",
       "active": "Attivo"
     },
-    "stockValue": "{{value}} {{unit}}",
+    "columns": {
+      "stock": "Disponibili / totale"
+    },
+    "stockOfTotal": "{{available}} / {{total}} {{unit}}",
     "toggleActive": "Attiva/disattiva {{name}}",
     "deleteTitle": "Eliminare il consumabile {{name}}?",
     "inUse": "Il consumabile è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
