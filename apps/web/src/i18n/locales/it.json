@@ -103,6 +103,7 @@
     "markupRange": "Tra 0 e 9999,99."
   },
   "common": {
+    "add": "Aggiungi",
     "retry": "Riprova",
     "loading": "Caricamento…",
     "save": "Salva",
@@ -298,6 +299,17 @@
       "duplicated": "Copia creata.",
       "waitSlicing": "Attendi la fine dello slicing.",
       "items": "Articoli",
+      "consumables": "Consumabili",
+      "consumable": {
+        "add": "Aggiungi consumabile",
+        "choose": "Scegli…",
+        "quantity": "Quantità",
+        "remove": "Rimuovi {{name}}",
+        "empty": "Nessun consumabile.",
+        "unitPrice": "{{price}} cad.",
+        "lowStock": "Disponibili solo {{stock}} {{unit}}.",
+        "quantityInvalid": "Inserisci un numero intero maggiore di zero."
+      },
       "send": {
         "title": "Segnare {{number}} come inviato?",
         "body": "I prezzi verranno bloccati e il preventivo non sarà più modificabile.",
@@ -306,6 +318,7 @@
         "blockedBody": "Prima sistema questi punti:"
       },
       "blockers": {
+        "insufficient_stock": "Alcuni consumabili superano la quantità disponibile.",
         "not_draft": "Il preventivo non è più una bozza.",
         "no_items": "Il preventivo non ha articoli.",
         "valid_until_past": "La data di validità è passata.",

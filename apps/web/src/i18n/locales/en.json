@@ -103,6 +103,7 @@
     "markupRange": "Between 0 and 9999.99."
   },
   "common": {
+    "add": "Add",
     "retry": "Retry",
     "loading": "Loading…",
     "save": "Save",
@@ -298,6 +299,17 @@
       "duplicated": "Copy created.",
       "waitSlicing": "Wait for slicing to finish.",
       "items": "Items",
+      "consumables": "Consumables",
+      "consumable": {
+        "add": "Add consumable",
+        "choose": "Choose…",
+        "quantity": "Quantity",
+        "remove": "Remove {{name}}",
+        "empty": "No consumables.",
+        "unitPrice": "{{price}} each",
+        "lowStock": "Only {{stock}} {{unit}} available.",
+        "quantityInvalid": "Enter a whole number greater than zero."
+      },
       "send": {
         "title": "Mark {{number}} as sent?",
         "body": "Prices will be frozen and the quote can no longer be changed.",
@@ -306,6 +318,7 @@
         "blockedBody": "Fix these first:"
       },
       "blockers": {
+        "insufficient_stock": "Some consumables exceed the available stock.",
         "not_draft": "The quote is no longer a draft.",
         "no_items": "The quote has no items.",
         "valid_until_past": "The valid-until date has passed.",

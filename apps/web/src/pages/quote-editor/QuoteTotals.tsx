@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import type { QuoteConsumable } from '@/data/quote-consumables'
 import type { QuoteItem } from '@/data/quote-items'
 import { quoteTotals, vatRateFor } from '@/data/quote-rules'
 import type { Quote } from '@/data/quotes'
@@ -14,12 +15,14 @@ import { useFormat } from '@/lib/use-format'
 export function QuoteTotals({
   quote,
   items,
+  consumables,
   editable,
   pricing,
   onRecalculate,
 }: {
   quote: Quote
   items: QuoteItem[]
+  consumables: QuoteConsumable[]
   editable: boolean
   pricing: boolean
   onRecalculate: () => void
@@ -28,7 +31,7 @@ export function QuoteTotals({
   const format = useFormat()
   const settings = useSettings()
   const rate = vatRateFor(quote, settings.data)
-  const totals = rate === null ? null : quoteTotals(items, rate)
+  const totals = rate === null ? null : quoteTotals(items, rate, consumables)
   const money = (value: number | undefined) => (value === undefined ? '—' : format.currency(value))
 
   return (

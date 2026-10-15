@@ -4,7 +4,9 @@ import { useSupabase } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
 import { queryKeys } from './query-keys'
 
-export type QuoteConsumable = Tables<'quote_consumables'> & {
+/** `line_total` is a generated column, so it is never null even though the generated type says so. */
+export type QuoteConsumable = Omit<Tables<'quote_consumables'>, 'line_total'> & {
+  line_total: number
   consumable: { name: string; unit: string; stock: number }
 }
 
@@ -20,7 +22,7 @@ export function useQuoteConsumables(quoteId: number) {
         .eq('quote_id', quoteId)
         .order('id')
       if (error) throw toAppError(error)
-      return data as QuoteConsumable[]
+      return data as unknown as QuoteConsumable[]
     },
   })
 }

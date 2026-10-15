@@ -3,11 +3,13 @@ import { useParams } from 'react-router'
 import { QueryError } from '@/components/QueryError'
 import { useLeaveGuard } from '@/components/use-leave-guard'
 import { useQuoteLiveUpdates } from '@/data/quote-live'
+import { useQuoteConsumables } from '@/data/quote-consumables'
 import { useQuoteItems } from '@/data/quote-items'
 import { useQuote, useRefreshQuote, type Quote } from '@/data/quotes'
 import { NotFoundMessage } from './NotFoundPage'
 import { ItemCard } from './quote-editor/ItemCard'
 import { QuoteActions } from './quote-editor/QuoteActions'
+import { QuoteConsumables } from './quote-editor/QuoteConsumables'
 import { QuoteHeader } from './quote-editor/QuoteHeader'
 import { QuoteTotals } from './quote-editor/QuoteTotals'
 import { UploadZone } from './quote-editor/UploadZone'
@@ -45,6 +47,8 @@ function QuoteEditor({ quote }: { quote: Quote }) {
   const { t } = useTranslation()
   const items = useQuoteItems(quote.id)
   const itemList = items.data ?? []
+  const consumables = useQuoteConsumables(quote.id)
+  const consumableList = consumables.data ?? []
   const editable = quote.status === 'draft'
   const refreshQuote = useRefreshQuote()
   const uploads = useUploads(quote.id, itemList, editable, () => void refreshQuote(quote.id))
@@ -87,16 +91,21 @@ function QuoteEditor({ quote }: { quote: Quote }) {
         {editable && (
           <UploadZone uploads={uploads} empty={items.isSuccess && itemList.length === 0} />
         )}
-        {items.isSuccess && (
-          <QuoteTotals
-            quote={quote}
-            items={itemList}
-            editable={editable}
-            pricing={pricing.pricing}
-            onRecalculate={pricing.recalculate}
-          />
-        )}
       </section>
+      <QuoteConsumables quoteId={quote.id} lines={consumableList} editable={editable} />
+      {consumables.isError && consumables.data === undefined && (
+        <QueryError error={consumables.error} onRetry={() => void consumables.refetch()} />
+      )}
+      {items.isSuccess && consumables.isSuccess && (
+        <QuoteTotals
+          quote={quote}
+          items={itemList}
+          consumables={consumableList}
+          editable={editable}
+          pricing={pricing.pricing}
+          onRecalculate={pricing.recalculate}
+        />
+      )}
       {guard.dialog}
     </section>
   )
