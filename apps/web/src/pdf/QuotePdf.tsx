@@ -132,6 +132,16 @@ export function QuotePdf({ data }: { data: QuotePdfData }) {
           ))}
         </View>
 
+        {data.consumables && (
+          <View style={styles.block}>
+            <Text style={styles.sectionTitle}>{data.consumables.title}</Text>
+            <TableRow values={data.consumables.columns} head />
+            {data.consumables.rows.map((values, index) => (
+              <TableRow key={index} values={values} />
+            ))}
+          </View>
+        )}
+
         <View style={styles.totals} wrap={false}>
           {data.totals.map((line) => (
             <View key={line.label} style={styles.totalLine}>

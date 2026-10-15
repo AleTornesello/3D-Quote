@@ -36,6 +36,7 @@ function build(overrides: Partial<QuotePdfInput> = {}, language: PdfLanguage = '
   return toQuotePdfData({
     quote: quote(),
     items: [item()],
+    consumables: [],
     materials,
     settings: { ...settingsRow, shop_name: '3D Lab' },
     logo: null,
@@ -191,6 +192,40 @@ describe('toQuotePdfData', () => {
     )
     expect(data).not.toContain('Accordo segreto')
     expect(data).not.toContain('3600')
+  })
+
+  test('prints consumable lines in their own table and adds them to the totals', () => {
+    const data = build({
+      consumables: [
+        {
+          id: 1,
+          quote_id: 1,
+          consumable_id: 1,
+          quantity: 3,
+          unit_price: 0.1,
+          line_total: 0.3,
+          created_at: '',
+          updated_at: '',
+          consumable: { name: 'Vite M3', unit: 'pz', stock: 10 },
+        },
+      ],
+    })
+    expect(data.consumables?.title).toBe('Consumabili')
+    expect(data.consumables?.columns.material).toBe('Unità')
+    expect(data.consumables?.rows).toEqual([
+      {
+        description: 'Vite M3',
+        material: 'pz',
+        quantity: '3',
+        unitPrice: '0,10 €',
+        total: '0,30 €',
+      },
+    ])
+    expect(data.totals[0].value).toBe('30,30 €')
+  })
+
+  test('has no consumables table when the quote has none', () => {
+    expect(build({}).consumables).toBeNull()
   })
 
   test('refuses a quote that is not fully priced', () => {

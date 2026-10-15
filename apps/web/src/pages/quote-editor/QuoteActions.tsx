@@ -7,6 +7,7 @@ import { useStaff } from '@/auth/staff-context'
 import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
+import type { QuoteConsumable } from '@/data/quote-consumables'
 import type { QuoteItem } from '@/data/quote-items'
 import { isSlicingInProgress } from '@/data/quote-rules'
 import { useDeleteQuote, useDuplicateQuote, useMarkQuote, type Quote } from '@/data/quotes'
@@ -17,7 +18,15 @@ import { SendQuoteDialog } from './SendQuoteDialog'
 type OpenDialog = 'send' | 'accepted' | 'rejected' | 'delete' | 'export' | null
 
 /** The actions the quote's status allows (functional analysis §4). */
-export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[] }) {
+export function QuoteActions({
+  quote,
+  items,
+  consumables,
+}: {
+  quote: Quote
+  items: QuoteItem[]
+  consumables: QuoteConsumable[]
+}) {
   const { t } = useTranslation()
   const { isOwner } = useStaff()
   const navigate = useNavigate()
@@ -117,7 +126,9 @@ export function QuoteActions({ quote, items }: { quote: Quote; items: QuoteItem[
       )}
 
       {dialog === 'send' && <SendQuoteDialog quote={quote} items={items} onClose={close} />}
-      {dialog === 'export' && <ExportPdfDialog quote={quote} items={items} onClose={close} />}
+      {dialog === 'export' && (
+        <ExportPdfDialog quote={quote} items={items} consumables={consumables} onClose={close} />
+      )}
       {(dialog === 'accepted' || dialog === 'rejected') && (
         <ConfirmActionDialog
           title={t(

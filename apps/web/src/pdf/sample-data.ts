@@ -32,6 +32,7 @@ export function sampleQuotePdfData(
       total: 'Totale',
     },
     rows: Array.from({ length: rowCount }, (_, index) => row(index + 1)),
+    consumables: null,
     totals: [
       { label: 'Imponibile', value: '60,00 €', strong: false },
       { label: 'IVA (22 %)', value: '13,20 €', strong: false },

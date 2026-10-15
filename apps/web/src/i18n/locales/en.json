@@ -558,7 +558,8 @@
       "material": "Material",
       "quantity": "Qty",
       "unitPrice": "Unit price",
-      "total": "Total"
+      "total": "Total",
+      "unit": "Unit"
     },
     "netTotal": "Net total",
     "vat": "VAT ({{rate}} %)",
@@ -566,6 +567,7 @@
     "notes": "Notes",
     "watermark": "DRAFT",
     "page": "Page",
-    "of": "of"
+    "of": "of",
+    "consumables": "Consumables"
   }
 }

@@ -558,7 +558,8 @@
       "material": "Materiale",
       "quantity": "Qtà",
       "unitPrice": "Prezzo unitario",
-      "total": "Totale"
+      "total": "Totale",
+      "unit": "Unità"
     },
     "netTotal": "Imponibile",
     "vat": "IVA ({{rate}} %)",
@@ -566,6 +567,7 @@
     "notes": "Note",
     "watermark": "BOZZA",
     "page": "Pagina",
-    "of": "di"
+    "of": "di",
+    "consumables": "Consumabili"
   }
 }

@@ -64,7 +64,10 @@ function QuoteEditor({ quote }: { quote: Quote }) {
 
   return (
     <section className="grid gap-6">
-      <QuoteHeader quote={quote} actions={<QuoteActions quote={quote} items={itemList} />} />
+      <QuoteHeader
+        quote={quote}
+        actions={<QuoteActions quote={quote} items={itemList} consumables={consumableList} />}
+      />
       <section aria-labelledby="quote-items-title" className="grid gap-4">
         <h2 id="quote-items-title" className="text-lg font-semibold">
           {t('quotes.editor.items')}

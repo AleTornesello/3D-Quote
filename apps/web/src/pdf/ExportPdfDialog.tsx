@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useMaterials } from '@/data/materials'
+import type { QuoteConsumable } from '@/data/quote-consumables'
 import type { QuoteItem } from '@/data/quote-items'
 import { pdfFileName } from '@/data/quote-rules'
 import type { Quote } from '@/data/quotes'
@@ -30,10 +31,12 @@ const LANGUAGE_KEYS: Record<PdfLanguage, string> = {
 export function ExportPdfDialog({
   quote,
   items,
+  consumables,
   onClose,
 }: {
   quote: Quote
   items: QuoteItem[]
+  consumables: QuoteConsumable[]
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -64,6 +67,7 @@ export function ExportPdfDialog({
       const data = toQuotePdfData({
         quote,
         items,
+        consumables,
         materials: materials.data,
         settings: settings.data,
         logo: logoDataUrl,

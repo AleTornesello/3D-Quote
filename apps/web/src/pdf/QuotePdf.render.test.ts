@@ -45,6 +45,30 @@ test('prints the header, client, rows, totals, notes, terms and footer', async (
   }
 })
 
+test('prints the consumables table before the totals', async () => {
+  const base = sampleQuotePdfData()
+  const [page] = await pagesOf(
+    sampleQuotePdfData({
+      consumables: {
+        title: 'Consumabili',
+        columns: { ...base.columns, material: 'Unità' },
+        rows: [
+          {
+            description: 'Vite M3',
+            material: 'pz',
+            quantity: '3',
+            unitPrice: '0,10 €',
+            total: '0,30 €',
+          },
+        ],
+      },
+    }),
+  )
+  expect(page).toContain('Consumabili')
+  expect(page).toContain('Vite M3')
+  expect(page.indexOf('Vite M3')).toBeLessThan(page.indexOf('Imponibile'))
+})
+
 test('a draft carries the watermark and a sent quote does not', async () => {
   const [draft] = await pagesOf(sampleQuotePdfData({ watermark: 'BOZZA' }))
   const [sent] = await pagesOf(sampleQuotePdfData({ watermark: null }))
