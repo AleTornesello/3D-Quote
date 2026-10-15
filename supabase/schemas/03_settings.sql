@@ -4,7 +4,6 @@ create table public.settings (
   id smallint primary key default 1 check (id = 1),
   currency text not null default 'EUR' check (currency ~ '^[A-Z]{3}$'),
   energy_price_kwh numeric(8,4) not null default 0 check (energy_price_kwh >= 0),
-  failure_allowance_pct numeric(5,2) not null default 0 check (failure_allowance_pct between 0 and 100),
   setup_fee numeric(12,2) not null default 0 check (setup_fee >= 0),
   default_markup_pct numeric(6,2) not null default 0 check (default_markup_pct >= 0),
   minimum_item_price numeric(12,2) not null default 0 check (minimum_item_price >= 0),

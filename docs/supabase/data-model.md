@@ -99,7 +99,7 @@ The `staff_guard` trigger (every role):
 | `purchase_cost` | `numeric(12,2)` null | Check: `> 0`. What the printer cost. Set only when the app derived `hourly_rate` from it |
 | `lifetime_hours` | `integer` null | Check: `> 0`. Estimated life in print hours. Null exactly when `purchase_cost` is (check `printers_purchase_pair`) |
 | `power_w` | `integer` not null | Check: `> 0`. Average draw while printing, for energy cost |
-| `failure_rate` | `integer` not null default `0` | Check: `0` to `100`. Percent of prints that fail on this machine. Recorded only; pricing still uses the settings failure allowance |
+| `failure_rate` | `integer` not null default `0` | Check: `0` to `100`. Percent added to the cost of a copy to cover failed prints on this machine; pricing reads it |
 | `active` | `boolean` not null default `true` | Inactive printers can't be picked for new items |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -126,7 +126,6 @@ migration. See [functional analysis §3.8](../frontend/functional-analysis.md#38
 | `id` | `smallint` PK | Check: `id = 1` |
 | `currency` | `text` not null default `'EUR'` | ISO 4217 |
 | `energy_price_kwh` | `numeric(8,4)` not null default `0` | |
-| `failure_allowance_pct` | `numeric(5,2)` not null default `0` | Check: `0..100` |
 | `setup_fee` | `numeric(12,2)` not null default `0` | Per item |
 | `default_markup_pct` | `numeric(6,2)` not null default `0` | Check: `>= 0` |
 | `minimum_item_price` | `numeric(12,2)` not null default `0` | |

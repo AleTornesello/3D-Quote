@@ -196,7 +196,7 @@ unavailable.
 | Machine rate (per hour) | *Enter directly*: required, ≥ 0. Wear and depreciation only — energy is separate. |
 | Purchase cost, estimated life (hours) | *Calculate from purchase cost*: both required; cost > 0, life a whole number of hours > 0. The machine rate is purchase cost ÷ life, rounded to cents, and shown under the fields as you type. Both are kept, so they can be corrected later. Switching back to *Enter directly* keeps the calculated rate in the field and clears the purchase figures. |
 | Power (W) | Required, > 0. Average draw while printing; used for energy cost. |
-| Failure rate (%) | Whole number from 0 to 100; default 0. For now it is only recorded: pricing still uses the failure allowance from Settings. |
+| Failure rate (%) | Whole number from 0 to 100; default 0. The share of the cost of a copy added to cover failed prints on this machine. |
 | Active | Inactive printers can't be chosen for new items; existing items keep them. |
 
 Only the resulting machine rate is used in pricing, however it was entered. Printers used by any item can't be deleted, only deactivated. Changing a printer's rates affects Draft quotes on
@@ -229,7 +229,6 @@ quotes.
 | Setting | Example | Rules |
 |---|---|---|
 | Energy price (per kWh) | 0.30 | ≥ 0 |
-| Failure allowance (%) | 10 | 0–100 |
 | Setup / handling fee (per item) | 5.00 | ≥ 0 |
 | Default markup (%) | 30 | ≥ 0 |
 | VAT rate (%) | 22 | 0–100; applied to the quote's net total; frozen on each quote when it is sent |
@@ -298,8 +297,8 @@ stateDiagram-v2
 |---|---|
 | `filament_g`, `print_time_h` | Slicing results, per copy |
 | `cost_per_kg` | Material |
-| `machine_rate` (per hour), `power_w` | Printer |
-| `energy_price` (per kWh), `failure_pct`, `setup_fee`, `minimum_price` | Settings |
+| `machine_rate` (per hour), `power_w`, `failure_pct` (the printer's failure rate) | Printer |
+| `energy_price` (per kWh), `setup_fee`, `minimum_price` | Settings |
 | `markup_pct` | Quote override, otherwise Settings default |
 | `quantity` | Item |
 
@@ -325,7 +324,7 @@ unit_price      = item_total / quantity
 
 ### 5.3 Worked example
 
-PETG at 25.00/kg, printer with machine rate 1.50/h and 120 W, energy 0.30/kWh, failure 10 %, setup fee 5.00,
+PETG at 25.00/kg, printer with machine rate 1.50/h, 120 W and failure rate 10 %, energy 0.30/kWh, setup fee 5.00,
 markup 30 %, minimum 10.00. The slicer reports 120 g and 5 h 30 min per copy; quantity 2.
 
 | Line | Calculation | Value |

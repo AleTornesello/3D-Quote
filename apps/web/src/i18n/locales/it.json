@@ -399,7 +399,6 @@
       "title": "Prezzi",
       "energy": "Costo energia per kWh",
       "energyValue": "{{value}} {{currency}}/kWh",
-      "failure": "Margine per stampe fallite (%)",
       "setupFee": "Costo di avvio",
       "markup": "Ricarico predefinito (%)",
       "vat": "Aliquota IVA (%)",

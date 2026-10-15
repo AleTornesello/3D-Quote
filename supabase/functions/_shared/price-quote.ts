@@ -10,7 +10,6 @@ interface QuoteRow {
 
 interface SettingsRow {
   energy_price_kwh: Decimal
-  failure_allowance_pct: Decimal
   setup_fee: Decimal
   default_markup_pct: Decimal
   minimum_item_price: Decimal
@@ -23,7 +22,7 @@ interface ItemRow {
   quantity: number
   print_time_s: number | null
   filament_g: Decimal | null
-  printer: { hourly_rate: Decimal; power_w: number } | null
+  printer: { hourly_rate: Decimal; power_w: number; failure_rate: number } | null
   material: { cost_per_kg: Decimal } | null
 }
 
@@ -45,7 +44,7 @@ export async function loadPricingSnapshot(
   const { data: settings, error: settingsError } = await admin
     .from('settings')
     .select(
-      'energy_price_kwh, failure_allowance_pct, setup_fee, default_markup_pct, minimum_item_price',
+      'energy_price_kwh, setup_fee, default_markup_pct, minimum_item_price',
     )
     .eq('id', 1)
     .single()
@@ -56,7 +55,7 @@ export async function loadPricingSnapshot(
   const { data, error } = await admin
     .from('quotes')
     .select(
-      'status, markup_override_pct, quote_items(id, updated_at, quantity, print_time_s, filament_g, printer:printers(hourly_rate, power_w), material:materials(cost_per_kg))',
+      'status, markup_override_pct, quote_items(id, updated_at, quantity, print_time_s, filament_g, printer:printers(hourly_rate, power_w, failure_rate), material:materials(cost_per_kg))',
     )
     .eq('id', quoteId)
     .order('id', { referencedTable: 'quote_items' })
@@ -82,7 +81,7 @@ export async function loadPricingSnapshot(
           hourlyRate: item.printer.hourly_rate,
           powerW: item.printer.power_w,
           energyPriceKwh: s.energy_price_kwh,
-          failurePct: s.failure_allowance_pct,
+          failurePct: item.printer.failure_rate,
           setupFee: s.setup_fee,
           markupPct,
           minimumPrice: s.minimum_item_price,

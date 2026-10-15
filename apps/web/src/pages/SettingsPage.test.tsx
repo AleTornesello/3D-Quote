@@ -11,7 +11,7 @@ const session = fakeSession()
 test('owners see the current values in the form', async () => {
   renderApp('/settings', { session })
   expect(await screen.findByLabelText('Costo di avvio')).toHaveValue('3,00')
-  expect(screen.getByLabelText('Margine per stampe fallite (%)')).toHaveValue('5')
+  expect(screen.getByLabelText('Ricarico predefinito (%)')).toHaveValue('40')
   expect(screen.getByLabelText('Nome del negozio')).toHaveValue('3D Lab')
   expect(screen.getByRole('button', { name: 'Salva' })).toBeDisabled()
 })
@@ -46,9 +46,9 @@ test('currency codes are saved in upper case', async () => {
 
 test('checks values before saving', async () => {
   const { db, user } = renderApp('/settings', { session })
-  const failure = await screen.findByLabelText('Margine per stampe fallite (%)')
-  await user.clear(failure)
-  await user.type(failure, '150')
+  const vat = await screen.findByLabelText('Aliquota IVA (%)')
+  await user.clear(vat)
+  await user.type(vat, '150')
   const prefix = screen.getByLabelText('Prefisso numero')
   await user.clear(prefix)
   await user.type(prefix, 'Q-1')
@@ -80,7 +80,7 @@ test('a refused save is explained', async () => {
 test('operators see the settings read-only', async () => {
   renderApp('/settings', { session, staff: operatorStaff })
   expect(await screen.findByText('3D Lab')).toBeInTheDocument()
-  expect(screen.getByText('5 %')).toBeInTheDocument()
+  expect(screen.getByText('40 %')).toBeInTheDocument()
   expect(screen.getByText('Q')).toBeInTheDocument()
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument()

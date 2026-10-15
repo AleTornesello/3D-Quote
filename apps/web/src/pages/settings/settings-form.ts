@@ -5,12 +5,6 @@ import { nullIfEmpty, numberField, optionalEmail, parseDecimal } from '@/lib/for
 
 export const settingsSchema = z.object({
   energy_price_kwh: numberField({ min: 0, decimals: 4, rangeError: 'validation.nonNegative' }),
-  failure_allowance_pct: numberField({
-    min: 0,
-    max: 100,
-    decimals: 2,
-    rangeError: 'validation.percent',
-  }),
   setup_fee: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
   default_markup_pct: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
   minimum_item_price: numberField({ min: 0, decimals: 2, rangeError: 'validation.nonNegative' }),
@@ -43,7 +37,6 @@ export type SettingsForm = z.infer<typeof settingsSchema>
 export function settingsToForm(settings: Settings, locale: Locale): SettingsForm {
   return {
     energy_price_kwh: toInputNumber(settings.energy_price_kwh, locale),
-    failure_allowance_pct: toInputNumber(settings.failure_allowance_pct, locale),
     setup_fee: toInputNumber(settings.setup_fee, locale, 2),
     default_markup_pct: toInputNumber(settings.default_markup_pct, locale),
     minimum_item_price: toInputNumber(settings.minimum_item_price, locale, 2),
@@ -71,7 +64,6 @@ export function changedSettings(
 ): SettingsValues {
   const all: Required<Pick<SettingsValues, keyof SettingsForm>> = {
     energy_price_kwh: number(form.energy_price_kwh),
-    failure_allowance_pct: number(form.failure_allowance_pct),
     setup_fee: number(form.setup_fee),
     default_markup_pct: number(form.default_markup_pct),
     minimum_item_price: number(form.minimum_item_price),

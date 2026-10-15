@@ -343,7 +343,6 @@ export type Database = {
           default_markup_pct: number
           default_validity_days: number
           energy_price_kwh: number
-          failure_allowance_pct: number
           id: number
           minimum_item_price: number
           pdf_terms_en: string | null
@@ -366,7 +365,6 @@ export type Database = {
           default_markup_pct?: number
           default_validity_days?: number
           energy_price_kwh?: number
-          failure_allowance_pct?: number
           id?: number
           minimum_item_price?: number
           pdf_terms_en?: string | null
@@ -388,7 +386,6 @@ export type Database = {
           default_markup_pct?: number
           default_validity_days?: number
           energy_price_kwh?: number
-          failure_allowance_pct?: number
           id?: number
           minimum_item_price?: number
           pdf_terms_en?: string | null

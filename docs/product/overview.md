@@ -53,7 +53,7 @@ Screen-by-screen detail, roles and the exact pricing formula are in the
 | Material rate | What a material costs the shop, per kilogram. |
 | Machine rate | What an hour of printer time costs the shop in wear and depreciation (energy is separate). |
 | Energy cost | Printer power × print time × energy price per kWh. |
-| Failure allowance | A percentage added to the production cost to cover failed prints. |
+| Failure rate | A percentage, set per printer, added to the cost of a copy to cover failed prints. |
 | Setup fee | A fixed amount charged once per quote item for preparation and handling. |
 | Markup | The percentage added on top of the production cost; a shop default, overridable per quote by the owner. |
 | Operator / Owner | The two staff roles. Owners also manage rates, catalogue, staff, price overrides and deletions. |

@@ -255,8 +255,8 @@ export async function expectedPrice(
   const settings = await must<Record<string, Decimal>>(
     admin.from('settings').select('*').eq('id', 1).single(),
   )
-  const printer = await must<{ hourly_rate: Decimal; power_w: number }>(
-    admin.from('printers').select('hourly_rate, power_w').eq('id', item.printer_id).single(),
+  const printer = await must<{ hourly_rate: Decimal; power_w: number; failure_rate: number }>(
+    admin.from('printers').select('hourly_rate, power_w, failure_rate').eq('id', item.printer_id).single(),
   )
   const material = await must<{ cost_per_kg: Decimal }>(
     admin.from('materials').select('cost_per_kg').eq('id', item.material_id).single(),
@@ -269,7 +269,7 @@ export async function expectedPrice(
     hourlyRate: printer.hourly_rate,
     powerW: printer.power_w,
     energyPriceKwh: settings.energy_price_kwh,
-    failurePct: settings.failure_allowance_pct,
+    failurePct: printer.failure_rate,
     setupFee: settings.setup_fee,
     markupPct: markupOverridePct ?? settings.default_markup_pct,
     minimumPrice: settings.minimum_item_price,

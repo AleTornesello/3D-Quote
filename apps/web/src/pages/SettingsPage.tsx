@@ -126,7 +126,6 @@ function SettingsEditor({ settings }: { settings: Settings }) {
     <form onSubmit={onSubmit} noValidate className="grid max-w-3xl gap-6">
       <SettingsCard title={t('settings.pricing.title')}>
         {field('energy_price_kwh', 'settings.pricing.energy', { inputMode: 'decimal' })}
-        {field('failure_allowance_pct', 'settings.pricing.failure', { inputMode: 'decimal' })}
         {field('setup_fee', 'settings.pricing.setupFee', { inputMode: 'decimal' })}
         {field('default_markup_pct', 'settings.pricing.markup', { inputMode: 'decimal' })}
         {field('vat_rate_pct', 'settings.pricing.vat', { inputMode: 'decimal' })}
@@ -181,10 +180,6 @@ function SettingsView({ settings }: { settings: Settings }) {
               value: format.number(settings.energy_price_kwh),
               currency: settings.currency,
             })}
-          />
-          <ReadOnlyField
-            label={t('settings.pricing.failure')}
-            value={percent(settings.failure_allowance_pct)}
           />
           <ReadOnlyField
             label={t('settings.pricing.setupFee')}

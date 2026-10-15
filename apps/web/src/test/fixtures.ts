@@ -24,7 +24,6 @@ export const settingsRow: Tables<'settings'> = {
   id: 1,
   currency: 'EUR',
   energy_price_kwh: 0.3,
-  failure_allowance_pct: 5,
   setup_fee: 3,
   default_markup_pct: 40,
   minimum_item_price: 10,
