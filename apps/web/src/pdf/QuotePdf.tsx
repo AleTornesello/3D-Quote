@@ -134,8 +134,10 @@ export function QuotePdf({ data }: { data: QuotePdfData }) {
 
         {data.consumables && (
           <View style={styles.block}>
-            <Text style={styles.sectionTitle}>{data.consumables.title}</Text>
-            <TableRow values={data.consumables.columns} head />
+            <Text style={styles.sectionTitle} minPresenceAhead={60}>
+              {data.consumables.title}
+            </Text>
+            <TableRow values={data.consumables.columns} head fixed />
             {data.consumables.rows.map((values, index) => (
               <TableRow key={index} values={values} />
             ))}

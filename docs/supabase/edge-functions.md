@@ -45,7 +45,7 @@ Body `{ "quote_id": 42 }` → `201 { "quote_id": 57 }`.
 Copies a quote in any status into a new draft by the caller: same client, notes and markup override; default
 validity; a new number. Files are copied into the new quote's folder. Items keep their settings, results and price
 overrides; sliced items get a `succeeded` job, unsliced ones with printer and material are queued. The copy is then
-priced.
+priced. Consumable lines of active consumables are copied too, at today's price; inactive ones are skipped.
 
 ## `manage-staff`
 

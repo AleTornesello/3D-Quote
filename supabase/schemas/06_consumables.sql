@@ -85,6 +85,10 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Lock in id order, as mark_quote_sent does, so a concurrent send cannot deadlock with this.
+  perform 1 from public.consumables
+  where id in (select consumable_id from public.quote_consumables where quote_id = new.id)
+  order by id for update;
   update public.consumables c
   set stock = c.stock + qc.quantity
   from public.quote_consumables qc

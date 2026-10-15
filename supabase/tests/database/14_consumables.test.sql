@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000e1', 'owner.cs@test.local'),
@@ -134,6 +134,12 @@ select private.expire_quotes();
 select is((select stock from public.consumables where id = 930001), 9, 'expiring gives the stock back');
 select private.mark_quote_accepted(930003);
 select is((select stock from public.consumables where id = 930001), 9, 'accepting keeps the stock deducted');
+
+-- The guard also stops roles that bypass RLS
+select throws_ok(
+  $$update public.quote_consumables set quantity = 1 where quote_id = 930003$$,
+  'P0001', 'quote_not_draft', 'lines of a non-draft quote are guarded even for a role that bypasses RLS'
+);
 
 -- Deleting a consumable that a quote uses is refused; copying skips inactive ones
 select throws_ok(

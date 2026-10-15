@@ -22,10 +22,13 @@ export function QuoteActions({
   quote,
   items,
   consumables,
+  consumablesReady,
 }: {
   quote: Quote
   items: QuoteItem[]
   consumables: QuoteConsumable[]
+  /** The consumable lines have loaded; the PDF would otherwise miss them. */
+  consumablesReady: boolean
 }) {
   const { t } = useTranslation()
   const { isOwner } = useStaff()
@@ -37,6 +40,7 @@ export function QuoteActions({
   const [error, setError] = useState<string | null>(null)
   const slicing = items.some(isSlicingInProgress)
   const unpriced = items.length === 0 || items.some((item) => item.item_total === null)
+  const exportBlocked = unpriced || !consumablesReady
 
   function close() {
     setDialog(null)
@@ -106,16 +110,22 @@ export function QuoteActions({
       </Button>
       <Button
         variant="outline"
-        disabled={unpriced}
-        aria-describedby={unpriced ? 'export-hint' : undefined}
+        disabled={exportBlocked}
+        aria-describedby={exportBlocked ? 'export-hint' : undefined}
         onClick={() => setDialog('export')}
       >
         <FileDown aria-hidden />
         {t('quotes.pdf.export')}
       </Button>
-      {unpriced && (
+      {exportBlocked && (
         <span id="export-hint" className="self-center text-sm text-muted-foreground">
-          {t(items.length === 0 ? 'quotes.pdf.needsItems' : 'quotes.pdf.needsPrices')}
+          {t(
+            items.length === 0
+              ? 'quotes.pdf.needsItems'
+              : unpriced
+                ? 'quotes.pdf.needsPrices'
+                : 'quotes.pdf.loadingConsumables',
+          )}
         </span>
       )}
       {quote.status === 'draft' && isOwner && (

@@ -197,6 +197,7 @@
     "inUse": "This material is used by quote items — deactivate it instead."
   },
   "consumables": {
+    "defaultUnit": "pcs",
     "empty": "No consumables yet.",
     "new": "New consumable",
     "edit": "Edit consumable",
@@ -340,6 +341,7 @@
       "export": "Export PDF",
       "needsItems": "Add at least one item before exporting.",
       "needsPrices": "Every item needs a price before exporting.",
+      "loadingConsumables": "Loading consumables…",
       "title": "Export {{number}}",
       "language": "PDF language",
       "italian": "Italiano",

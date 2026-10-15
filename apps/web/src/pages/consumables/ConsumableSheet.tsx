@@ -14,6 +14,7 @@ import { useFormat } from '@/lib/use-format'
 import {
   consumableSchema,
   consumableToForm,
+  dirtyConsumableValues,
   formToConsumable,
   type ConsumableForm,
 } from './consumable-form'
@@ -34,16 +35,19 @@ export function ConsumableSheet({
     register,
     control,
     handleSubmit,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
   } = useForm<ConsumableForm>({
     resolver: zodResolver(consumableSchema),
-    defaultValues: consumableToForm(consumable, locale),
+    defaultValues: consumableToForm(consumable, locale, t('consumables.defaultUnit')),
   })
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
-      await save.mutateAsync({ id: consumable?.id, values: formToConsumable(values) })
+      await save.mutateAsync({
+        id: consumable?.id,
+        values: consumable ? dirtyConsumableValues(values, dirtyFields) : formToConsumable(values),
+      })
       onClose()
     } catch (error) {
       setFormError(toAppError(error).messageKey)

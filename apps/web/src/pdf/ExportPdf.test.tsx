@@ -81,6 +81,17 @@ test('Export PDF waits until every item has a price', async () => {
   ).toBeInTheDocument()
 })
 
+test('Export PDF waits for the consumable lines, which belong in the document', async () => {
+  const { db } = renderEditor()
+  // The editor only asks for the lines once the quote has loaded, so this reaches that request.
+  db.failNext('quote_consumables', { code: '', message: 'TypeError: Failed to fetch' })
+  const button = await exportButton()
+  expect(button).toBeDisabled()
+  await waitFor(() => expect(db.calls('quote_consumables').length).toBeGreaterThan(0))
+  expect(await screen.findByText('Caricamento consumabili…')).toBeInTheDocument()
+  expect(button).toBeDisabled()
+})
+
 test('Export PDF is disabled for a quote without items', async () => {
   renderEditor({ items: [] })
   const button = await exportButton()

@@ -405,7 +405,7 @@ their UI language).
 2. Title "Quote" / "Preventivo", number, date (sent date, or today for drafts), valid until.
 3. Client block: name, company, email, phone.
 4. Items table: description, material (type and colour), quantity, unit price, item total.
-   When the quote has consumable lines, a second table follows with the same columns: name, unit, quantity, unit
+   When the quote has consumable lines, a second table follows with similar columns: name, unit, quantity, unit
    price, line total.
 5. Net total, VAT (rate) and total incl. VAT, in the shop currency.
 6. Quote notes.

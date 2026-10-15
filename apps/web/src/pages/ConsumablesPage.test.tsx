@@ -87,3 +87,37 @@ test('a consumable used by a quote cannot be deleted, only deactivated', async (
     await within(dialog).findByText(/Il consumabile è usato in alcuni preventivi/),
   ).toBeInTheDocument()
 })
+
+test('editing only the price sends the price, not the possibly stale stock', async () => {
+  const { db, user } = renderApp('/consumables', { session, tables: { consumables: [bolt()] } })
+  await user.click(await screen.findByRole('button', { name: 'Modifica Vite M3' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Modifica consumabile' })
+  const price = within(sheet).getByLabelText('Prezzo unitario')
+  await user.clear(price)
+  await user.type(price, '0,2')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+  await waitFor(() =>
+    expect(db.calls('consumables')).toContainEqual({
+      op: 'update',
+      filters: [['eq', 'id', 1]],
+      values: { unit_price: 0.2 },
+    }),
+  )
+})
+
+test('editing the stock sends the stock', async () => {
+  const { db, user } = renderApp('/consumables', { session, tables: { consumables: [bolt()] } })
+  await user.click(await screen.findByRole('button', { name: 'Modifica Vite M3' }))
+  const sheet = await screen.findByRole('dialog', { name: 'Modifica consumabile' })
+  const stock = within(sheet).getByLabelText('Disponibili')
+  await user.clear(stock)
+  await user.type(stock, '25')
+  await user.click(within(sheet).getByRole('button', { name: 'Salva' }))
+  await waitFor(() =>
+    expect(db.calls('consumables')).toContainEqual({
+      op: 'update',
+      filters: [['eq', 'id', 1]],
+      values: { stock: 25 },
+    }),
+  )
+})

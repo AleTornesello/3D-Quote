@@ -13,10 +13,15 @@ export const consumableSchema = z.object({
 
 export type ConsumableForm = z.infer<typeof consumableSchema>
 
-export function consumableToForm(consumable: Consumable | null, locale: Locale): ConsumableForm {
+/** `defaultUnit` is the unit proposed for a new consumable, in the UI language. */
+export function consumableToForm(
+  consumable: Consumable | null,
+  locale: Locale,
+  defaultUnit: string,
+): ConsumableForm {
   return {
     name: consumable?.name ?? '',
-    unit: consumable?.unit ?? 'pz',
+    unit: consumable?.unit ?? defaultUnit,
     unit_price: toInputNumber(consumable?.unit_price, locale, 2),
     stock: consumable ? String(consumable.stock) : '0',
     active: consumable?.active ?? true,
@@ -34,4 +39,18 @@ export function formToConsumable(form: ConsumableForm): ConsumableValues {
     stock: number(form.stock),
     active: form.active,
   }
+}
+
+/**
+ * Only the fields the user changed. Editing must not write back the others: the cached stock may be stale (a quote
+ * sent in the meantime consumed some) and a full update would restore it.
+ */
+export function dirtyConsumableValues(
+  form: ConsumableForm,
+  dirtyFields: Partial<Record<keyof ConsumableForm, boolean | undefined>>,
+): Partial<ConsumableValues> {
+  const all = formToConsumable(form)
+  return Object.fromEntries(
+    Object.entries(all).filter(([key]) => dirtyFields[key as keyof ConsumableForm]),
+  )
 }

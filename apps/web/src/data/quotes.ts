@@ -43,13 +43,14 @@ const SORT_COLUMN: Record<Exclude<QuoteSort, 'number'>, string> = {
   total: 'total',
 }
 
-/** The quote's status changed under an action: reload it, its items, its send blockers and the lists. */
+/** The quote's status changed under an action: reload it, its items, its send blockers, the lists and the consumables' stock. */
 function refreshChangedQuote(queryClient: QueryClient, quoteId: number) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.quote(quoteId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.sendBlockers(quoteId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.consumables }),
   ])
 }
 
@@ -260,6 +261,8 @@ export function useMarkQuote() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.quotesAll }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clientsAll }),
+        // Sending consumes stock.
+        queryClient.invalidateQueries({ queryKey: queryKeys.consumables }),
       ]),
     // quote_not_draft, quote_not_sent, quote_not_sendable: the status changed under us; anything else is cheap to
     // reload too.

@@ -197,6 +197,7 @@
     "inUse": "Il materiale è usato in alcuni preventivi: puoi disattivarlo invece di eliminarlo."
   },
   "consumables": {
+    "defaultUnit": "pz",
     "empty": "Nessun consumabile.",
     "new": "Nuovo consumabile",
     "edit": "Modifica consumabile",
@@ -340,6 +341,7 @@
       "export": "Esporta PDF",
       "needsItems": "Aggiungi almeno un articolo prima di esportare.",
       "needsPrices": "Ogni articolo deve avere un prezzo prima dell'esportazione.",
+      "loadingConsumables": "Caricamento consumabili…",
       "title": "Esporta {{number}}",
       "language": "Lingua del PDF",
       "italian": "Italiano",

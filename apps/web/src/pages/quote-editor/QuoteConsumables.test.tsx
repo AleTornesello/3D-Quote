@@ -13,7 +13,11 @@ import { renderApp } from '@/test/render-app'
 
 const session = fakeSession()
 
-function renderEditor(lines: Row[], status = 'draft') {
+function renderEditor(
+  lines: Row[],
+  status = 'draft',
+  rpc: Record<string, (args: unknown) => unknown> = {},
+) {
   return renderApp('/quotes/7', {
     session,
     tables: {
@@ -37,7 +41,7 @@ function renderEditor(lines: Row[], status = 'draft') {
       ],
       quote_consumables: lines,
     },
-    rpc: { add_quote_consumable: () => 1 },
+    rpc: { add_quote_consumable: () => 1, ...rpc },
   })
 }
 
@@ -133,4 +137,37 @@ test('a sent quote without lines shows no card', async () => {
   renderEditor([], 'sent')
   await screen.findByText('Q-2026-0007')
   expect(screen.queryByRole('region', { name: 'Consumabili' })).not.toBeInTheDocument()
+})
+
+const selects = (db: { calls: (table: string) => { op: string }[] }, table: string) =>
+  db.calls(table).filter((call) => call.op === 'select').length
+
+test('sending the quote reloads the consumables, whose stock it consumed', async () => {
+  const { db, user } = renderEditor([line({ quantity: 3 })], 'draft', {
+    get_quote_send_blockers: () => [],
+    mark_quote_sent: () => null,
+  })
+  await screen.findByRole('region', { name: 'Consumabili' })
+  await waitFor(() => expect(selects(db, 'consumables')).toBeGreaterThan(0))
+  const before = selects(db, 'consumables')
+  await user.click(screen.getByRole('button', { name: 'Segna come inviato' }))
+  const dialog = await screen.findByRole('alertdialog')
+  await user.click(await within(dialog).findByRole('button', { name: 'Segna come inviato' }))
+  await waitFor(() => expect(db.rpcCalls('mark_quote_sent')).toHaveLength(1))
+  await waitFor(() => expect(selects(db, 'consumables')).toBeGreaterThan(before))
+})
+
+test('a stock shortage in the send dialog reloads the lines so their warning shows', async () => {
+  const { db, user } = renderEditor([line({ quantity: 3 })], 'draft', {
+    get_quote_send_blockers: () => [{ quote_item_id: null, code: 'insufficient_stock' }],
+  })
+  await screen.findByRole('region', { name: 'Consumabili' })
+  await waitFor(() => expect(selects(db, 'quote_consumables')).toBeGreaterThan(0))
+  const before = selects(db, 'quote_consumables')
+  await user.click(screen.getByRole('button', { name: 'Segna come inviato' }))
+  const dialog = await screen.findByRole('alertdialog')
+  expect(
+    await within(dialog).findByText('Alcuni consumabili superano la quantità disponibile.'),
+  ).toBeInTheDocument()
+  await waitFor(() => expect(selects(db, 'quote_consumables')).toBeGreaterThan(before))
 })
