@@ -27,6 +27,35 @@ test('shows an empty state', async () => {
   expect(await screen.findByText('Nessuna stampante.')).toBeInTheDocument()
 })
 
+test('filters the list by printer type', async () => {
+  const { user } = renderApp('/printers', {
+    session,
+    tables: { printers: [mk4(), printerRow({ id: 2, name: 'Form 4', type: 'SLA' })] },
+  })
+  await screen.findByRole('row', { name: /Form 4/ })
+  const filter = screen.getByRole('combobox', { name: 'Filtra per tipo' })
+  expect(filter).toHaveValue('')
+
+  await user.selectOptions(filter, 'SLA')
+  expect(screen.getByRole('row', { name: /Form 4/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /MK4 #1/ })).not.toBeInTheDocument()
+
+  await user.selectOptions(filter, 'FDM')
+  expect(screen.getByRole('row', { name: /MK4 #1/ })).toBeInTheDocument()
+  expect(screen.queryByRole('row', { name: /Form 4/ })).not.toBeInTheDocument()
+
+  await user.selectOptions(filter, 'Tutti i tipi')
+  expect(screen.getByRole('row', { name: /MK4 #1/ })).toBeInTheDocument()
+  expect(screen.getByRole('row', { name: /Form 4/ })).toBeInTheDocument()
+})
+
+test('says when no printer has the chosen type', async () => {
+  const { user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
+  await screen.findByRole('row', { name: /MK4 #1/ })
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Filtra per tipo' }), 'SLA')
+  expect(screen.getByText('Nessuna stampante di questo tipo.')).toBeInTheDocument()
+})
+
 test('a failed load shows the error and Retry reloads', async () => {
   const { db, user } = renderApp('/printers', { session, tables: { printers: [mk4()] } })
   db.failNext('printers', NETWORK_FAILURE)

@@ -144,6 +144,9 @@
   },
   "printers": {
     "empty": "Nessuna stampante.",
+    "typeFilter": "Filtra per tipo",
+    "allTypes": "Tutti i tipi",
+    "noMatches": "Nessuna stampante di questo tipo.",
     "new": "Nuova stampante",
     "edit": "Modifica stampante",
     "fields": {

@@ -144,6 +144,9 @@
   },
   "printers": {
     "empty": "No printers yet.",
+    "typeFilter": "Filter by type",
+    "allTypes": "All types",
+    "noMatches": "No printers of this type.",
     "new": "New printer",
     "edit": "Edit printer",
     "fields": {
