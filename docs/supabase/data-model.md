@@ -12,6 +12,8 @@ erDiagram
     printers ||--o{ quote_items : "prints"
     materials ||--o{ quote_items : "uses"
     quote_items ||--o{ slicing_jobs : "sliced by"
+    quotes ||--o{ quote_consumables : "has"
+    consumables ||--o{ quote_consumables : "used by"
     staff ||--o{ quotes : "creates"
     settings {
         smallint id PK
@@ -28,6 +30,14 @@ erDiagram
     }
     materials {
         bigint id PK
+    }
+    consumables {
+        bigint id PK
+    }
+    quote_consumables {
+        bigint id PK
+        bigint quote_id FK
+        bigint consumable_id FK
     }
     quotes {
         bigint id PK
@@ -114,6 +124,21 @@ The `staff_guard` trigger (every role):
 | `density_g_cm3` | `numeric(4,2)` not null | Used to convert filament length to weight |
 | `cost_per_kg` | `numeric(12,2)` not null | |
 | `active` | `boolean` not null default `true` | |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+### `consumables`
+
+Bought-in goods used in an assembly (bolts, screws, inserts…), with a stock counter. Added by the `consumables` and
+`consumables_setup` migrations; declared in `supabase/schemas/06_consumables.sql`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint` identity PK | |
+| `name` | `text` not null unique | Not blank |
+| `unit` | `text` not null default `'pcs'` | Not blank. Shown next to the stock (the web app pre-fills `pz`) |
+| `unit_price` | `numeric(12,2)` not null | Check: `>= 0`. Sale price per unit; no markup is added |
+| `stock` | `integer` not null default `0` | Check: `>= 0`. Units available; sending a quote deducts from it |
+| `active` | `boolean` not null default `true` | Inactive consumables can't be added to quotes |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 ### `settings`
@@ -212,6 +237,32 @@ Triggers (every role, the service role included):
 - `quote_items_reprice_on_quantity`: a quantity change clears the price breakdown (`material_cost` … `markup_pct`,
   `computed_total`, `priced_at`); the override stays.
 
+### `quote_consumables`
+
+The consumable lines of a quote. A quote may have none.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint` identity PK | |
+| `quote_id` | `bigint` not null FK → `quotes`, `on delete cascade` | Unique together with `consumable_id` |
+| `consumable_id` | `bigint` not null FK → `consumables`, `on delete restrict` | Indexed. A consumable used by a quote can't be deleted, only deactivated |
+| `quantity` | `integer` not null | Check: `> 0` |
+| `unit_price` | `numeric(12,2)` not null | Check: `>= 0`. Copied from the consumable when the line is added; never follows later price changes |
+| `line_total` | `numeric(12,2)` generated always as `quantity * unit_price` stored | |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Triggers:
+- `quote_consumables_guard` (every role, the service role included): an insert, update or delete raises
+  `quote_not_draft` unless the parent quote is `draft` (the cascade from deleting a draft quote is allowed), and
+  moving a line to another quote raises `quote_item_move_not_allowed`. It takes `FOR SHARE` on the quote, so it waits
+  for a concurrent send.
+- `quotes_return_stock` (on `quotes`, after `status` changes): when a quote goes from `sent` to `rejected` or
+  `expired`, every line's quantity is added back to the consumable's stock. This covers `mark_quote_rejected` and the
+  daily `expire-quotes` job. An `accepted` quote keeps the stock deducted.
+
+Both are `security definer` functions in `private`; the `consumables_setup` migration revokes `execute` on them from
+`public`, `anon` and `authenticated`, since trigger functions in `private` get no default revoke.
+
 ### `slicing_jobs`
 
 One row per slicing request for an item. The queue message carries `job_id`; this table is the durable record of
@@ -250,7 +301,7 @@ therefore needs `alter view public.quotes_list set (security_invoker = true);` a
 | `created_by_name` | `staff.display_name` of the creator |
 | `created_on` | `created_at` as a date in `Europe/Rome`, for the date filter |
 | `item_count` | Number of items |
-| `total` | Sum of `item_total`; null when there are no items or any item is unpriced |
+| `total` | Sum of `item_total` plus the quote's consumable lines (`line_total`); null when there are no items or any item is unpriced |
 
 ## Realtime
 
@@ -320,6 +371,8 @@ public table plus these writes; `service_role` gets `all`.
 | `settings` | — | every column except `id` | — |
 | `quotes` | `client_id`, `valid_until`, `notes` | `client_id`, `valid_until`, `notes` | ✓ |
 | `quote_items` | — (created by function) | `description`, `quantity` | ✓ |
+| `consumables` | ✓ | ✓ | ✓ |
+| `quote_consumables` | — (created by function) | `quantity` | ✓ |
 | `slicing_jobs` | — | — | — |
 | `quotes_list` (view) | — | — | — |
 
@@ -337,6 +390,8 @@ Every policy is `to authenticated`. UPDATE policies have both `using` and `with 
 | `clients` | staff | staff | staff | owner |
 | `quotes` | staff | staff | staff, while `status = 'draft'` | owner, while `status = 'draft'` |
 | `quote_items` | staff | — | staff, parent quote draft | staff, parent quote draft |
+| `consumables` | staff | owner | owner | owner |
+| `quote_consumables` | staff | — | staff, parent quote draft | staff, parent quote draft |
 | `slicing_jobs` | staff | — | — | — |
 
 ### Functions
@@ -361,7 +416,8 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 | `set_price_override(item_id bigint, total numeric, reason text) → void` | owner | Draft only. `total >= 0`, reason not blank. |
 | `clear_price_override(item_id bigint) → void` | owner | Draft only |
 | `get_quote_send_blockers(quote_id bigint) → table(quote_item_id bigint, code text)` | staff | Empty means the quote can be sent |
-| `mark_quote_sent(quote_id bigint) → void` | staff | Raises `quote_not_sendable` if there are blockers; otherwise sets `sent` and `sent_at = now()` and freezes the VAT rate |
+| `add_quote_consumable(quote_id bigint, consumable_id bigint, quantity integer) → bigint` | staff | Draft only. The consumable must be active (`consumable_inactive`). Inserts a line at the consumable's current price, or adds `quantity` to the existing line of that consumable (the line keeps its original price). Returns the line id. Lines are edited (`quantity`) and deleted directly through the table. |
+| `mark_quote_sent(quote_id bigint) → void` | staff | Locks the quote's consumables (`FOR UPDATE`, in id order, so two sends can't spend the same stock), then raises `quote_not_sendable` if there are blockers; otherwise deducts each line's quantity from the stock, sets `sent` and `sent_at = now()` and freezes the VAT rate |
 | `mark_quote_accepted(quote_id bigint)`, `mark_quote_rejected(quote_id bigint) → void` | staff | `sent` quotes only |
 
 **Send blockers:**
@@ -374,6 +430,7 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 | `missing_printer_or_material` | Item has no printer or no material |
 | `not_sliced` | Item's newest job is not `succeeded`, or the item has no results |
 | `not_priced` | `item_total` is null |
+| `insufficient_stock` | A consumable line asks for more than the consumable's stock (no item id) |
 
 **Worker functions** (`service_role` only; each changes the job, the item and the queue message in one transaction).
 `worker_complete_job` and `worker_fail_job` raise `job_message_mismatch` when `msg_id` is still queued but carries a
@@ -390,7 +447,7 @@ different `job_id`:
 | Function | Does |
 |---|---|
 | `service_create_quote_copy(source_id bigint, created_by uuid) → bigint` | Inserts a draft with the source's client, notes and markup override; the trigger assigns the number and default validity. Raises `quote_not_found`. |
-| `service_copy_quote_items(source_id bigint, new_id bigint, files jsonb) → void` | `files` is `[{item_id, model_path}]`, one per source item, each path under `<new_id>/` and already in `models`. Copies settings, results and price overrides (not the breakdown); a sliced item gets a `succeeded` job, an unsliced one with printer and material is queued. Raises `quote_not_draft`, `invalid_copy`, `invalid_model_path`, `model_not_found`. |
+| `service_copy_quote_items(source_id bigint, new_id bigint, files jsonb) → void` | `files` is `[{item_id, model_path}]`, one per source item, each path under `<new_id>/` and already in `models`. Copies the active consumable lines of the source at today's price and the same quantity (inactive ones are skipped). Copies settings, results and price overrides (not the breakdown); a sliced item gets a `succeeded` job, an unsliced one with printer and material is queued. Raises `quote_not_draft`, `invalid_copy`, `invalid_model_path`, `model_not_found`. |
 
 Item prices are written by the [`price-quote` Edge Function](edge-functions.md) with the service role.
 
@@ -404,7 +461,7 @@ breaking change.
 | `42501` | `not_staff`, `owner_required` |
 | `P0001` | `last_owner`, `quote_not_draft`, `quote_not_sent`, `quote_not_sendable`, `retry_not_allowed`, `quote_item_move_not_allowed` |
 | `P0002` | `quote_not_found`, `item_not_found`, `model_not_found` |
-| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch`, `invalid_copy` |
+| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `consumable_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch`, `invalid_copy` |
 
 ## Open questions
 

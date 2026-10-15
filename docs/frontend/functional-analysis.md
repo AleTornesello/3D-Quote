@@ -24,7 +24,7 @@ the exported PDF.
 
 | Action | Operator | Owner |
 |---|:-:|:-:|
-| View quotes, clients, printers, materials, settings | ✓ | ✓ |
+| View quotes, clients, printers, materials, consumables, settings | ✓ | ✓ |
 | Create and edit draft quotes, add/edit/remove items | ✓ | ✓ |
 | Retry a failed slice | ✓ | ✓ |
 | Mark a quote as sent / accepted / rejected | ✓ | ✓ |
@@ -32,7 +32,8 @@ the exported PDF.
 | Create and edit clients | ✓ | ✓ |
 | Override an item's final price, override a quote's markup | | ✓ |
 | Delete quotes or clients | | ✓ |
-| Create, edit, deactivate printers and materials | | ✓ |
+| Create, edit, deactivate printers, materials and consumables | | ✓ |
+| Add consumables to a draft quote | ✓ | ✓ |
 | Edit pricing settings and shop details | | ✓ |
 | Invite, remove staff and change roles | | ✓ |
 
@@ -42,12 +43,12 @@ something useful (e.g. operators see the price breakdown read-only). Permissions
 
 ## 2. Navigation and layout
 
-- **Sidebar** with: Quotes (home), Clients, Printers, Materials, Settings (owner sees it editable, operator
+- **Sidebar** with: Quotes (home), Clients, Printers, Materials, Consumables, Settings (owner sees it editable, operator
   read-only), Staff (owner only). At the bottom: the current user's name, language switcher, Account, Log out.
 - **Desktop** (≥ 1024 px): sidebar always visible; lists are tables.
-- **Opening a row to edit:** in the Quotes, Clients, Printers and Materials lists each row has an Edit (pencil)
-  button, and double-clicking the row does the same. For quotes and clients that opens the quote editor or the client
-  page; for printers and materials, the edit sheet (owners only). Names and numbers in the lists are not links, and a
+- **Opening a row to edit:** in the Quotes, Clients, Printers, Materials and Consumables lists each row has an Edit
+  (pencil) button, and double-clicking the row does the same. For quotes and clients that opens the quote editor or
+  the client page; for printers, materials and consumables, the edit sheet (owners only). Names and numbers in the lists are not links, and a
   single click does nothing. Staff has no edit form, so it has neither.
 - **Tablet** (768–1023 px): sidebar collapses to an icon rail / drawer; tables keep their key columns and hide the
   rest; every action reachable by touch.
@@ -153,13 +154,23 @@ Rules when editing a Draft item:
 - **Remove override** returns to the computed price.
 
 **Totals**
-- **Net total** = sum of item totals; **VAT** = net × VAT rate, rounded half-up to the cent; **Total incl. VAT**.
+- **Net total** = sum of item totals plus the consumable lines; **VAT** = net × VAT rate, rounded half-up to the cent; **Total incl. VAT**.
   Shown with currency, formatted for the user's language. A draft uses the shop's VAT rate (Settings); marking the
   quote as sent freezes the rate on the quote.
 - **Recalculate prices** (Draft only): re-prices every item with the current settings and rates. Prices are also
   recalculated automatically whenever an item changes or a slice finishes.
 
 **Empty state:** "Add model files to start" over the drop zone.
+
+**Consumables card** (below the items, above the totals)
+- Lists the quote's consumable lines: name, price each (frozen when the line was added), quantity and line total.
+- In Draft, a selector (active consumables only) and a quantity add a line; adding a consumable that is already on
+  the quote raises the quantity of its line instead. The quantity of a line can be edited in place and a line can be
+  removed. Changing the quantity never changes the price of the line.
+- A line that asks for more than the current stock shows "Only N <unit> available". This is a warning only: the
+  quote can still be saved, but it can't be sent until the quantity fits the stock.
+- After Draft the lines are read-only, and the card is hidden when the quote has none.
+- The consumable lines count in the totals below ([§5.6](#56-consumables)).
 
 ### 3.5 Clients
 
@@ -263,6 +274,25 @@ Owner only.
 - Name and language (Italian / English); the language applies immediately and is remembered for the user.
 - Change password.
 
+### 3.11 Consumables
+
+Goods that go into an assembly but are not printed (bolts, screws, inserts…), with the quantity in stock.
+
+**List:** name, unit price, stock (with its unit), active. Operators see it read-only.
+
+**Consumable form (owner)**
+
+| Field | Rules |
+|---|---|
+| Name | Required, unique. |
+| Unit | Required, up to 20 characters; free text (e.g. "pz"). Pre-filled with "pz" for a new consumable. |
+| Unit price | Required, ≥ 0. The price charged to the client per unit; no markup is applied to it. |
+| Stock | Required, whole number ≥ 0. Owners correct it here by hand; sending and rejecting quotes change it automatically ([§4](#4-quote-lifecycle)). |
+| Active | Inactive consumables can't be added to quotes; lines already on a quote stay. |
+
+A consumable used by any quote can't be deleted, only deactivated; the delete dialog says so. Changing the unit
+price never changes existing quote lines.
+
 ## 4. Quote lifecycle
 
 ```mermaid
@@ -282,11 +312,15 @@ stateDiagram-v2
 | Accepted / Rejected / Expired | Nothing | Duplicate, Export PDF |
 
 - **Mark as sent** requires: at least one item; every item sliced and priced; valid until is
-  today or later. If something is missing, the dialog lists what. On success the sent date is recorded and prices
-  are frozen: later changes to rates, printers or materials never change a sent quote.
+  today or later; enough stock for every consumable line. If something is missing, the dialog lists what (for stock:
+  "Some consumables exceed the available stock"). On success the sent date is recorded and prices are frozen: later
+  changes to rates, printers, materials or consumable prices never change a sent quote.
+- **Stock:** sending a quote deducts each consumable line's quantity from the consumable's stock. If the quote is
+  then **rejected**, or **expires**, the quantities go back. An **accepted** quote keeps them deducted.
 - **Expired** is set automatically once a day for Sent quotes whose valid-until date has passed.
 - **Duplicate** creates a new Draft with a new number, the same client, notes and items (files are reused, not
-  re-uploaded), and prices recalculated with current rates. This is how a sent quote is revised.
+  re-uploaded), and prices recalculated with current rates. Consumable lines are copied too, at today's price,
+  except those of consumables that have been deactivated. This is how a sent quote is revised.
 - Only Draft quotes can be deleted (owner). Sent and later quotes are kept as history.
 
 ## 5. Pricing rules
@@ -354,6 +388,13 @@ Every item stores its price breakdown (each line above, the markup % used, and a
 Draft quotes it is rewritten on every recalculation; once the quote is Sent it is never rewritten, so the stored
 breakdown is the record of what was quoted.
 
+### 5.6 Consumables
+
+A consumable line costs `quantity × unit_price`, where the unit price was copied from the consumable when the line was
+added. No markup, setup fee or minimum price applies to it, and the markup override doesn't touch it. The net total
+of a quote is the item totals plus the consumable lines; VAT is worked out once on that whole net amount, not per
+line.
+
 ## 6. PDF
 
 Exported from the quote detail in any status. The user chooses the PDF language (Italian / English; defaults to
@@ -364,6 +405,8 @@ their UI language).
 2. Title "Quote" / "Preventivo", number, date (sent date, or today for drafts), valid until.
 3. Client block: name, company, email, phone.
 4. Items table: description, material (type and colour), quantity, unit price, item total.
+   When the quote has consumable lines, a second table follows with the same columns: name, unit, quantity, unit
+   price, line total.
 5. Net total, VAT (rate) and total incl. VAT, in the shop currency.
 6. Quote notes.
 7. PDF terms from Settings, in the chosen language.

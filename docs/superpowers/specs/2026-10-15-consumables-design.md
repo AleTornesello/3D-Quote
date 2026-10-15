@@ -1,7 +1,7 @@
 # Consumables — Design
 
 - **Date:** 2026-10-15
-- **Status:** Proposed
+- **Status:** Implemented
 - **Branch:** `develop`
 
 ## Goal
