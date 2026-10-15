@@ -118,6 +118,7 @@ export function DataTable<T>({
           {query.data.map((row) => (
             <TableRow
               key={rowKey(row)}
+              className={onRowDoubleClick && 'cursor-pointer'}
               onDoubleClick={
                 onRowDoubleClick &&
                 ((event) => {
