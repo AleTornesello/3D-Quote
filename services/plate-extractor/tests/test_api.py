@@ -1,0 +1,85 @@
+import pytest
+from fastapi.testclient import TestClient
+
+from plate_extractor.api import app, create_app
+
+client = TestClient(app)
+
+
+def _post(c, data, **params):
+    return c.post(
+        "/plates",
+        files={"file": ("x.gcode.3mf", data, "application/octet-stream")},
+        params=params,
+    )
+
+
+def test_multi_plate_contract(multi_plate_bytes):
+    r = _post(client, multi_plate_bytes)
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"source", "plates", "warnings"}
+    assert set(body["source"]) == {"slicer", "slicer_version", "printer_model"}
+    assert isinstance(body["warnings"], list)
+    assert len(body["plates"]) == 4
+    p = body["plates"][0]
+    assert set(p) == {
+        "index", "description", "print_time_s", "quantity",
+        "support_used", "materials", "thumbnail",
+    }
+    assert set(p["materials"][0]) == {"type", "color", "profile", "grams"}
+    assert p["thumbnail"].startswith("data:image/png;base64,")
+
+
+def test_single_plate_has_one_plate(single_plate_bytes):
+    r = _post(client, single_plate_bytes)
+    assert r.status_code == 200
+    assert len(r.json()["plates"]) == 1
+
+
+def test_thumbnails_off(multi_plate_bytes):
+    r = _post(client, multi_plate_bytes, include_thumbnails="false")
+    assert r.status_code == 200
+    assert all(p["thumbnail"] is None for p in r.json()["plates"])
+
+
+def test_not_a_3mf():
+    r = _post(client, b"not a zip")
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "not_a_3mf"
+    assert set(r.json()) == {"error"}
+
+
+def test_not_sliced(make_3mf):
+    r = _post(client, make_3mf({"Metadata/other.txt": "x"}))
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "not_sliced"
+
+
+def test_too_large():
+    small = TestClient(create_app(max_upload_mb=1))
+    r = _post(small, b"\0" * (1024 * 1024 + 10))
+    assert r.status_code == 413
+    assert r.json()["error"]["code"] == "file_too_large"
+
+
+def test_at_cap_is_not_rejected_for_size():
+    small = TestClient(create_app(max_upload_mb=1))
+    r = _post(small, b"\0" * (1024 * 1024))
+    assert r.status_code == 400
+
+
+def test_env_cap(monkeypatch):
+    monkeypatch.setenv("MAX_UPLOAD_MB", "1")
+    c = TestClient(create_app())
+    assert _post(c, b"\0" * (1024 * 1024 + 1)).status_code == 413
+
+
+def test_missing_file_field():
+    assert client.post("/plates").status_code == 422
+
+
+def test_healthz():
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
