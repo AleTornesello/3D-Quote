@@ -51,4 +51,6 @@ price invalidation happen in the same transaction as the change.
 ## Open questions
 
 - **Uploads and slicing:** how the coming upload system feeds plates (it was designed around the slicer-worker:
-  PrusaSlicer or OrcaSlicer, worker hosting, its HTTP surface).
+  PrusaSlicer or OrcaSlicer, worker hosting, its HTTP surface). A separate, implemented route is the
+  [plate-extractor](../services/plate-extractor.md), which reads figures from an already sliced `.gcode.3mf`;
+  its hosting and the web upload UI are still open.

@@ -4,7 +4,9 @@
 - **Status:** Paused — the package is a skeleton and nothing uses it. Its database side (the `slicing_jobs` queue
   and table, `enqueue_slicing_job`, the `worker_*` functions) was dropped on 2026-10-16 together with `quote_items`
   (migration `quote_plates_cutover`), when quote plates with hand-typed figures replaced quote items. The rest of
-  this page describes that former design, kept for the coming upload system.
+  this page describes that former design, kept for the coming upload system. It stays paused and is unrelated to
+  the [plate-extractor](plate-extractor.md), which only reads figures from already sliced `.gcode.3mf` files and
+  runs no slicer.
 
 ## Responsibility
 

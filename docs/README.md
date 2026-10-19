@@ -12,6 +12,7 @@ rates. Data, files, authentication and the API live on Supabase; slicing runs in
 | [Architecture overview](architecture/overview.md) | Components, data flow, job lifecycle, security |
 | [Architecture decisions](architecture/adr/) | ADRs: [0001 monorepo and stack](architecture/adr/0001-monorepo-and-stack.md), [0002 frontend stack](architecture/adr/0002-frontend-stack.md), [0003 database schema and security](architecture/adr/0003-database-schema-and-security.md), [0004 pricing and duplication](architecture/adr/0004-pricing-and-duplication-in-edge-functions.md) |
 | [slicer-worker](services/slicer-worker.md) | The Python slicing service: job contract, processing loop, configuration |
+| [plate-extractor](services/plate-extractor.md) | The Python service that reads sliced `.gcode.3mf` files: endpoint contract, errors, material mapping |
 | [Data model](supabase/data-model.md) | Postgres schema, Storage layout, queues, access rules |
 | [Edge Functions](supabase/edge-functions.md) | price-quote and duplicate-quote: requests, errors, local testing |
 | [Web app functional analysis](frontend/functional-analysis.md) | Roles, screens, quote lifecycle, pricing rules, PDF, i18n |
