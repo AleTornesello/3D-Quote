@@ -280,10 +280,10 @@ def test_without_model_settings_all_sliced_plates_returned(make_3mf):
     assert result.printer_model is None
 
 
-def test_oversize_gcode_or_thumbnail_is_treated_as_absent(make_3mf, monkeypatch):
+def test_oversize_thumbnail_is_treated_as_absent(make_3mf, monkeypatch):
     from plate_extractor import extract
 
-    monkeypatch.setattr(extract, "_ENTRY_MAX_BYTES", 16)
+    monkeypatch.setattr(extract, "_THUMBNAIL_MAX_BYTES", 16)
     data = make_3mf(
         {
             "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
@@ -295,9 +295,236 @@ def test_oversize_gcode_or_thumbnail_is_treated_as_absent(make_3mf, monkeypatch)
     result = parse_plates(data)
     plate = result.plates[0]
     assert plate.print_time_s == 100
+    assert plate.materials[0].profile == "P1"
+    assert plate.thumbnail is None
+    assert result.printer_model == "Bambu Lab P1S"
+
+
+def test_thumbnail_cap_is_2_mb(make_3mf):
+    def _data(size: int) -> bytes:
+        return make_3mf(
+            {
+                "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+                "Metadata/model_settings.config": _model_settings(_slot(1)),
+                "Metadata/plate_1.png": PNG + b"\0" * (size - len(PNG)),
+            }
+        )
+
+    assert len(parse_plates(_data(2_000_000)).plates[0].thumbnail) == 2_000_000
+    assert parse_plates(_data(2_000_001)).plates[0].thumbnail is None
+
+
+def test_gcode_over_20_mb_keeps_header_fields(make_3mf):
+    gcode = _gcode(profiles='"Big"') + "G1 X0\n" * 3_500_000  # ~21 MB
+    assert len(gcode) > 20_000_000
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1, prediction=None)),
+            "Metadata/plate_1.gcode": gcode,
+        }
+    )
+    result = parse_plates(data)
+    assert result.plates[0].print_time_s == 3600
+    assert result.plates[0].materials[0].profile == "Big"
+    assert result.printer_model == "Bambu Lab P1S"
+
+
+# --- duplicates and caps -----------------------------------------------------
+
+
+def test_duplicate_plate_index_is_used_once_with_warning(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(
+                _slice_plate(1, prediction="100"),
+                _slice_plate(2),
+                _slice_plate(1, prediction="999"),
+                _slice_plate(1, prediction="999"),
+            ),
+        }
+    )
+    result = parse_plates(data)
+    assert [p.index for p in result.plates] == [1, 2]
+    assert result.plates[0].print_time_s == 100
+    assert len(result.warnings) == 1
+    assert "Plate 1" in result.warnings[0]
+    assert "more than once" in result.warnings[0]
+
+
+def test_duplicates_read_each_gcode_and_thumbnail_once(make_3mf, monkeypatch):
+    from plate_extractor import extract
+
+    calls: list[str] = []
+    real_head = extract.read_entry_head
+    real_entry = extract.read_entry
+
+    def _head(zf, name, *args, **kwargs):
+        calls.append(name)
+        return real_head(zf, name, *args, **kwargs)
+
+    def _entry(zf, name, *args, **kwargs):
+        calls.append(name)
+        return real_entry(zf, name, *args, **kwargs)
+
+    monkeypatch.setattr(extract, "read_entry_head", _head)
+    monkeypatch.setattr(extract, "read_entry", _entry)
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(*[_slice_plate(1)] * 500),
+            "Metadata/model_settings.config": _model_settings(_slot(1)),
+            "Metadata/plate_1.gcode": _gcode() + "G1 X0\n" * 200_000,
+            "Metadata/plate_1.png": PNG,
+        }
+    )
+    result = parse_plates(data)
+    assert len(result.plates) == 1
+    assert calls.count("Metadata/plate_1.gcode") == 1
+    assert calls.count("Metadata/plate_1.png") == 1
+
+
+def test_plate_count_is_capped_at_100(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(
+                *[_slice_plate(i) for i in range(1, 106)]
+            ),
+        }
+    )
+    result = parse_plates(data)
+    assert [p.index for p in result.plates] == list(range(1, 101))
+    assert len(result.warnings) == 1
+    assert "5" in result.warnings[0]
+    assert "100" in result.warnings[0]
+
+
+# --- per-request read budget ---------------------------------------------------
+
+
+def test_exhausted_budget_makes_optional_entries_missing(make_3mf, monkeypatch):
+    from plate_extractor import extract
+
+    slice_info = _slice_info(_slice_plate(1))
+    settings = _model_settings(_slot(1))
+    budget = len(slice_info.encode()) + len(settings.encode()) + 10
+    monkeypatch.setattr(extract, "_REQUEST_BUDGET_BYTES", budget)
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": slice_info,
+            "Metadata/model_settings.config": settings,
+            "Metadata/plate_1.gcode": _gcode(),
+            "Metadata/plate_1.png": PNG + b"\0" * 64,
+        }
+    )
+    result = parse_plates(data)
+    plate = result.plates[0]
     assert plate.materials[0].profile is None
     assert plate.thumbnail is None
     assert result.printer_model is None
+
+
+def test_required_entry_beyond_budget_is_not_a_3mf(make_3mf, monkeypatch):
+    from plate_extractor import extract
+
+    monkeypatch.setattr(extract, "_REQUEST_BUDGET_BYTES", 10)
+    data = make_3mf({"Metadata/slice_info.config": _slice_info(_slice_plate(1))})
+    with pytest.raises(NotA3mfError):
+        parse_plates(data)
+
+
+@pytest.mark.parametrize(
+    "name", ["Metadata/slice_info.config", "Metadata/model_settings.config"]
+)
+def test_config_xml_over_4_mb_is_not_a_3mf(make_3mf, name):
+    entries = {
+        "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+        "Metadata/model_settings.config": _model_settings(_slot(1)),
+    }
+    entries[name] = entries[name].replace("</config>", " " * 4_000_000 + "</config>")
+    with pytest.raises(NotA3mfError):
+        parse_plates(make_3mf(entries))
+
+
+def test_budget_default_is_64_mb():
+    from plate_extractor import extract
+
+    assert extract._REQUEST_BUDGET_BYTES == 64_000_000
+
+
+# --- corrupt entries ---------------------------------------------------------
+
+
+def test_corrupt_gcode_and_thumbnail_are_missing(make_3mf, corrupt_entry):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+            "Metadata/model_settings.config": _model_settings(_slot(1)),
+            "Metadata/plate_1.gcode": _gcode() * 50,
+            "Metadata/plate_1.png": PNG + b"\0" * 1000,
+        }
+    )
+    data = corrupt_entry(data, "Metadata/plate_1.gcode")
+    data = corrupt_entry(data, "Metadata/plate_1.png")
+    result = parse_plates(data)
+    plate = result.plates[0]
+    assert plate.materials[0].profile is None
+    assert plate.thumbnail is None
+    assert result.printer_model is None
+
+
+@pytest.mark.parametrize(
+    "name", ["Metadata/slice_info.config", "Metadata/model_settings.config"]
+)
+def test_corrupt_required_entry_is_not_a_3mf(make_3mf, corrupt_entry, name):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1)) * 20,
+            "Metadata/model_settings.config": _model_settings(_slot(1)) * 20,
+        }
+    )
+    with pytest.raises(NotA3mfError):
+        parse_plates(corrupt_entry(data, name))
+
+
+# --- sanity ranges -----------------------------------------------------------
+
+
+def test_print_time_over_30_days_is_skipped(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(
+                _slice_plate(1, prediction="2592000"),
+                _slice_plate(2, prediction="2592001"),
+                _slice_plate(3, prediction=None),
+            ),
+            "Metadata/plate_3.gcode": _gcode(time="31d 0h 0m 0s"),
+        }
+    )
+    result = parse_plates(data)
+    assert [p.index for p in result.plates] == [1]
+    assert len(result.warnings) == 2
+    assert "Plate 2" in result.warnings[0] and "print time" in result.warnings[0]
+    assert "Plate 3" in result.warnings[1] and "print time" in result.warnings[1]
+
+
+def test_filament_over_10_kg_is_skipped(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(
+                _slice_plate(1, filaments=((1, "PLA", "#000000", "10000"),)),
+                _slice_plate(
+                    2,
+                    filaments=(
+                        (1, "PLA", "#000000", "5"),
+                        (2, "PLA", "#FFFFFF", "10000.01"),
+                    ),
+                ),
+            ),
+        }
+    )
+    result = parse_plates(data)
+    assert [p.index for p in result.plates] == [1]
+    assert len(result.warnings) == 1
+    assert "Plate 2" in result.warnings[0] and "g" in result.warnings[0]
 
 
 def test_thumbnail_toggle(single_plate_bytes):
