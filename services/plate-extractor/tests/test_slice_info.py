@@ -78,6 +78,29 @@ def test_slicer_only_when_bbl_client_type_present():
     assert bbl.slicer_version == "02.08.02.61"
 
 
+def test_missing_or_garbled_index_falls_back_to_position():
+    info = parse_slice_info(
+        _xml(
+            '<plate><metadata key="index" value="7"/></plate>'
+            "<plate/>"
+            '<plate><metadata key="index" value="abc"/></plate>'
+        )
+    )
+    assert [p.index for p in info.plates] == [7, 2, 3]
+
+
+def test_filament_without_usable_id_is_dropped():
+    info = parse_slice_info(
+        _xml(
+            '<plate><metadata key="index" value="1"/>'
+            '<filament type="PLA" used_g="1"/>'
+            '<filament id="x" type="PLA" used_g="2"/>'
+            '<filament id="2" type="PETG" used_g="3"/></plate>'
+        )
+    )
+    assert info.plates[0].filaments == (SlicedFilament(2, "PETG", None, 3.0),)
+
+
 def test_support_used_true():
     info = parse_slice_info(
         _xml('<plate><metadata key="support_used" value="true"/></plate>')

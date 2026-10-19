@@ -7,6 +7,7 @@ import os
 from dataclasses import asdict
 
 from fastapi import FastAPI, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from plate_extractor.archive import NotA3mfError
@@ -69,6 +70,15 @@ def create_app(max_upload_mb: int | None = None) -> FastAPI:
     cap = max_upload_mb * 1024 * 1024
 
     app = FastAPI(title="plate-extractor")
+
+    @app.exception_handler(RequestValidationError)
+    def _invalid_request(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # Field locations and messages only; the rejected input is not echoed.
+        details = "; ".join(
+            f"{'.'.join(str(part) for part in err.get('loc', ()))}: {err.get('msg', '')}"
+            for err in exc.errors()
+        )
+        return _error(422, "invalid_request", f"Invalid request: {details}")
 
     @app.exception_handler(NotA3mfError)
     def _not_a_3mf(_: Request, exc: NotA3mfError) -> JSONResponse:

@@ -76,7 +76,26 @@ def test_env_cap(monkeypatch):
 
 
 def test_missing_file_field():
-    assert client.post("/plates").status_code == 422
+    r = client.post("/plates")
+    assert r.status_code == 422
+    assert set(r.json()) == {"error"}
+    assert r.json()["error"]["code"] == "invalid_request"
+    assert r.json()["error"]["message"]
+
+
+def test_invalid_include_thumbnails(single_plate_bytes):
+    r = _post(client, single_plate_bytes, include_thumbnails="maybe")
+    assert r.status_code == 422
+    assert set(r.json()) == {"error"}
+    assert r.json()["error"]["code"] == "invalid_request"
+    assert "include_thumbnails" in r.json()["error"]["message"]
+
+
+def test_corrupt_slice_info_is_400(make_3mf, corrupt_entry):
+    data = make_3mf({"Metadata/slice_info.config": "<config>" + "<plate/>" * 200 + "</config>"})
+    r = _post(client, corrupt_entry(data, "Metadata/slice_info.config"))
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "not_a_3mf"
 
 
 def test_healthz():
