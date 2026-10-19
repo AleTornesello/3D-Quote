@@ -102,3 +102,31 @@ def test_healthz():
     r = client.get("/healthz")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
+
+
+def test_thumbnail_amplification_probe_is_bounded(make_3mf):
+    count = 100
+    png = b"\x89PNG\r\n\x1a\n" + bytes(2_000_000)
+    plates = "".join(
+        f'<plate><metadata key="index" value="{i}"/>'
+        '<metadata key="prediction" value="100"/>'
+        '<filament id="1" type="PLA" color="#FF0000" used_g="10.00"/></plate>'
+        for i in range(1, count + 1)
+    )
+    slots = "".join(
+        f'<plate><metadata key="plater_id" value="{i}"/>'
+        f'<metadata key="gcode_file" value="Metadata/plate_{i}.gcode"/>'
+        '<metadata key="thumbnail_file" value="Metadata/plate_1.png"/></plate>'
+        for i in range(1, count + 1)
+    )
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": f"<config>{plates}</config>",
+            "Metadata/model_settings.config": f"<config>{slots}</config>",
+            "Metadata/plate_1.png": png,
+        }
+    )
+    r = _post(client, data)
+    assert r.status_code == 200
+    assert len(r.content) < 12 * 1024 * 1024
+    assert all(p["thumbnail"] is None for p in r.json()["plates"])

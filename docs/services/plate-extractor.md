@@ -105,7 +105,10 @@ The upload is untrusted. The service reads only the named `Metadata/` entries (`
   line by line up to `; CONFIG_BLOCK_END` (about 34 KB into the samples) and never past those 512 KiB; lines
   after it are ignored. A corrupt gcode entry is treated as missing: `profile` becomes `null` and the print time
   comes from `slice_info.config` only.
-- **Thumbnails:** a `plate_N.png` over **2 MB**, corrupt or not a PNG is treated as missing (`thumbnail: null`).
+- **Thumbnails:** a `plate_N.png` over **512 KiB**, corrupt or not a PNG is treated as missing (`thumbnail: null`).
+  Real thumbnails are about 7 KB. All thumbnails of one response together are limited to **8 MiB** (each plate
+  counts its own, even when several plates name the same entry): from the first plate that would exceed it, every
+  remaining plate gets `thumbnail: null` and one warning (`Thumbnails from plate N on omitted: …`) is added.
 - **Per-request budget:** all reads of one request may decompress at most **64 MB** in total. A gcode or
   thumbnail read that would exceed it is treated as missing; a config XML read that would exceed it is
   `400 not_a_3mf`.

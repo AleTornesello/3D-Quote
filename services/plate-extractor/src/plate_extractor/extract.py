@@ -23,7 +23,10 @@ _DESCRIPTION_MAX = 120
 # slice_info.config and model_settings.config are a few KB (about 1.7 KB per
 # plate); the cap bounds the XML tree built from an untrusted upload.
 _CONFIG_MAX_BYTES = 4_000_000
-_THUMBNAIL_MAX_BYTES = 2_000_000
+# Real plate thumbnails are about 7 KB. Each is base64-encoded into the response
+# (and may be referenced by many plates), so thumbnails get their own limits.
+_THUMBNAIL_MAX_BYTES = 512 * 1024
+_THUMBNAIL_TOTAL_BYTES = 8 * 1024 * 1024
 _GCODE_HEAD_BYTES = 512 * 1024
 # Total decompressed bytes one request may read across all entries.
 _REQUEST_BUDGET_BYTES = 64_000_000
@@ -184,6 +187,8 @@ def parse_plates(data: bytes, *, include_thumbnails: bool = True) -> ExtractResu
     plates: list[Plate] = []
     warnings: list[str] = []
     printer_model: str | None = None
+    thumbnail_left = _THUMBNAIL_TOTAL_BYTES
+    thumbnails_exhausted = False
 
     for sliced in _unique_plates(info.plates, warnings):
         slot = slot_by_index.get(sliced.index)
@@ -210,8 +215,19 @@ def parse_plates(data: bytes, *, include_thumbnails: bool = True) -> ExtractResu
             continue
 
         thumbnail = None
-        if include_thumbnails and slot is not None:
+        if include_thumbnails and slot is not None and not thumbnails_exhausted:
             thumbnail = _read_thumbnail(zf, slot.thumbnail_path, budget)
+            if thumbnail is not None:
+                if len(thumbnail) > thumbnail_left:
+                    thumbnail = None
+                    thumbnails_exhausted = True
+                    warnings.append(
+                        f"Thumbnails from plate {sliced.index} on omitted: total "
+                        f"thumbnail size limit of "
+                        f"{_THUMBNAIL_TOTAL_BYTES // (1024 * 1024)} MiB reached"
+                    )
+                else:
+                    thumbnail_left -= len(thumbnail)
 
         plates.append(
             Plate(

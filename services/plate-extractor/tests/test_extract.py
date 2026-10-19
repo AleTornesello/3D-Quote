@@ -300,7 +300,7 @@ def test_oversize_thumbnail_is_treated_as_absent(make_3mf, monkeypatch):
     assert result.printer_model == "Bambu Lab P1S"
 
 
-def test_thumbnail_cap_is_2_mb(make_3mf):
+def test_thumbnail_cap_is_512_kib(make_3mf):
     def _data(size: int) -> bytes:
         return make_3mf(
             {
@@ -310,8 +310,41 @@ def test_thumbnail_cap_is_2_mb(make_3mf):
             }
         )
 
-    assert len(parse_plates(_data(2_000_000)).plates[0].thumbnail) == 2_000_000
-    assert parse_plates(_data(2_000_001)).plates[0].thumbnail is None
+    cap = 512 * 1024
+    assert len(parse_plates(_data(cap)).plates[0].thumbnail) == cap
+    assert parse_plates(_data(cap + 1)).plates[0].thumbnail is None
+
+
+def _many_plates(make_3mf, count: int, thumb_size: int) -> bytes:
+    entries = {
+        "Metadata/slice_info.config": _slice_info(
+            *(_slice_plate(i) for i in range(1, count + 1))
+        ),
+        "Metadata/model_settings.config": _model_settings(
+            *(_slot(i, thumb_path="Metadata/plate_1.png") for i in range(1, count + 1))
+        ),
+        "Metadata/plate_1.png": PNG + b"\0" * (thumb_size - len(PNG)),
+    }
+    return make_3mf(entries)
+
+
+def test_total_thumbnail_budget_is_8_mib_with_one_warning(make_3mf):
+    # 100 plates all pointing at one 500 KiB thumbnail: only 16 fit in 8 MiB.
+    data = _many_plates(make_3mf, 100, 500 * 1024)
+    result = parse_plates(data)
+    with_thumb = [p for p in result.plates if p.thumbnail is not None]
+    assert len(result.plates) == 100
+    assert len(with_thumb) == (8 * 1024 * 1024) // (500 * 1024)
+    assert sum(len(p.thumbnail) for p in with_thumb) <= 8 * 1024 * 1024
+    assert [p.index for p in with_thumb] == list(range(1, len(with_thumb) + 1))
+    thumb_warnings = [w for w in result.warnings if "thumbnail" in w.lower()]
+    assert len(thumb_warnings) == 1
+
+
+def test_small_thumbnails_for_100_plates_all_returned(make_3mf):
+    result = parse_plates(_many_plates(make_3mf, 100, 7_000))
+    assert all(p.thumbnail is not None for p in result.plates)
+    assert not any("thumbnail" in w.lower() for w in result.warnings)
 
 
 def test_gcode_over_20_mb_keeps_header_fields(make_3mf):
