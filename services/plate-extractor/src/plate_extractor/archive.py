@@ -22,6 +22,7 @@ _READ_ERRORS = (
     zipfile.BadZipFile,
     OSError,
     NotImplementedError,
+    ValueError,
     RuntimeError,
     EOFError,
     zlib.error,
@@ -67,7 +68,14 @@ def open_archive(data: bytes) -> zipfile.ZipFile:
     _check_end_record(data)
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
-    except (zipfile.BadZipFile, OSError, ValueError, EOFError, struct.error) as exc:
+    except (
+        zipfile.BadZipFile,
+        OSError,
+        ValueError,
+        NotImplementedError,
+        EOFError,
+        struct.error,
+    ) as exc:
         raise NotA3mfError("not a zip archive") from exc
     if len(zf.filelist) > _MAX_ENTRIES:
         raise NotA3mfError("too many zip entries")

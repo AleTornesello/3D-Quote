@@ -222,3 +222,16 @@ def test_entry_lying_about_size_still_charges_budget(make_3mf):
     with pytest.raises(NotA3mfError):
         read_entry(zf, "Metadata/a", budget=budget)
     assert budget.remaining < 100
+
+
+def test_value_error_on_read_is_not_a_3mf(make_3mf, monkeypatch):
+    zf = open_archive(make_3mf({"a.txt": b"hello"}))
+
+    def _boom(*_a, **_k):
+        raise ValueError("negative seek value -1")
+
+    monkeypatch.setattr(zf, "open", _boom)
+    with pytest.raises(NotA3mfError):
+        read_entry(zf, "a.txt")
+    with pytest.raises(NotA3mfError):
+        read_entry_head(zf, "a.txt")

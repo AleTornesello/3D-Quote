@@ -130,3 +130,43 @@ def test_thumbnail_amplification_probe_is_bounded(make_3mf):
     assert r.status_code == 200
     assert len(r.content) < 12 * 1024 * 1024
     assert all(p["thumbnail"] is None for p in r.json()["plates"])
+
+
+def _central_entries(data: bytes) -> list[int]:
+    sig = b"PK"
+    out, pos = [], data.find(sig)
+    while pos != -1:
+        out.append(pos)
+        pos = data.find(sig, pos + 4)
+    return out
+
+
+def test_corrupt_version_field_is_400_not_500(single_plate_bytes):
+    raw = bytearray(single_plate_bytes)
+    for pos in _central_entries(bytes(raw)):
+        raw[pos + 6 : pos + 8] = (99).to_bytes(2, "little")  # version needed
+    r = TestClient(app, raise_server_exceptions=False).post(
+        "/plates",
+        files={"file": ("x.gcode.3mf", bytes(raw), "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "not_a_3mf"
+
+
+@pytest.mark.parametrize("where", ["end_record", "central_entry"])
+def test_bad_offsets_are_400_not_500(single_plate_bytes, where):
+    raw = bytearray(single_plate_bytes)
+    if where == "end_record":
+        eocd = raw.rfind(b"PK")
+        # central directory offset beyond the file
+        raw[eocd + 16 : eocd + 20] = (0xFFFFFFF0).to_bytes(4, "little")
+    else:
+        for pos in _central_entries(bytes(raw)):
+            # local header offset beyond the file
+            raw[pos + 42 : pos + 46] = (0xFFFFFFF0).to_bytes(4, "little")
+    r = TestClient(app, raise_server_exceptions=False).post(
+        "/plates",
+        files={"file": ("x.gcode.3mf", bytes(raw), "application/octet-stream")},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "not_a_3mf"
