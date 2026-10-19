@@ -63,20 +63,19 @@
     "forbidden": "Non hai i permessi per questa operazione.",
     "lastOwner": "Deve esserci almeno un titolare.",
     "notFound": "L'elemento non esiste più o non puoi modificarlo.",
+    "plateNotFound": "Questo piatto non esiste più.",
     "notDraft": "Il preventivo non è più una bozza e non si può modificare.",
     "notSendable": "Il preventivo non può ancora essere inviato.",
     "sessionExpired": "La sessione è scaduta. Accedi di nuovo.",
     "quoteNotSent": "Solo un preventivo inviato può essere accettato o rifiutato.",
-    "retryNotAllowed": "Lo slicing di questo articolo non può essere riprovato ora.",
-    "modelNotFound": "Il file del modello non è stato trovato.",
     "printerInactive": "La stampante scelta è disattivata.",
     "materialInactive": "Il materiale scelto è disattivato.",
     "consumableInactive": "Questo consumabile non è attivo.",
     "invalidOverride": "Inserisci un prezzo valido e un motivo.",
     "invalidMarkup": "Il ricarico non può essere negativo.",
+    "invalidGrams": "Inserisci un peso in grammi maggiore di zero.",
+    "invalidDescription": "Inserisci una descrizione.",
     "duplicateFailed": "Non è stato possibile copiare il preventivo. Non è stato creato nulla.",
-    "uploadNotAllowed": "Non si possono più caricare file su questo preventivo.",
-    "fileTooLarge": "Il file supera i 100 MB.",
     "network": "Impossibile contattare il server. Controlla la connessione e riprova.",
     "unknown": "Qualcosa è andato storto. Riprova."
   },
@@ -98,9 +97,10 @@
     "passwordLength": "Almeno 6 caratteri.",
     "passwordMismatch": "Le password non coincidono.",
     "validUntilPast": "Deve essere oggi o una data futura.",
-    "layerHeight": "Tra 0,01 e 9,99 mm.",
     "quantity": "Almeno 1.",
-    "markupRange": "Tra 0 e 9999,99."
+    "markupRange": "Tra 0 e 9999,99.",
+    "duration": "Inserisci il tempo come ore:minuti, ad es. 2:30.",
+    "grams": "Inserisci un peso in grammi maggiore di zero."
   },
   "common": {
     "add": "Aggiungi",
@@ -309,8 +309,7 @@
       "markRejected": "Segna come rifiutato",
       "duplicate": "Duplica",
       "duplicated": "Copia creata.",
-      "waitSlicing": "Attendi la fine dello slicing.",
-      "items": "Articoli",
+      "plates": "Piatti",
       "consumables": "Consumabili",
       "consumable": {
         "add": "Aggiungi consumabile",
@@ -332,11 +331,10 @@
       "blockers": {
         "insufficient_stock": "Alcuni consumabili superano la quantità disponibile.",
         "not_draft": "Il preventivo non è più una bozza.",
-        "no_items": "Il preventivo non ha articoli.",
         "valid_until_past": "La data di validità è passata.",
-        "missing_printer_or_material": "{{item}}: scegli stampante e materiale.",
-        "not_sliced": "{{item}}: lo slicing non è completato.",
-        "not_priced": "{{item}}: il prezzo non è calcolato."
+        "no_plates": "Il preventivo non ha piatti.",
+        "plate_incomplete": "{{plate}}: scegli stampante, tempo di stampa e materiale.",
+        "not_priced": "{{plate}}: il prezzo non è calcolato."
       },
       "acceptTitle": "Segnare {{number}} come accettato?",
       "rejectTitle": "Segnare {{number}} come rifiutato?",
@@ -346,12 +344,13 @@
       "netTotal": "Imponibile",
       "vat": "IVA ({{rate}} %)",
       "totalInclVat": "Totale IVA inclusa",
-      "recalculate": "Ricalcola prezzi"
+      "recalculate": "Ricalcola prezzi",
+      "completePlates": "Completa tutti i piatti per vedere il totale."
     },
     "pdf": {
       "export": "Esporta PDF",
-      "needsItems": "Aggiungi almeno un articolo prima di esportare.",
-      "needsPrices": "Ogni articolo deve avere un prezzo prima dell'esportazione.",
+      "needsPlates": "Aggiungi almeno un piatto prima di esportare.",
+      "needsComplete": "Ogni piatto deve avere stampante, tempo di stampa, materiale e prezzo prima dell'esportazione.",
       "loadingConsumables": "Caricamento consumabili…",
       "title": "Esporta {{number}}",
       "language": "Lingua del PDF",
@@ -363,39 +362,37 @@
       "error": "Impossibile creare il PDF. Riprova.",
       "logoWarning": "Impossibile caricare il logo: il PDF è stato creato senza."
     },
-    "item": {
-      "description": "Descrizione",
-      "download": "Scarica {{name}}",
-      "downloadShort": "Scarica",
+    "plate": {
+      "defaultName": "Piatto {{number}}",
+      "empty": "Aggiungi un piatto per iniziare.",
+      "add": "Aggiungi piatto",
       "remove": "Rimuovi",
       "removeTitle": "Rimuovere {{name}}?",
-      "removeBody": "L'articolo e il suo file verranno eliminati.",
+      "removeBody": "Il piatto e i suoi materiali verranno eliminati.",
+      "description": "Descrizione",
       "printer": "Stampante",
-      "material": "Materiale",
+      "printTime": "Tempo di stampa (h:mm)",
+      "quantity": "Copie",
       "choose": "Scegli…",
-      "inactivePrinter": "{{name}} (disattivata)",
-      "inactiveMaterial": "{{name}} (disattivato)",
-      "quantity": "Quantità",
-      "layerHeight": "Altezza layer (mm)",
-      "infill": "Riempimento (%)",
-      "supports": "Supporti",
-      "slicing": {
-        "waiting": "Scegli stampante e materiale",
-        "queued": "In attesa dello slicing",
-        "slow": "Lo slicing sta richiedendo più del solito",
-        "slicing": "Slicing in corso… {{elapsed}}",
-        "failed": "Slicing non riuscito",
-        "retry": "Riprova lo slicing"
-      },
-      "results": {
-        "printTime": "Tempo di stampa per copia",
-        "filament": "Filamento per copia",
-        "grams": "{{value}} g",
-        "bbox": "Ingombro",
-        "bboxValue": "{{x}} × {{y}} × {{z}} mm"
+      "inactive": "{{name}} (disattivata)",
+      "materials": "Materiali",
+      "noMaterials": "Nessun materiale.",
+      "material": "Materiale",
+      "addMaterial": "Aggiungi materiale",
+      "grams": "Grammi",
+      "gramsOf": "Grammi di {{name}}",
+      "gramsValue": "{{value}} g",
+      "addRow": "Aggiungi",
+      "chooseMaterial": "Scegli un materiale.",
+      "removeMaterial": "Rimuovi {{name}}",
+      "incomplete": "Mancano: {{missing}}.",
+      "missing": {
+        "printer": "la stampante",
+        "printTime": "il tempo di stampa",
+        "materials": "almeno un materiale"
       },
       "price": {
-        "total": "Totale articolo",
+        "total": "Totale piatto",
         "unit": "Prezzo unitario",
         "calculating": "Calcolo del prezzo…",
         "notCalculated": "Prezzo non calcolato",
@@ -415,28 +412,9 @@
       "overrideDialog": {
         "title": "Modifica il prezzo di {{name}}",
         "body": "Il prezzo calcolato resta visibile accanto a quello modificato.",
-        "total": "Totale articolo",
+        "total": "Totale piatto",
         "reason": "Motivo"
       }
-    },
-    "upload": {
-      "drop": "Trascina qui i file STL o 3MF",
-      "hint": "STL o 3MF, massimo 100 MB ciascuno.",
-      "choose": "Scegli file",
-      "empty": "Aggiungi i file dei modelli per iniziare.",
-      "rejected": {
-        "extension": "{{name}}: sono accettati solo file STL e 3MF.",
-        "empty": "{{name}}: il file è vuoto.",
-        "tooLarge": "{{name}}: supera i 100 MB."
-      },
-      "dismiss": "Ignora {{name}}",
-      "cancel": "Annulla {{name}}",
-      "retry": "Riprova {{name}}",
-      "progress": "Caricamento di {{name}}",
-      "waiting": "In attesa",
-      "creating": "Creazione dell'articolo…",
-      "leaveTitle": "Caricamenti in corso",
-      "leaveBody": "I caricamenti in corso verranno annullati."
     }
   },
   "settings": {

@@ -203,7 +203,7 @@ export function quotePlateRow(
   return {
     id,
     quote_id: 7,
-    description: 'Plate 1',
+    description: 'Piatto 1',
     printer_id: null,
     print_time_s: null,
     quantity: 1,

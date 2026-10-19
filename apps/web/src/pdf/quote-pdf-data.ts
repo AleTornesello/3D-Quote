@@ -1,11 +1,11 @@
 import type { TFunction } from 'i18next'
 import type { Material } from '@/data/materials'
 import type { QuoteConsumable } from '@/data/quote-consumables'
-import type { QuoteItem } from '@/data/quote-items'
+import type { QuotePlate } from '@/data/quote-plates'
 import { quoteTotals, vatRateFor } from '@/data/quote-rules'
 import type { Quote } from '@/data/quotes'
 import type { Settings } from '@/data/settings'
-import { formatCurrency, formatDate, formatNumber, localeFor } from '@/lib/format'
+import { formatCurrency, formatDate, formatNumber, localeFor, type Locale } from '@/lib/format'
 
 export type PdfLanguage = 'it' | 'en'
 
@@ -38,7 +38,7 @@ export type QuotePdfData = {
 
 export type QuotePdfInput = {
   quote: Quote
-  items: QuoteItem[]
+  plates: QuotePlate[]
   consumables: QuoteConsumable[]
   materials: Pick<Material, 'id' | 'name' | 'type' | 'color'>[]
   settings: Settings
@@ -61,9 +61,24 @@ function materialLabel(materials: QuotePdfInput['materials'], materialId: number
   return present(material.color) ? `${base} · ${material.color.trim()}` : base
 }
 
+/** "PLA · Black 12 g, PETG 5 g": each material of the plate with its grams per copy. */
+function materialsSummary(
+  materials: QuotePdfInput['materials'],
+  rows: QuotePlate['materials'],
+  locale: Locale,
+): string {
+  return rows
+    .map((row) => {
+      const label = materialLabel(materials, row.material_id)
+      return label ? `${label} ${formatNumber(row.grams, locale)} g` : ''
+    })
+    .filter(Boolean)
+    .join(', ')
+}
+
 export function toQuotePdfData({
   quote,
-  items,
+  plates,
   consumables,
   materials,
   settings,
@@ -77,7 +92,7 @@ export function toQuotePdfData({
   const rate = vatRateFor(quote, settings) ?? settings.vat_rate_pct
   // An old schema without the vat_rate_pct columns leaves the rate undefined: never print NaN.
   if (!Number.isFinite(rate)) throw new Error('vat_rate_missing')
-  const totals = quoteTotals(items, rate, consumables)
+  const totals = quoteTotals(plates, rate, consumables)
   if (totals === null) throw new Error('quote_not_priced')
 
   const shopLines = [
@@ -122,12 +137,12 @@ export function toQuotePdfData({
       unitPrice: t('pdf.columns.unitPrice'),
       total: t('pdf.columns.total'),
     },
-    rows: items.map((item) => ({
-      description: item.description,
-      material: materialLabel(materials, item.material_id),
-      quantity: formatNumber(item.quantity, locale),
-      unitPrice: money((item.item_total as number) / item.quantity),
-      total: money(item.item_total as number),
+    rows: plates.map((plate) => ({
+      description: plate.description,
+      material: materialsSummary(materials, plate.materials, locale),
+      quantity: formatNumber(plate.quantity, locale),
+      unitPrice: money((plate.plate_total as number) / plate.quantity),
+      total: money(plate.plate_total as number),
     })),
     consumables:
       consumables.length === 0

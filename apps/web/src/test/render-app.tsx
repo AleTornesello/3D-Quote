@@ -8,7 +8,6 @@ import type { Tables } from '@/lib/database.types'
 import { createQueryClient } from '@/lib/query-client'
 import { FakeDb, type FunctionHandler, type Row } from './fake-db'
 import { FakePdfRenderer } from './fake-pdf'
-import { FakeUploader } from './fake-uploader'
 import { createFakeSupabase, type SignInFailure } from './fake-supabase'
 import { ownerStaff, quoteRow, settingsRow } from './fixtures'
 
@@ -23,7 +22,7 @@ export type RenderAppOptions = {
   rpc?: Record<string, (args: unknown) => unknown>
   /**
    * Edge Function handlers by name, e.g. `{ 'price-quote': () => ({ data: { priced: 1, skipped: 0 } }) }`.
-   * price-quote defaults to pricing nothing: sliced-but-unpriced items call it on their own.
+   * price-quote defaults to pricing nothing: complete unpriced plates call it on their own.
    */
   functions?: Record<string, FunctionHandler>
 }
@@ -66,7 +65,7 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
           creator: { display_name: creator?.display_name ?? '' },
         }
       },
-      quote_items: () => ({ job: [] }),
+      quote_plates: () => ({ materials: [] }),
     },
     // RLS: staff update and delete drafts only.
     writable: { quotes: (row) => row.status === 'draft' },
@@ -75,17 +74,11 @@ export function renderApp(path: string, opts: RenderAppOptions = {}) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const queryClient = createQueryClient({ retry: false })
   const user = userEvent.setup()
-  const uploader = new FakeUploader()
   const pdf = new FakePdfRenderer()
   const { unmount } = render(
-    <AppProviders
-      client={fake.client}
-      queryClient={queryClient}
-      uploader={uploader.upload}
-      pdfRenderer={pdf.render}
-    >
+    <AppProviders client={fake.client} queryClient={queryClient} pdfRenderer={pdf.render}>
       <RouterProvider router={router} />
     </AppProviders>,
   )
-  return { ...fake, router, user, queryClient, uploader, pdf, unmount }
+  return { ...fake, router, user, queryClient, pdf, unmount }
 }

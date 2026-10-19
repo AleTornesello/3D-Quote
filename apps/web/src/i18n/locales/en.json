@@ -63,20 +63,19 @@
     "forbidden": "You don't have permission to do this.",
     "lastOwner": "There must be at least one owner.",
     "notFound": "This item no longer exists or you can't change it.",
+    "plateNotFound": "This plate no longer exists.",
     "notDraft": "The quote is no longer a draft and can't be changed.",
     "notSendable": "The quote can't be sent yet.",
     "sessionExpired": "Your session has expired. Sign in again.",
     "quoteNotSent": "Only a sent quote can be accepted or rejected.",
-    "retryNotAllowed": "Slicing can't be retried for this item right now.",
-    "modelNotFound": "The model file wasn't found.",
     "printerInactive": "The chosen printer is deactivated.",
     "materialInactive": "The chosen material is deactivated.",
     "consumableInactive": "This consumable is not active.",
     "invalidOverride": "Enter a valid price and a reason.",
     "invalidMarkup": "The markup can't be negative.",
+    "invalidGrams": "Enter grams above zero.",
+    "invalidDescription": "Enter a description.",
     "duplicateFailed": "The quote couldn't be copied. Nothing was created.",
-    "uploadNotAllowed": "Files can no longer be uploaded to this quote.",
-    "fileTooLarge": "The file is larger than 100 MB.",
     "network": "Couldn't reach the server. Check your connection and try again.",
     "unknown": "Something went wrong. Try again."
   },
@@ -98,9 +97,10 @@
     "passwordLength": "At least 6 characters.",
     "passwordMismatch": "The passwords don't match.",
     "validUntilPast": "Must be today or later.",
-    "layerHeight": "Between 0.01 and 9.99 mm.",
     "quantity": "At least 1.",
-    "markupRange": "Between 0 and 9999.99."
+    "markupRange": "Between 0 and 9999.99.",
+    "duration": "Enter the time as hours:minutes, e.g. 2:30.",
+    "grams": "Enter grams above zero."
   },
   "common": {
     "add": "Add",
@@ -309,8 +309,7 @@
       "markRejected": "Mark rejected",
       "duplicate": "Duplicate",
       "duplicated": "Copy created.",
-      "waitSlicing": "Wait for slicing to finish.",
-      "items": "Items",
+      "plates": "Plates",
       "consumables": "Consumables",
       "consumable": {
         "add": "Add consumable",
@@ -332,11 +331,10 @@
       "blockers": {
         "insufficient_stock": "Some consumables exceed the available stock.",
         "not_draft": "The quote is no longer a draft.",
-        "no_items": "The quote has no items.",
         "valid_until_past": "The valid-until date has passed.",
-        "missing_printer_or_material": "{{item}}: choose printer and material.",
-        "not_sliced": "{{item}}: slicing hasn't finished.",
-        "not_priced": "{{item}}: price not calculated."
+        "no_plates": "The quote has no plates.",
+        "plate_incomplete": "{{plate}}: choose a printer, a print time and a material.",
+        "not_priced": "{{plate}}: price not calculated."
       },
       "acceptTitle": "Mark {{number}} as accepted?",
       "rejectTitle": "Mark {{number}} as rejected?",
@@ -346,12 +344,13 @@
       "netTotal": "Net total",
       "vat": "VAT ({{rate}} %)",
       "totalInclVat": "Total incl. VAT",
-      "recalculate": "Recalculate prices"
+      "recalculate": "Recalculate prices",
+      "completePlates": "Complete all plates to see the total."
     },
     "pdf": {
       "export": "Export PDF",
-      "needsItems": "Add at least one item before exporting.",
-      "needsPrices": "Every item needs a price before exporting.",
+      "needsPlates": "Add at least one plate before exporting.",
+      "needsComplete": "Every plate needs a printer, a print time, a material and a price before exporting.",
       "loadingConsumables": "Loading consumables…",
       "title": "Export {{number}}",
       "language": "PDF language",
@@ -363,39 +362,37 @@
       "error": "The PDF couldn't be created. Try again.",
       "logoWarning": "The logo couldn't be loaded; the PDF was created without it."
     },
-    "item": {
-      "description": "Description",
-      "download": "Download {{name}}",
-      "downloadShort": "Download",
+    "plate": {
+      "defaultName": "Plate {{number}}",
+      "empty": "Add a plate to start.",
+      "add": "Add plate",
       "remove": "Remove",
       "removeTitle": "Remove {{name}}?",
-      "removeBody": "The item and its file will be deleted.",
+      "removeBody": "The plate and its materials will be deleted.",
+      "description": "Description",
       "printer": "Printer",
-      "material": "Material",
+      "printTime": "Print time (h:mm)",
+      "quantity": "Copies",
       "choose": "Choose…",
-      "inactivePrinter": "{{name}} (inactive)",
-      "inactiveMaterial": "{{name}} (inactive)",
-      "quantity": "Quantity",
-      "layerHeight": "Layer height (mm)",
-      "infill": "Infill (%)",
-      "supports": "Supports",
-      "slicing": {
-        "waiting": "Choose printer and material",
-        "queued": "Waiting to slice",
-        "slow": "Slicing is taking longer than usual",
-        "slicing": "Slicing… {{elapsed}}",
-        "failed": "Slicing failed",
-        "retry": "Retry slicing"
-      },
-      "results": {
-        "printTime": "Print time per copy",
-        "filament": "Filament per copy",
-        "grams": "{{value}} g",
-        "bbox": "Bounding box",
-        "bboxValue": "{{x}} × {{y}} × {{z}} mm"
+      "inactive": "{{name}} (inactive)",
+      "materials": "Materials",
+      "noMaterials": "No materials yet.",
+      "material": "Material",
+      "addMaterial": "Add material",
+      "grams": "Grams",
+      "gramsOf": "Grams of {{name}}",
+      "gramsValue": "{{value}} g",
+      "addRow": "Add",
+      "chooseMaterial": "Choose a material.",
+      "removeMaterial": "Remove {{name}}",
+      "incomplete": "Missing: {{missing}}.",
+      "missing": {
+        "printer": "a printer",
+        "printTime": "the print time",
+        "materials": "at least one material"
       },
       "price": {
-        "total": "Item total",
+        "total": "Plate total",
         "unit": "Unit price",
         "calculating": "Calculating price…",
         "notCalculated": "Price not calculated",
@@ -415,28 +412,9 @@
       "overrideDialog": {
         "title": "Override the price of {{name}}",
         "body": "The computed price stays visible beside the override.",
-        "total": "Item total",
+        "total": "Plate total",
         "reason": "Reason"
       }
-    },
-    "upload": {
-      "drop": "Drop STL or 3MF files here",
-      "hint": "STL or 3MF, up to 100 MB each.",
-      "choose": "Choose files",
-      "empty": "Add model files to start.",
-      "rejected": {
-        "extension": "{{name}}: only STL and 3MF files are accepted.",
-        "empty": "{{name}}: the file is empty.",
-        "tooLarge": "{{name}}: larger than 100 MB."
-      },
-      "dismiss": "Dismiss {{name}}",
-      "cancel": "Cancel {{name}}",
-      "retry": "Retry {{name}}",
-      "progress": "Uploading {{name}}",
-      "waiting": "Waiting",
-      "creating": "Creating the item…",
-      "leaveTitle": "Uploads in progress",
-      "leaveBody": "Uploads in progress will be cancelled."
     }
   },
   "settings": {

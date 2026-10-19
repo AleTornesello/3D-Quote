@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toAppError } from '@/data/errors'
-import { useSetPriceOverride, type QuoteItem } from '@/data/quote-items'
+import { useSetPriceOverride, type QuotePlate } from '@/data/quote-plates'
 import { toInputNumber } from '@/lib/format'
 import { numberField, parseDecimal, requiredText } from '@/lib/forms'
 import { useFormat } from '@/lib/use-format'
@@ -27,8 +27,8 @@ const overrideSchema = z.object({
 })
 type OverrideForm = z.infer<typeof overrideSchema>
 
-/** Owner only: the item total by hand, with a reason staff can see. */
-export function OverrideDialog({ item, onClose }: { item: QuoteItem; onClose: () => void }) {
+/** Owner only: the plate total by hand, with a reason staff can see. */
+export function OverrideDialog({ plate, onClose }: { plate: QuotePlate; onClose: () => void }) {
   const { t } = useTranslation()
   const { locale } = useFormat()
   const setOverride = useSetPriceOverride()
@@ -40,8 +40,8 @@ export function OverrideDialog({ item, onClose }: { item: QuoteItem; onClose: ()
   } = useForm<OverrideForm>({
     resolver: zodResolver(overrideSchema),
     defaultValues: {
-      total: toInputNumber(item.override_total ?? item.computed_total, locale, 2),
-      reason: item.override_reason ?? '',
+      total: toInputNumber(plate.override_total ?? plate.computed_total, locale, 2),
+      reason: plate.override_reason ?? '',
     },
   })
 
@@ -49,7 +49,7 @@ export function OverrideDialog({ item, onClose }: { item: QuoteItem; onClose: ()
     setFormError(null)
     try {
       await setOverride.mutateAsync({
-        item,
+        plate,
         total: parseDecimal(values.total) as number,
         reason: values.reason.trim(),
       })
@@ -64,14 +64,14 @@ export function OverrideDialog({ item, onClose }: { item: QuoteItem; onClose: ()
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>
-            {t('quotes.item.overrideDialog.title', { name: item.description })}
+            {t('quotes.plate.overrideDialog.title', { name: plate.description })}
           </DialogTitle>
-          <DialogDescription>{t('quotes.item.overrideDialog.body')}</DialogDescription>
+          <DialogDescription>{t('quotes.plate.overrideDialog.body')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} noValidate className="grid gap-4">
           <FormField
             id="override-total"
-            label={t('quotes.item.overrideDialog.total')}
+            label={t('quotes.plate.overrideDialog.total')}
             error={errors.total?.message}
           >
             <Input
@@ -83,7 +83,7 @@ export function OverrideDialog({ item, onClose }: { item: QuoteItem; onClose: ()
           </FormField>
           <FormField
             id="override-reason"
-            label={t('quotes.item.overrideDialog.reason')}
+            label={t('quotes.plate.overrideDialog.reason')}
             error={errors.reason?.message}
           >
             <Textarea id="override-reason" aria-invalid={!!errors.reason} {...register('reason')} />

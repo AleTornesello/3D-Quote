@@ -1,8 +1,14 @@
 import i18n from 'i18next'
 import { describe, expect, test } from 'vitest'
-import type { QuoteItem } from '@/data/quote-items'
+import type { QuotePlate } from '@/data/quote-plates'
 import type { Quote } from '@/data/quotes'
-import { materialRow, quoteItemRow, quoteRow, settingsRow } from '@/test/fixtures'
+import {
+  materialRow,
+  plateMaterialRow,
+  quotePlateRow,
+  quoteRow,
+  settingsRow,
+} from '@/test/fixtures'
 import { toQuotePdfData, type PdfLanguage, type QuotePdfInput } from './quote-pdf-data'
 
 const quote = (overrides: Partial<Quote> = {}): Quote => ({
@@ -18,24 +24,27 @@ const quote = (overrides: Partial<Quote> = {}): Quote => ({
   ...overrides,
 })
 
-const item = (overrides: Record<string, unknown> = {}) =>
-  ({
-    ...quoteItemRow({
-      description: 'Staffa',
-      material_id: 21,
-      quantity: 3,
-      item_total: 30,
-      computed_total: 30,
-      ...overrides,
-    }),
-  }) as unknown as QuoteItem
+const grams = (materialId: number, value: number) =>
+  plateMaterialRow({ material_id: materialId, grams: value })
+
+const plate = (overrides: Record<string, unknown> = {}) =>
+  quotePlateRow({
+    description: 'Staffa',
+    printer_id: 11,
+    print_time_s: 3600,
+    quantity: 3,
+    plate_total: 30,
+    computed_total: 30,
+    materials: [grams(21, 12)],
+    ...overrides,
+  }) as QuotePlate
 
 const materials = [materialRow({ id: 21, name: 'Prusament PLA', type: 'PLA', color: 'Black' })]
 
 function build(overrides: Partial<QuotePdfInput> = {}, language: PdfLanguage = 'it') {
   return toQuotePdfData({
     quote: quote(),
-    items: [item()],
+    plates: [plate()],
     consumables: [],
     materials,
     settings: { ...settingsRow, shop_name: '3D Lab' },
@@ -60,7 +69,7 @@ describe('toQuotePdfData', () => {
     expect(data.rows).toHaveLength(1)
     expect(data.rows[0]).toMatchObject({
       description: 'Staffa',
-      material: 'PLA · Black',
+      material: 'PLA · Black 12 g',
       quantity: '3',
     })
     expect(data.rows[0].unitPrice).toMatch(/^10,00/)
@@ -150,13 +159,24 @@ describe('toQuotePdfData', () => {
 
   test('shows the material type alone without a colour, and the name for "other"', () => {
     const data = build({
-      items: [item({ material_id: 22 }), item({ material_id: 23 })],
+      plates: [plate({ materials: [grams(22, 5)] }), plate({ materials: [grams(23, 7.5)] })],
       materials: [
         materialRow({ id: 22, name: 'x', type: 'PETG', color: null }),
         materialRow({ id: 23, name: 'Resina speciale', type: 'other', color: 'Clear' }),
       ],
     })
-    expect(data.rows.map((row) => row.material)).toEqual(['PETG', 'Resina speciale · Clear'])
+    expect(data.rows.map((row) => row.material)).toEqual([
+      'PETG 5 g',
+      'Resina speciale · Clear 7,5 g',
+    ])
+  })
+
+  test('lists every material of a plate with its grams', () => {
+    const data = build({
+      plates: [plate({ materials: [grams(21, 12), grams(22, 5)] })],
+      materials: [...materials, materialRow({ id: 22, name: 'x', type: 'PETG', color: null })],
+    })
+    expect(data.rows[0].material).toBe('PLA · Black 12 g, PETG 5 g')
   })
 
   test('notes and terms appear only when present, terms in the chosen language', () => {
@@ -180,10 +200,9 @@ describe('toQuotePdfData', () => {
   test('never includes internal data', () => {
     const data = JSON.stringify(
       build({
-        items: [
-          item({
+        plates: [
+          plate({
             print_time_s: 3600,
-            filament_g: 25,
             override_reason: 'Accordo segreto',
             override_total: 30,
           }),
@@ -229,8 +248,14 @@ describe('toQuotePdfData', () => {
   })
 
   test('refuses a quote that is not fully priced', () => {
-    expect(() => build({ items: [item({ item_total: null })] })).toThrow('quote_not_priced')
-    expect(() => build({ items: [] })).toThrow('quote_not_priced')
+    expect(() => build({ plates: [plate({ plate_total: null })] })).toThrow('quote_not_priced')
+    expect(() => build({ plates: [] })).toThrow('quote_not_priced')
+  })
+
+  test('refuses a quote with an incomplete plate, even with an override', () => {
+    expect(() =>
+      build({ plates: [plate({ printer_id: null, override_total: 30, plate_total: 30 })] }),
+    ).toThrow('quote_not_priced')
   })
 
   test('refuses to build without a VAT rate (a database without the vat_rate_pct columns)', () => {

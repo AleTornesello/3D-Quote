@@ -1,20 +1,22 @@
+import { Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
+import { toast } from 'sonner'
 import { QueryError } from '@/components/QueryError'
-import { useLeaveGuard } from '@/components/use-leave-guard'
+import { Button } from '@/components/ui/button'
+import { toAppError } from '@/data/errors'
+import { usePrinters } from '@/data/printers'
 import { useQuoteLiveUpdates } from '@/data/quote-live'
 import { useQuoteConsumables } from '@/data/quote-consumables'
-import { useQuoteItems } from '@/data/quote-items'
-import { useQuote, useRefreshQuote, type Quote } from '@/data/quotes'
+import { useCreatePlate, useQuotePlates } from '@/data/quote-plates'
+import { useQuote, type Quote } from '@/data/quotes'
 import { NotFoundMessage } from './NotFoundPage'
-import { ItemCard } from './quote-editor/ItemCard'
+import { PlateCard } from './quote-editor/PlateCard'
 import { QuoteActions } from './quote-editor/QuoteActions'
 import { QuoteConsumables } from './quote-editor/QuoteConsumables'
 import { QuoteHeader } from './quote-editor/QuoteHeader'
 import { QuoteTotals } from './quote-editor/QuoteTotals'
-import { UploadZone } from './quote-editor/UploadZone'
 import { useAutoPrice } from './quote-editor/use-auto-price'
-import { useUploads } from './quote-editor/use-uploads'
 
 export function QuoteEditorPage() {
   const { t } = useTranslation()
@@ -45,22 +47,29 @@ export function QuoteEditorPage() {
 
 function QuoteEditor({ quote }: { quote: Quote }) {
   const { t } = useTranslation()
-  const items = useQuoteItems(quote.id)
-  const itemList = items.data ?? []
+  const plates = useQuotePlates(quote.id)
+  const plateList = plates.data ?? []
   const consumables = useQuoteConsumables(quote.id)
   const consumableList = consumables.data ?? []
+  const printers = usePrinters()
   const editable = quote.status === 'draft'
-  const refreshQuote = useRefreshQuote()
-  const uploads = useUploads(quote.id, itemList, editable, () => void refreshQuote(quote.id))
-  const guard = useLeaveGuard(uploads.busy, {
-    titleKey: 'quotes.upload.leaveTitle',
-    bodyKey: 'quotes.upload.leaveBody',
-  })
-  const pricing = useAutoPrice(quote, items.data)
-  useQuoteLiveUpdates(
-    quote.id,
-    itemList.map((item) => item.id),
-  )
+  const pricing = useAutoPrice(quote, plates.data)
+  const createPlate = useCreatePlate()
+  useQuoteLiveUpdates(quote.id)
+
+  function addPlate() {
+    // The newest plate's printer, while it is still active (an inactive one would be refused).
+    const lastPrinterId = plateList.at(-1)?.printer_id ?? null
+    const active = printers.data?.some((p) => p.id === lastPrinterId && p.active) ?? false
+    createPlate.mutate(
+      {
+        quoteId: quote.id,
+        description: t('quotes.plate.defaultName', { number: plateList.length + 1 }),
+        printer_id: active ? lastPrinterId : null,
+      },
+      { onError: (caught) => toast.error(t(toAppError(caught).messageKey)) },
+    )
+  }
 
   return (
     <section className="grid gap-6">
@@ -69,54 +78,60 @@ function QuoteEditor({ quote }: { quote: Quote }) {
         actions={
           <QuoteActions
             quote={quote}
-            items={itemList}
+            plates={plateList}
             consumables={consumableList}
             consumablesReady={consumables.isSuccess}
           />
         }
       />
-      <section aria-labelledby="quote-items-title" className="grid gap-4">
-        <h2 id="quote-items-title" className="text-lg font-semibold">
-          {t('quotes.editor.items')}
+      <section aria-labelledby="quote-plates-title" className="grid gap-4">
+        <h2 id="quote-plates-title" className="text-lg font-semibold">
+          {t('quotes.editor.plates')}
         </h2>
-        {items.isPending ? (
+        {plates.isPending ? (
           <p role="status" className="text-muted-foreground">
             {t('common.loading')}
           </p>
-        ) : items.isError && items.data === undefined ? (
-          <QueryError error={items.error} onRetry={() => void items.refetch()} />
+        ) : plates.isError && plates.data === undefined ? (
+          <QueryError error={plates.error} onRetry={() => void plates.refetch()} />
+        ) : plateList.length === 0 ? (
+          <p className="text-muted-foreground">{t('quotes.plate.empty')}</p>
         ) : (
           <ul className="grid gap-4">
-            {itemList.map((item) => (
-              <li key={item.id}>
-                <ItemCard
-                  item={item}
+            {plateList.map((plate) => (
+              <li key={plate.id}>
+                <PlateCard
+                  plate={plate}
                   editable={editable}
-                  notCalculated={pricing.notCalculated(item)}
+                  notCalculated={pricing.notCalculated(plate)}
                 />
               </li>
             ))}
           </ul>
         )}
-        {editable && (
-          <UploadZone uploads={uploads} empty={items.isSuccess && itemList.length === 0} />
+        {editable && plates.isSuccess && (
+          <div>
+            <Button variant="outline" disabled={createPlate.isPending} onClick={addPlate}>
+              <Plus aria-hidden />
+              {t('quotes.plate.add')}
+            </Button>
+          </div>
         )}
       </section>
       <QuoteConsumables quoteId={quote.id} lines={consumableList} editable={editable} />
       {consumables.isError && consumables.data === undefined && (
         <QueryError error={consumables.error} onRetry={() => void consumables.refetch()} />
       )}
-      {items.isSuccess && consumables.isSuccess && (
+      {plates.isSuccess && consumables.isSuccess && (
         <QuoteTotals
           quote={quote}
-          items={itemList}
+          plates={plateList}
           consumables={consumableList}
           editable={editable}
           pricing={pricing.pricing}
           onRecalculate={pricing.recalculate}
         />
       )}
-      {guard.dialog}
     </section>
   )
 }

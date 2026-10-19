@@ -14,17 +14,17 @@ import {
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
 import { queryKeys } from '@/data/query-keys'
-import type { QuoteItem } from '@/data/quote-items'
+import type { QuotePlate } from '@/data/quote-plates'
 import { useMarkQuote, useSendBlockers, type Quote, type SendBlocker } from '@/data/quotes'
 
 /** Lists what stops the quote from being sent, or confirms sending it. */
 export function SendQuoteDialog({
   quote,
-  items,
+  plates,
   onClose,
 }: {
   quote: Quote
-  items: QuoteItem[]
+  plates: QuotePlate[]
   onClose: () => void
 }) {
   const { t } = useTranslation()
@@ -56,9 +56,9 @@ export function SendQuoteDialog({
   }, [stockShort, queryClient, quote.id])
 
   function describe(blocker: SendBlocker) {
-    const item = items.find((candidate) => candidate.id === blocker.quote_item_id)
+    const plate = plates.find((candidate) => candidate.id === blocker.quote_plate_id)
     return t(`quotes.editor.blockers.${blocker.code}`, {
-      item: item?.description ?? '',
+      plate: plate?.description ?? '',
     })
   }
 
@@ -88,7 +88,9 @@ export function SendQuoteDialog({
         {blocked && (
           <ul className="grid list-disc gap-1 pl-5 text-sm">
             {list.map((blocker, index) => (
-              <li key={`${blocker.code}-${blocker.quote_item_id ?? index}`}>{describe(blocker)}</li>
+              <li key={`${blocker.code}-${blocker.quote_plate_id ?? index}`}>
+                {describe(blocker)}
+              </li>
             ))}
           </ul>
         )}

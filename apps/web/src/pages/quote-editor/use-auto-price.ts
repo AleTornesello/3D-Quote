@@ -2,21 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { toAppError } from '@/data/errors'
-import { useCachedQuoteItems, type QuoteItem } from '@/data/quote-items'
-import { unpricedItems } from '@/data/quote-rules'
+import { useCachedQuotePlates, type QuotePlate } from '@/data/quote-plates'
+import { unpricedPlates } from '@/data/quote-rules'
 import { usePriceQuote, useRefreshQuote, type Quote } from '@/data/quotes'
 
 /**
- * Calls price-quote when a draft has items with results and no price. One call at a time; a trigger during a call
- * queues one more. If items are still unpriced after a call that skipped some, it retries once, then gives up on
- * those items (by id and updated_at) until they change. A saved quantity or markup clears priced_at and changes
- * updated_at, so it needs no call of its own.
+ * Calls price-quote when a draft has plates that are complete and have no price. One call at a time; a trigger
+ * during a call queues one more. If plates are still unpriced after a call that skipped some, it retries once, then
+ * gives up on those plates (by id and updated_at) until they change. A saved quantity, printer, print time, material
+ * or markup clears priced_at and changes updated_at, so it needs no call of its own.
  */
-export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
+export function useAutoPrice(quote: Quote, plates: QuotePlate[] | undefined) {
   const { t } = useTranslation()
   const price = usePriceQuote()
   const refreshQuote = useRefreshQuote()
-  const cachedItems = useCachedQuoteItems()
+  const cachedPlates = useCachedQuotePlates()
   const [gaveUp, setGaveUp] = useState<ReadonlyMap<number, string>>(() => new Map())
   // A ref mirror of gaveUp: run() reads it synchronously, while the state drives rendering.
   const gaveUpRef = useRef<Map<number, string>>(new Map())
@@ -32,22 +32,22 @@ export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
     }
     state.running = true
     // The cache, not the last render: the refetch has landed by the time mutateAsync resolves.
-    const unpriced = () => unpricedItems(cachedItems(quote.id))
+    const unpriced = () => unpricedPlates(cachedPlates(quote.id))
     const eligible = () =>
-      unpriced().filter((item) => gaveUpRef.current.get(item.id) !== item.updated_at)
+      unpriced().filter((plate) => gaveUpRef.current.get(plate.id) !== plate.updated_at)
     try {
       let force = forced
       for (;;) {
-        // Only the items pending now count for the retry and the give-up, not ones given up earlier.
+        // Only the plates pending now count for the retry and the give-up, not ones given up earlier.
         const start = force ? unpriced() : eligible()
         if (!force && start.length === 0) break
-        const ids = new Set(start.map((item) => item.id))
-        const stillPending = () => unpriced().filter((item) => ids.has(item.id))
+        const ids = new Set(start.map((plate) => plate.id))
+        const stillPending = () => unpriced().filter((plate) => ids.has(plate.id))
         const result = await price.mutateAsync(quote.id)
         if (result.skipped > 0 && stillPending().length > 0) await price.mutateAsync(quote.id)
         const left = stillPending()
         if (left.length > 0) {
-          for (const item of left) gaveUpRef.current.set(item.id, item.updated_at)
+          for (const plate of left) gaveUpRef.current.set(plate.id, plate.updated_at)
           setGaveUp(new Map(gaveUpRef.current))
         }
         // Triggers that arrived during the call queue exactly one more iteration.
@@ -79,9 +79,9 @@ export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
 
   const candidates =
     quote.status === 'draft'
-      ? unpricedItems(items ?? [])
-          .filter((item) => gaveUp.get(item.id) !== item.updated_at)
-          .map((item) => `${item.id}@${item.updated_at}`)
+      ? unpricedPlates(plates ?? [])
+          .filter((plate) => gaveUp.get(plate.id) !== plate.updated_at)
+          .map((plate) => `${plate.id}@${plate.updated_at}`)
           .join(',')
       : ''
   useEffect(() => {
@@ -91,6 +91,6 @@ export function useAutoPrice(quote: Quote, items: QuoteItem[] | undefined) {
   return {
     recalculate: () => void run(true),
     pricing: price.isPending,
-    notCalculated: (item: QuoteItem) => gaveUp.get(item.id) === item.updated_at,
+    notCalculated: (plate: QuotePlate) => gaveUp.get(plate.id) === plate.updated_at,
   }
 }

@@ -2,7 +2,7 @@ import type { QuotePdfData, QuotePdfRow } from './quote-pdf-data'
 
 const row = (n: number): QuotePdfRow => ({
   description: `Staffa ${n}`,
-  material: 'PLA · Black',
+  material: 'PLA · Black 120 g',
   quantity: '3',
   unitPrice: '10,00 €',
   total: '30,00 €',

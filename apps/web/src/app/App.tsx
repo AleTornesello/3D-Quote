@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { createTusUploader } from '@/data/model-upload'
 import type { EnvResult, SupabaseEnv } from '@/lib/env'
 import { createQueryClient } from '@/lib/query-client'
 import { getSupabaseClient } from '@/lib/supabase'
@@ -12,15 +11,9 @@ import { routes } from './routes'
 function ConfiguredApp({ env }: { env: SupabaseEnv }) {
   const client = getSupabaseClient(env)
   const [queryClient] = useState(createQueryClient)
-  const [uploader] = useState(() => createTusUploader(client, env))
   const [router] = useState(() => createBrowserRouter(routes))
   return (
-    <AppProviders
-      client={client}
-      queryClient={queryClient}
-      uploader={uploader}
-      pdfRenderer={renderQuotePdf}
-    >
+    <AppProviders client={client} queryClient={queryClient} pdfRenderer={renderQuotePdf}>
       <RouterProvider router={router} />
     </AppProviders>
   )

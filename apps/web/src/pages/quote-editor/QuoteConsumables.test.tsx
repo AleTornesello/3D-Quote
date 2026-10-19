@@ -5,8 +5,9 @@ import { fakeSession } from '@/test/fake-supabase'
 import {
   clientRow,
   consumableRow,
+  plateMaterialRow,
   quoteConsumableRow,
-  quoteItemRow,
+  quotePlateRow,
   quoteRow,
 } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
@@ -23,14 +24,14 @@ function renderEditor(
     tables: {
       quotes: [quoteRow({ id: 7, number: 'Q-2026-0007', client_id: 1, status })],
       clients: [clientRow({ id: 1 })],
-      quote_items: [
-        quoteItemRow({
+      quote_plates: [
+        quotePlateRow({
           id: 31,
           printer_id: 11,
-          material_id: 21,
           print_time_s: 3600,
+          materials: [plateMaterialRow({ material_id: 21 })],
           computed_total: 10,
-          item_total: 10,
+          plate_total: 10,
           priced_at: '2026-10-13T09:00:00Z',
         }),
       ],
@@ -53,7 +54,7 @@ test('lists the lines and adds their total to the quote total', async () => {
   const card = await screen.findByRole('region', { name: 'Consumabili' })
   expect(await within(card).findByText('Vite M3')).toBeInTheDocument()
   expect(within(card).getByText('0,30 €')).toBeInTheDocument()
-  // 10,00 € of items + 0,30 € of consumables
+  // 10,00 € of plates + 0,30 € of consumables
   expect(await screen.findByText('10,30 €')).toBeInTheDocument()
 })
 
@@ -159,7 +160,7 @@ test('sending the quote reloads the consumables, whose stock it consumed', async
 
 test('a stock shortage in the send dialog reloads the lines so their warning shows', async () => {
   const { db, user } = renderEditor([line({ quantity: 3 })], 'draft', {
-    get_quote_send_blockers: () => [{ quote_item_id: null, code: 'insufficient_stock' }],
+    get_quote_send_blockers: () => [{ quote_plate_id: null, code: 'insufficient_stock' }],
   })
   await screen.findByRole('region', { name: 'Consumabili' })
   await waitFor(() => expect(selects(db, 'quote_consumables')).toBeGreaterThan(0))

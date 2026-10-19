@@ -1,9 +1,16 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { FakeDb, FunctionHandler, Row } from '@/test/fake-db'
 import type { Tables } from '@/lib/database.types'
 import { fakeSession } from '@/test/fake-supabase'
-import { clientRow, jobRow, materialRow, printerRow, quoteItemRow, quoteRow } from '@/test/fixtures'
+import {
+  clientRow,
+  materialRow,
+  plateMaterialRow,
+  printerRow,
+  quotePlateRow,
+  quoteRow,
+} from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
 
 const session = fakeSession()
@@ -15,7 +22,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 function renderLive(
-  items: Row[],
+  plates: Row[],
   opts: {
     status?: string
     quote?: Partial<Tables<'quotes'>>
@@ -35,111 +42,75 @@ function renderLive(
         }),
       ],
       clients: [clientRow({ id: 1 })],
-      quote_items: items,
+      quote_plates: plates,
       printers: [printerRow({ id: 11 })],
-      materials: [materialRow({ id: 21 })],
+      materials: [materialRow({ id: 21, name: 'Prusament PLA', type: 'PLA', color: 'Black' })],
     },
     functions: opts.functions,
   })
 }
 
-const queued = { printer_id: 11, material_id: 21, job: jobRow() }
-const results = {
-  print_time_s: 19800,
-  filament_g: 120,
-  bbox_x_mm: 10,
-  bbox_y_mm: 10,
-  bbox_z_mm: 10,
-}
-const sliced = {
-  printer_id: 11,
-  material_id: 21,
-  ...results,
-  job: jobRow({ status: 'succeeded' }),
-}
+const material = (id = 51) => [plateMaterialRow({ id, material_id: 21, grams: 120 })]
+/** Printer and print time, but no material yet. */
+const waiting = { printer_id: 11, print_time_s: 19800 }
+const complete = { ...waiting, materials: material() }
 const priced = {
-  ...sliced,
+  ...complete,
   computed_total: 39.24,
-  item_total: 39.24,
+  plate_total: 39.24,
   priced_at: '2026-10-13T09:00:00Z',
 }
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const noPricing = { 'price-quote': () => ({ data: { priced: 0, skipped: 0 } }) }
+const gramsLabel = 'Grammi di Prusament PLA (PLA, Black)'
 
-test("subscribes to the quote's items and their jobs", async () => {
-  const { realtime } = renderLive([
-    quoteItemRow({ id: 31, ...queued }),
-    quoteItemRow({ id: 32, description: 'Perno', ...queued }),
-  ])
-  await screen.findByRole('article', { name: 'Staffa' })
-  await waitFor(() =>
-    expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31,32)']),
-  )
-  expect(realtime.filters('quote_items')).toEqual(['quote_id=eq.7'])
+test("subscribes to the quote's plates and their materials", async () => {
+  const { realtime } = renderLive([quotePlateRow({ id: 31, ...waiting })])
+  await screen.findByRole('article', { name: 'Piatto 1' })
+  await waitFor(() => expect(realtime.filters('quote_plates')).toEqual(['quote_id=eq.7']))
+  expect(realtime.filters('quote_plate_materials')).toEqual([undefined])
 })
 
-test('a change refetches the items', async () => {
-  const { db, realtime } = renderLive([quoteItemRow({ id: 31, ...queued })], {
+test('a material change refetches the plates after 250 ms', async () => {
+  const { db, realtime } = renderLive([quotePlateRow({ id: 31, ...waiting })], {
     functions: noPricing,
   })
-  const item = await screen.findByRole('article', { name: 'Staffa' })
-  expect(within(item).getByText('In attesa dello slicing')).toBeInTheDocument()
-  Object.assign(db.table('quote_items')[0], { ...results, job: [jobRow({ status: 'succeeded' })] })
-  await realtime.emit('slicing_jobs')
-  expect(await within(item).findByText('5:30')).toBeInTheDocument()
+  const plate = await screen.findByRole('article', { name: 'Piatto 1' })
+  expect(within(plate).getByText('Mancano: almeno un materiale.')).toBeInTheDocument()
+  db.table('quote_plates')[0].materials = material()
+  await realtime.emit('quote_plate_materials')
+  await pause(100)
+  expect(within(plate).queryByLabelText(gramsLabel)).not.toBeInTheDocument()
+  expect(await within(plate).findByLabelText(gramsLabel)).toHaveValue('120')
 })
 
 test('refetches after reconnecting, to catch changes missed meanwhile', async () => {
-  const { db, realtime } = renderLive([quoteItemRow({ id: 31, ...queued })], {
+  const { db, realtime } = renderLive([quotePlateRow({ id: 31, ...waiting })], {
     functions: noPricing,
   })
-  const item = await screen.findByRole('article', { name: 'Staffa' })
-  await waitFor(() => expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31)']))
-  Object.assign(db.table('quote_items')[0], { ...results, job: [jobRow({ status: 'succeeded' })] })
+  const plate = await screen.findByRole('article', { name: 'Piatto 1' })
+  await waitFor(() => expect(realtime.filters('quote_plates')).toEqual(['quote_id=eq.7']))
+  db.table('quote_plates')[0].materials = material()
   await realtime.reconnect()
-  expect(await within(item).findByText('5:30')).toBeInTheDocument()
-})
-
-test('a channel rebuilt for new items refetches once subscribed, to catch changes made meanwhile', async () => {
-  const { db, realtime, queryClient } = renderLive([quoteItemRow({ id: 31, ...queued })], {
-    functions: noPricing,
-  })
-  const item = await screen.findByRole('article', { name: 'Staffa' })
-  await waitFor(() => expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31)']))
-
-  // A second item arrives: the channel is rebuilt for both ids, and its subscription takes a while.
-  realtime.hold()
-  db.table('quote_items').push(quoteItemRow({ id: 32, description: 'Perno', ...queued }))
-  await act(() => queryClient.invalidateQueries({ queryKey: ['quotes', 'items', 7] }))
-  await waitFor(() =>
-    expect(realtime.filters('slicing_jobs')).toEqual(['quote_item_id=in.(31,32)']),
-  )
-  // The first item finishes in the gap: nobody is subscribed to hear it.
-  Object.assign(db.table('quote_items')[0], { ...results, job: [jobRow({ status: 'succeeded' })] })
-  await realtime.emit('slicing_jobs')
-  await pause(300)
-  expect(within(item).getByText('In attesa dello slicing')).toBeInTheDocument()
-
-  await realtime.release()
-  expect(await within(item).findByText('5:30')).toBeInTheDocument()
+  expect(await within(plate).findByLabelText(gramsLabel)).toBeInTheDocument()
 })
 
 test('leaving the page closes the channel', async () => {
-  const { user, realtime } = renderLive([quoteItemRow({ id: 31, ...queued })])
-  await screen.findByRole('article', { name: 'Staffa' })
+  const { user, realtime } = renderLive([quotePlateRow({ id: 31, ...waiting })])
+  await screen.findByRole('article', { name: 'Piatto 1' })
   const nav = screen.getByRole('navigation', { name: 'Navigazione principale' })
   await user.click(within(nav).getByRole('link', { name: 'Clienti' }))
   await waitFor(() => expect(realtime.channels).toHaveLength(0))
 })
 
-test('prices sliced items once and shows the price', async () => {
+test('prices complete plates once and shows the price', async () => {
   const held: { db?: FakeDb } = {}
-  const rendered = renderLive([quoteItemRow({ id: 31, ...sliced })], {
+  const rendered = renderLive([quotePlateRow({ id: 31, ...complete })], {
     functions: {
       'price-quote': () => {
-        Object.assign(held.db!.table('quote_items')[0], {
+        Object.assign(held.db!.table('quote_plates')[0], {
           computed_total: 39.24,
-          item_total: 39.24,
+          plate_total: 39.24,
           priced_at: '2026-10-13T10:00:00Z',
           updated_at: '2026-10-13T10:00:00Z',
         })
@@ -149,24 +120,31 @@ test('prices sliced items once and shows the price', async () => {
   })
   const db = rendered.db
   held.db = db
-  const item = await screen.findByRole('article', { name: 'Staffa' })
-  expect((await within(item).findAllByText('39,24 €')).length).toBeGreaterThan(0)
+  const plate = await screen.findByRole('article', { name: 'Piatto 1' })
+  expect((await within(plate).findAllByText('39,24 €')).length).toBeGreaterThan(0)
   expect(db.functionCalls('price-quote')).toEqual([{ quote_id: 7 }])
 })
 
+test('an incomplete plate is never sent for pricing', async () => {
+  const { db } = renderLive([quotePlateRow({ id: 31, ...waiting })], { functions: noPricing })
+  await screen.findByRole('article', { name: 'Piatto 1' })
+  await pause(100)
+  expect(db.functionCalls('price-quote')).toEqual([])
+})
+
 test('gives up after one retry and says so', async () => {
-  const { db } = renderLive([quoteItemRow({ id: 31, ...sliced })], {
+  const { db } = renderLive([quotePlateRow({ id: 31, ...complete })], {
     functions: { 'price-quote': () => ({ data: { priced: 0, skipped: 1 } }) },
   })
-  const item = await screen.findByRole('article', { name: 'Staffa' })
-  expect(await within(item).findByText('Prezzo non calcolato')).toBeInTheDocument()
+  const plate = await screen.findByRole('article', { name: 'Piatto 1' })
+  expect(await within(plate).findByText('Prezzo non calcolato')).toBeInTheDocument()
   expect(db.functionCalls('price-quote')).toHaveLength(2)
-  await new Promise((resolve) => setTimeout(resolve, 300))
+  await pause(300)
   expect(db.functionCalls('price-quote')).toHaveLength(2)
 })
 
 test('Recalculate prices calls price-quote even when everything is priced', async () => {
-  const { db, user } = renderLive([quoteItemRow({ id: 31, ...priced })], {
+  const { db, user } = renderLive([quotePlateRow({ id: 31, ...priced })], {
     functions: { 'price-quote': () => ({ data: { priced: 1, skipped: 0 } }) },
   })
   await user.click(await screen.findByRole('button', { name: 'Ricalcola prezzi' }))
@@ -175,13 +153,14 @@ test('Recalculate prices calls price-quote even when everything is priced', asyn
 
 test('the total shows net, VAT and gross', async () => {
   renderLive([
-    quoteItemRow({ id: 31, ...priced }),
-    quoteItemRow({
+    quotePlateRow({ id: 31, ...priced }),
+    quotePlateRow({
       id: 32,
       description: 'Perno',
       ...priced,
+      materials: material(52),
       computed_total: 10.5,
-      item_total: 10.5,
+      plate_total: 10.5,
     }),
   ])
   const total = await screen.findByRole('region', { name: 'Totale' })
@@ -193,14 +172,23 @@ test('the total shows net, VAT and gross', async () => {
   expect(within(total).getByText(/60,68/)).toBeInTheDocument()
 })
 
-test('the total lines are — while an item has no price', async () => {
-  renderLive([quoteItemRow({ id: 31, ...priced }), quoteItemRow({ id: 32, description: 'Perno' })])
+test('the total lines are — while a plate is incomplete, even with an override', async () => {
+  renderLive([
+    quotePlateRow({ id: 31, ...priced }),
+    quotePlateRow({
+      id: 32,
+      description: 'Perno',
+      override_total: 5,
+      override_reason: 'Accordo',
+      plate_total: 5,
+    }),
+  ])
   const total = await screen.findByRole('region', { name: 'Totale' })
   expect(within(total).getAllByText('—')).toHaveLength(3)
 })
 
 test('a sent quote shows its frozen VAT rate, not the shop’s', async () => {
-  renderLive([quoteItemRow({ id: 31, ...priced, item_total: 100, computed_total: 100 })], {
+  renderLive([quotePlateRow({ id: 31, ...priced, plate_total: 100, computed_total: 100 })], {
     quote: { status: 'sent', sent_at: '2026-10-12T08:00:00Z', vat_rate_pct: 10 },
   })
   const total = await screen.findByRole('region', { name: 'Totale' })
@@ -209,7 +197,7 @@ test('a sent quote shows its frozen VAT rate, not the shop’s', async () => {
 })
 
 test('a failed pricing call offers Retry', async () => {
-  const { db, user } = renderLive([quoteItemRow({ id: 31, ...sliced })], {
+  const { db, user } = renderLive([quotePlateRow({ id: 31, ...complete })], {
     functions: { 'price-quote': () => ({ network: true }) },
   })
   expect(
@@ -222,19 +210,19 @@ test('a failed pricing call offers Retry', async () => {
 })
 
 test('a sent quote is never priced automatically', async () => {
-  const { db } = renderLive([quoteItemRow({ id: 31, ...sliced })], {
+  const { db } = renderLive([quotePlateRow({ id: 31, ...complete })], {
     status: 'sent',
     functions: noPricing,
   })
-  await screen.findByRole('article', { name: 'Staffa' })
-  await new Promise((resolve) => setTimeout(resolve, 100))
+  await screen.findByRole('article', { name: 'Piatto 1' })
+  await pause(100)
   expect(db.functionCalls('price-quote')).toEqual([])
   expect(screen.queryByRole('button', { name: 'Ricalcola prezzi' })).not.toBeInTheDocument()
 })
 
 const pricedFields = {
   computed_total: 39.24,
-  item_total: 39.24,
+  plate_total: 39.24,
   priced_at: '2026-10-13T10:00:00Z',
   updated_at: '2026-10-13T10:00:00Z',
 }
@@ -244,8 +232,8 @@ test('a partial result retries once and stops, even when the answer is slow', as
   let calls = 0
   const { db } = renderLive(
     [
-      quoteItemRow({ id: 31, ...sliced }),
-      quoteItemRow({ id: 32, description: 'Perno', ...sliced }),
+      quotePlateRow({ id: 31, ...complete }),
+      quotePlateRow({ id: 32, description: 'Perno', ...complete, materials: material(52) }),
     ],
     {
       functions: {
@@ -253,7 +241,7 @@ test('a partial result retries once and stops, even when the answer is slow', as
           calls += 1
           await pause(50)
           if (calls === 1) {
-            Object.assign(held.db!.table('quote_items')[0], pricedFields)
+            Object.assign(held.db!.table('quote_plates')[0], pricedFields)
             return { data: { priced: 1, skipped: 1 } }
           }
           return { data: { priced: 0, skipped: 1 } }
@@ -265,8 +253,11 @@ test('a partial result retries once and stops, even when the answer is slow', as
   const bolt = await screen.findByRole('article', { name: 'Perno' })
   expect(await within(bolt).findByText('Prezzo non calcolato')).toBeInTheDocument()
   expect(
-    (await within(await screen.findByRole('article', { name: 'Staffa' })).findAllByText('39,24 €'))
-      .length,
+    (
+      await within(await screen.findByRole('article', { name: 'Piatto 1' })).findAllByText(
+        '39,24 €',
+      )
+    ).length,
   ).toBeGreaterThan(0)
   await pause(400)
   expect(db.functionCalls('price-quote')).toHaveLength(2)
@@ -276,16 +267,16 @@ test('a trigger during a call queues exactly one more', async () => {
   const held: { db?: FakeDb } = {}
   const { db, realtime } = renderLive(
     [
-      quoteItemRow({ id: 31, ...sliced }),
-      quoteItemRow({ id: 32, description: 'Perno', ...queued }),
+      quotePlateRow({ id: 31, ...complete }),
+      quotePlateRow({ id: 32, description: 'Perno', ...waiting }),
     ],
     {
       functions: {
         'price-quote': async () => {
-          // Prices what is unpriced when the call starts, like the real function's snapshot.
+          // Prices what is complete and unpriced when the call starts, like the real function's snapshot.
           const todo = held
-            .db!.table('quote_items')
-            .filter((row) => row.print_time_s !== null && row.priced_at === null)
+            .db!.table('quote_plates')
+            .filter((row) => (row.materials as unknown[]).length > 0 && row.priced_at === null)
           await pause(500)
           for (const row of todo) Object.assign(row, pricedFields)
           return { data: { priced: todo.length, skipped: 0 } }
@@ -294,10 +285,14 @@ test('a trigger during a call queues exactly one more', async () => {
     },
   )
   held.db = db
-  await screen.findByRole('article', { name: 'Staffa' })
+  await screen.findByRole('article', { name: 'Piatto 1' })
   await waitFor(() => expect(db.functionCalls('price-quote')).toHaveLength(1))
-  Object.assign(db.table('quote_items')[1], { ...results, job: [jobRow({ status: 'succeeded' })] })
-  await realtime.emit('slicing_jobs')
+  // The second plate gets its material while the first call is running.
+  Object.assign(db.table('quote_plates')[1], {
+    materials: material(52),
+    updated_at: '2026-10-13T10:00:01Z',
+  })
+  await realtime.emit('quote_plate_materials')
   const bolt = await screen.findByRole('article', { name: 'Perno' })
   expect((await within(bolt).findAllByText('39,24 €')).length).toBeGreaterThan(0)
   await pause(400)

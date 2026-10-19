@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { useMaterials } from '@/data/materials'
 import type { QuoteConsumable } from '@/data/quote-consumables'
-import type { QuoteItem } from '@/data/quote-items'
+import type { QuotePlate } from '@/data/quote-plates'
 import { pdfFileName } from '@/data/quote-rules'
 import type { Quote } from '@/data/quotes'
 import { useLogoUrl, useSettings } from '@/data/settings'
@@ -30,12 +30,12 @@ const LANGUAGE_KEYS: Record<PdfLanguage, string> = {
 /** Asks for the PDF language, builds the PDF in the browser and downloads it. */
 export function ExportPdfDialog({
   quote,
-  items,
+  plates,
   consumables,
   onClose,
 }: {
   quote: Quote
-  items: QuoteItem[]
+  plates: QuotePlate[]
   consumables: QuoteConsumable[]
   onClose: () => void
 }) {
@@ -66,7 +66,7 @@ export function ExportPdfDialog({
       }
       const data = toQuotePdfData({
         quote,
-        items,
+        plates,
         consumables,
         materials: materials.data,
         settings: settings.data,

@@ -8,8 +8,8 @@ import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
 import type { QuoteConsumable } from '@/data/quote-consumables'
-import type { QuoteItem } from '@/data/quote-items'
-import { isSlicingInProgress } from '@/data/quote-rules'
+import type { QuotePlate } from '@/data/quote-plates'
+import { incompletePlates } from '@/data/quote-rules'
 import { useDeleteQuote, useDuplicateQuote, useMarkQuote, type Quote } from '@/data/quotes'
 import { ExportPdfDialog } from '@/pdf/ExportPdfDialog'
 import { ConfirmActionDialog } from './ConfirmActionDialog'
@@ -20,12 +20,12 @@ type OpenDialog = 'send' | 'accepted' | 'rejected' | 'delete' | 'export' | null
 /** The actions the quote's status allows (functional analysis §4). */
 export function QuoteActions({
   quote,
-  items,
+  plates,
   consumables,
   consumablesReady,
 }: {
   quote: Quote
-  items: QuoteItem[]
+  plates: QuotePlate[]
   consumables: QuoteConsumable[]
   /** The consumable lines have loaded; the PDF would otherwise miss them. */
   consumablesReady: boolean
@@ -38,9 +38,10 @@ export function QuoteActions({
   const remove = useDeleteQuote()
   const [dialog, setDialog] = useState<OpenDialog>(null)
   const [error, setError] = useState<string | null>(null)
-  const slicing = items.some(isSlicingInProgress)
-  const unpriced = items.length === 0 || items.some((item) => item.item_total === null)
-  const exportBlocked = unpriced || !consumablesReady
+  // Mark as sent stays enabled: its dialog explains what is missing.
+  const notReady =
+    incompletePlates(plates).length > 0 || plates.some((plate) => plate.plate_total === null)
+  const exportBlocked = plates.length === 0 || notReady || !consumablesReady
 
   function close() {
     setDialog(null)
@@ -80,21 +81,10 @@ export function QuoteActions({
   return (
     <>
       {quote.status === 'draft' && (
-        <>
-          <Button
-            disabled={slicing}
-            aria-describedby={slicing ? 'send-hint' : undefined}
-            onClick={() => setDialog('send')}
-          >
-            <Send aria-hidden />
-            {t('quotes.editor.markSent')}
-          </Button>
-          {slicing && (
-            <span id="send-hint" className="self-center text-sm text-muted-foreground">
-              {t('quotes.editor.waitSlicing')}
-            </span>
-          )}
-        </>
+        <Button onClick={() => setDialog('send')}>
+          <Send aria-hidden />
+          {t('quotes.editor.markSent')}
+        </Button>
       )}
       {quote.status === 'sent' && (
         <>
@@ -120,10 +110,10 @@ export function QuoteActions({
       {exportBlocked && (
         <span id="export-hint" className="self-center text-sm text-muted-foreground">
           {t(
-            items.length === 0
-              ? 'quotes.pdf.needsItems'
-              : unpriced
-                ? 'quotes.pdf.needsPrices'
+            plates.length === 0
+              ? 'quotes.pdf.needsPlates'
+              : notReady
+                ? 'quotes.pdf.needsComplete'
                 : 'quotes.pdf.loadingConsumables',
           )}
         </span>
@@ -135,9 +125,9 @@ export function QuoteActions({
         </Button>
       )}
 
-      {dialog === 'send' && <SendQuoteDialog quote={quote} items={items} onClose={close} />}
+      {dialog === 'send' && <SendQuoteDialog quote={quote} plates={plates} onClose={close} />}
       {dialog === 'export' && (
-        <ExportPdfDialog quote={quote} items={items} consumables={consumables} onClose={close} />
+        <ExportPdfDialog quote={quote} plates={plates} consumables={consumables} onClose={close} />
       )}
       {(dialog === 'accepted' || dialog === 'rejected') && (
         <ConfirmActionDialog

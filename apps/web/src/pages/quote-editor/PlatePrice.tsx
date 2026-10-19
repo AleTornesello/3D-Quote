@@ -4,19 +4,20 @@ import { toast } from 'sonner'
 import { useStaff } from '@/auth/staff-context'
 import { Button } from '@/components/ui/button'
 import { toAppError } from '@/data/errors'
-import type { QuoteItem, useClearPriceOverride } from '@/data/quote-items'
+import type { QuotePlate, useClearPriceOverride } from '@/data/quote-plates'
+import { isPlateComplete } from '@/data/quote-rules'
 import { useFormat } from '@/lib/use-format'
 import { OverrideDialog } from './OverrideDialog'
 
-/** Item total and unit price, the stored breakdown, and the owner's override. */
-export function ItemPrice({
-  item,
+/** Plate total and unit price, the stored breakdown, and the owner's override. */
+export function PlatePrice({
+  plate,
   editable,
   notCalculated,
   busy,
   clear,
 }: {
-  item: QuoteItem
+  plate: QuotePlate
   editable: boolean
   notCalculated: boolean
   busy: boolean
@@ -29,56 +30,58 @@ export function ItemPrice({
   const canOverride = editable && isOwner
 
   const lines: [string, number | null][] = [
-    [t('quotes.item.price.material'), item.material_cost],
-    [t('quotes.item.price.machine'), item.machine_cost],
-    [t('quotes.item.price.energy'), item.energy_cost],
-    [t('quotes.item.price.failure'), item.failure_cost],
-    [t('quotes.item.price.setupFee'), item.setup_fee],
+    [t('quotes.plate.price.material'), plate.material_cost],
+    [t('quotes.plate.price.machine'), plate.machine_cost],
+    [t('quotes.plate.price.energy'), plate.energy_cost],
+    [t('quotes.plate.price.failure'), plate.failure_cost],
+    [t('quotes.plate.price.setupFee'), plate.setup_fee],
     [
-      t('quotes.item.price.markup', { pct: format.number(item.markup_pct ?? 0) }),
-      item.markup_amount,
+      t('quotes.plate.price.markup', { pct: format.number(plate.markup_pct ?? 0) }),
+      plate.markup_amount,
     ],
-    [t('quotes.item.price.computed'), item.computed_total],
+    [t('quotes.plate.price.computed'), plate.computed_total],
   ]
 
   return (
     <div className="grid gap-2">
-      {item.item_total !== null ? (
+      {plate.plate_total !== null ? (
         <dl className="flex flex-wrap gap-x-8 gap-y-1">
           <div>
-            <dt className="text-sm text-muted-foreground">{t('quotes.item.price.total')}</dt>
-            <dd className="text-lg font-semibold">{format.currency(item.item_total)}</dd>
+            <dt className="text-sm text-muted-foreground">{t('quotes.plate.price.total')}</dt>
+            <dd className="text-lg font-semibold">{format.currency(plate.plate_total)}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted-foreground">{t('quotes.item.price.unit')}</dt>
-            <dd>{format.currency(item.item_total / item.quantity)}</dd>
+            <dt className="text-sm text-muted-foreground">{t('quotes.plate.price.unit')}</dt>
+            <dd>{format.currency(plate.plate_total / plate.quantity)}</dd>
           </div>
         </dl>
       ) : (
-        item.print_time_s !== null && (
+        isPlateComplete(plate) && (
           <p className="text-sm text-muted-foreground">
-            {t(notCalculated ? 'quotes.item.price.notCalculated' : 'quotes.item.price.calculating')}
+            {t(
+              notCalculated ? 'quotes.plate.price.notCalculated' : 'quotes.plate.price.calculating',
+            )}
           </p>
         )
       )}
-      {item.override_total !== null && (
+      {plate.override_total !== null && (
         <div className="text-sm">
           <p>
-            {t('quotes.item.price.overridden', {
-              total: format.currency(item.override_total),
-              computed: item.computed_total === null ? '—' : format.currency(item.computed_total),
+            {t('quotes.plate.price.overridden', {
+              total: format.currency(plate.override_total),
+              computed: plate.computed_total === null ? '—' : format.currency(plate.computed_total),
             })}
           </p>
-          {item.override_reason && (
+          {plate.override_reason && (
             <p className="text-muted-foreground">
-              {t('quotes.item.price.reason', { reason: item.override_reason })}
+              {t('quotes.plate.price.reason', { reason: plate.override_reason })}
             </p>
           )}
         </div>
       )}
-      {item.computed_total !== null && (
+      {plate.computed_total !== null && (
         <details className="text-sm">
-          <summary className="cursor-pointer">{t('quotes.item.price.breakdown')}</summary>
+          <summary className="cursor-pointer">{t('quotes.plate.price.breakdown')}</summary>
           <dl className="mt-2 grid max-w-sm grid-cols-[1fr_auto] gap-x-4 gap-y-1">
             {lines.map(([label, value]) => (
               <Fragment key={label}>
@@ -92,25 +95,25 @@ export function ItemPrice({
       {canOverride && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => setOverriding(true)}>
-            {t('quotes.item.price.override')}
+            {t('quotes.plate.price.override')}
           </Button>
-          {item.override_total !== null && (
+          {plate.override_total !== null && (
             <Button
               size="sm"
               variant="ghost"
               disabled={busy}
               onClick={() =>
-                clear.mutate(item, {
+                clear.mutate(plate, {
                   onError: (caught) => toast.error(t(toAppError(caught).messageKey)),
                 })
               }
             >
-              {t('quotes.item.price.removeOverride')}
+              {t('quotes.plate.price.removeOverride')}
             </Button>
           )}
         </div>
       )}
-      {overriding && <OverrideDialog item={item} onClose={() => setOverriding(false)} />}
+      {overriding && <OverrideDialog plate={plate} onClose={() => setOverriding(false)} />}
     </div>
   )
 }

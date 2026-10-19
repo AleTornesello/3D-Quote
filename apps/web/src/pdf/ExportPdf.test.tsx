@@ -5,8 +5,9 @@ import {
   clientRow,
   materialRow,
   operatorStaff,
+  plateMaterialRow,
   printerRow,
-  quoteItemRow,
+  quotePlateRow,
   quoteRow,
   settingsRow,
 } from '@/test/fixtures'
@@ -21,11 +22,10 @@ const session = fakeSession()
 
 const priced = {
   printer_id: 11,
-  material_id: 21,
   print_time_s: 3600,
-  filament_g: 25,
+  materials: [plateMaterialRow({ material_id: 21, grams: 25 })],
   computed_total: 30,
-  item_total: 30,
+  plate_total: 30,
   priced_at: '2026-10-13T09:00:00Z',
 }
 
@@ -40,7 +40,7 @@ afterEach(() => vi.useRealTimers())
 function renderEditor(
   opts: {
     quote?: Record<string, unknown>
-    items?: Record<string, unknown>[]
+    plates?: Record<string, unknown>[]
     staff?: typeof operatorStaff
     settings?: Record<string, unknown>
   } = {},
@@ -52,7 +52,7 @@ function renderEditor(
       settings: [{ ...settingsRow, ...opts.settings }],
       quotes: [quoteRow({ id: 7, number: 'Q-2026-0007', client_id: 1, ...opts.quote })],
       clients: [clientRow({ id: 1, name: 'Mario Rossi' })],
-      quote_items: opts.items ?? [quoteItemRow({ id: 31, ...priced })],
+      quote_plates: opts.plates ?? [quotePlateRow({ id: 31, ...priced })],
       printers: [printerRow({ id: 11 })],
       materials: [materialRow({ id: 21 })],
     },
@@ -66,18 +66,20 @@ test('Export PDF is offered in every status, to operators too', async () => {
     const quote =
       status === 'draft' ? {} : { status, vat_rate_pct: 22, sent_at: '2026-10-12T08:00:00Z' }
     const { unmount } = renderEditor({ quote, staff: operatorStaff })
-    // The items load after the page: the button is disabled until then.
+    // The plates load after the page: the button is disabled until then.
     const button = await exportButton()
     await waitFor(() => expect(button).toBeEnabled())
     unmount()
   }
 })
 
-test('Export PDF waits until every item has a price', async () => {
-  renderEditor({ items: [quoteItemRow({ id: 31, ...priced }), quoteItemRow({ id: 32 })] })
+test('Export PDF waits until every plate is complete and priced', async () => {
+  renderEditor({ plates: [quotePlateRow({ id: 31, ...priced }), quotePlateRow({ id: 32 })] })
   expect(await exportButton()).toBeDisabled()
   expect(
-    await screen.findByText("Ogni articolo deve avere un prezzo prima dell'esportazione."),
+    await screen.findByText(
+      "Ogni piatto deve avere stampante, tempo di stampa, materiale e prezzo prima dell'esportazione.",
+    ),
   ).toBeInTheDocument()
 })
 
@@ -92,11 +94,11 @@ test('Export PDF waits for the consumable lines, which belong in the document', 
   expect(button).toBeDisabled()
 })
 
-test('Export PDF is disabled for a quote without items', async () => {
-  renderEditor({ items: [] })
+test('Export PDF is disabled for a quote without plates', async () => {
+  renderEditor({ plates: [] })
   const button = await exportButton()
   expect(button).toBeDisabled()
-  const hint = await screen.findByText('Aggiungi almeno un articolo prima di esportare.')
+  const hint = await screen.findByText('Aggiungi almeno un piatto prima di esportare.')
   expect(button).toHaveAttribute('aria-describedby', hint.id)
 })
 

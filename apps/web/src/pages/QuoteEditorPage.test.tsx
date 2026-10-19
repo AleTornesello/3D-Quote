@@ -5,11 +5,11 @@ import type { FunctionHandler, Row } from '@/test/fake-db'
 import { fakeSession } from '@/test/fake-supabase'
 import {
   clientRow,
-  jobRow,
   materialRow,
   operatorStaff,
+  plateMaterialRow,
   printerRow,
-  quoteItemRow,
+  quotePlateRow,
   quoteRow,
 } from '@/test/fixtures'
 import { renderApp } from '@/test/render-app'
@@ -25,7 +25,7 @@ afterEach(() => vi.useRealTimers())
 function renderEditor(
   opts: {
     quote?: Partial<Tables<'quotes'>>
-    items?: Row[]
+    plates?: Row[]
     staff?: Tables<'staff'>
     rpc?: Record<string, (args: unknown) => unknown>
     functions?: Record<string, FunctionHandler>
@@ -37,7 +37,7 @@ function renderEditor(
     tables: {
       quotes: [quoteRow({ id: 7, number: 'Q-2026-0007', client_id: 1, ...opts.quote })],
       clients: [clientRow({ id: 1, name: 'Mario Rossi', company: 'Rossi Meccanica' })],
-      quote_items: opts.items ?? [],
+      quote_plates: opts.plates ?? [],
       printers: [printerRow({ id: 11, name: 'MK4 #1' })],
       materials: [materialRow({ id: 21 })],
     },
@@ -103,20 +103,22 @@ test('expired quotes can only be duplicated', async () => {
 
 test('Mark as sent lists what is missing', async () => {
   const { user } = renderEditor({
-    items: [
-      quoteItemRow({
+    plates: [
+      quotePlateRow({
         id: 31,
         description: 'Staffa',
         printer_id: 11,
-        material_id: 21,
         print_time_s: 100,
-        job: jobRow({ status: 'succeeded' }),
+        materials: [plateMaterialRow({ material_id: 21 })],
       }),
+      quotePlateRow({ id: 32, description: 'Perno' }),
     ],
     rpc: {
       get_quote_send_blockers: () => [
-        { quote_item_id: null, code: 'valid_until_past' },
-        { quote_item_id: 31, code: 'not_priced' },
+        { quote_plate_id: null, code: 'no_plates' },
+        { quote_plate_id: null, code: 'valid_until_past' },
+        { quote_plate_id: 31, code: 'not_priced' },
+        { quote_plate_id: 32, code: 'plate_incomplete' },
       ],
     },
   })
@@ -124,8 +126,12 @@ test('Mark as sent lists what is missing', async () => {
   const dialog = await screen.findByRole('alertdialog', {
     name: 'Q-2026-0007 non può ancora essere inviato',
   })
+  expect(within(dialog).getByText('Il preventivo non ha piatti.')).toBeInTheDocument()
   expect(within(dialog).getByText('La data di validità è passata.')).toBeInTheDocument()
   expect(await within(dialog).findByText('Staffa: il prezzo non è calcolato.')).toBeInTheDocument()
+  expect(
+    within(dialog).getByText('Perno: scegli stampante, tempo di stampa e materiale.'),
+  ).toBeInTheDocument()
   expect(
     within(dialog).queryByRole('button', { name: 'Segna come inviato' }),
   ).not.toBeInTheDocument()
@@ -144,13 +150,34 @@ test('Mark as sent confirms when nothing is missing', async () => {
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
 })
 
-test('Mark as sent waits while an item is slicing', async () => {
+test('Mark as sent stays enabled with an incomplete plate: its dialog explains', async () => {
+  renderEditor({ plates: [quotePlateRow({ id: 31 })] })
+  await screen.findByRole('article', { name: 'Piatto 1' })
+  expect(screen.getByRole('button', { name: 'Segna come inviato' })).toBeEnabled()
+})
+
+test('the totals list the incomplete plates', async () => {
   renderEditor({
-    items: [quoteItemRow({ printer_id: 11, material_id: 21, job: jobRow({ status: 'running' }) })],
+    plates: [
+      quotePlateRow({
+        id: 31,
+        description: 'Staffa',
+        printer_id: 11,
+        print_time_s: 100,
+        materials: [plateMaterialRow({ material_id: 21 })],
+        computed_total: 10,
+        plate_total: 10,
+        priced_at: '2026-10-13T09:00:00Z',
+      }),
+      quotePlateRow({ id: 32, description: 'Perno' }),
+    ],
   })
-  await heading()
-  expect(await screen.findByRole('button', { name: 'Segna come inviato' })).toBeDisabled()
-  expect(screen.getByText('Attendi la fine dello slicing.')).toBeInTheDocument()
+  const total = await screen.findByRole('region', { name: 'Totale' })
+  expect(
+    await within(total).findByText('Completa tutti i piatti per vedere il totale.'),
+  ).toBeInTheDocument()
+  expect(within(total).getByRole('listitem')).toHaveTextContent('Perno')
+  expect(within(total).getAllByText('—')).toHaveLength(3)
 })
 
 test('Mark accepted asks first', async () => {
@@ -189,16 +216,14 @@ test('a failed duplicate says nothing was created', async () => {
   expect(router.state.location.pathname).toBe('/quotes/7')
 })
 
-test('owners delete a draft and its files', async () => {
-  const { db, user, router } = renderEditor({
-    items: [quoteItemRow({ id: 31, model_path: '7/u31/staffa.stl' })],
-  })
+test('owners delete a draft', async () => {
+  const { db, user, router } = renderEditor({ plates: [quotePlateRow({ id: 31 })] })
   await user.click(await screen.findByRole('button', { name: 'Elimina' }))
   const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0007?' })
   await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/quotes'))
   expect(db.calls('quotes')).toContainEqual({ op: 'delete', filters: [['eq', 'id', 7]] })
-  expect(db.storageCalls('models')).toContainEqual({ op: 'remove', paths: ['7/u31/staffa.stl'] })
+  expect(db.storageCalls('models')).toEqual([])
 })
 
 test('Edit details saves only what changed', async () => {
@@ -262,10 +287,8 @@ test('Mark accepted on a quote someone else already closed shows its new status'
   await waitFor(() => expect(screen.getByText('Accettato')).toBeInTheDocument())
 })
 
-test('deleting a draft that has meanwhile been sent explains why and keeps its files', async () => {
-  const { db, user, router } = renderEditor({
-    items: [quoteItemRow({ id: 31, model_path: '7/u31/staffa.stl' })],
-  })
+test('deleting a draft that has meanwhile been sent explains why', async () => {
+  const { db, user, router } = renderEditor({ plates: [quotePlateRow({ id: 31 })] })
   await user.click(await screen.findByRole('button', { name: 'Elimina' }))
   const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0007?' })
   db.table('quotes')[0].status = 'sent'
@@ -273,22 +296,6 @@ test('deleting a draft that has meanwhile been sent explains why and keeps its f
   expect(await within(dialog).findByText(NOT_DRAFT)).toBeInTheDocument()
   await waitFor(() => expect(screen.getByText('Inviato')).toBeInTheDocument())
   expect(router.state.location.pathname).toBe('/quotes/7')
-  expect(db.storageCalls('models')).toEqual([])
-})
-
-test('a delete still succeeds when removing its files throws', async () => {
-  const { db, user, router } = renderEditor({
-    items: [quoteItemRow({ id: 31, model_path: '7/u31/staffa.stl' })],
-  })
-  const bucket = db.storage.from
-  vi.spyOn(db.storage, 'from').mockImplementation((name) => ({
-    ...bucket(name),
-    remove: () => Promise.reject(new TypeError('Failed to fetch')),
-  }))
-  await user.click(await screen.findByRole('button', { name: 'Elimina' }))
-  const dialog = await screen.findByRole('alertdialog', { name: 'Eliminare Q-2026-0007?' })
-  await user.click(within(dialog).getByRole('button', { name: 'Elimina' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe('/quotes'))
 })
 
 test('an unknown or malformed id shows not found', async () => {
