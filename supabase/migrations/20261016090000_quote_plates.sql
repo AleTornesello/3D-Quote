@@ -55,7 +55,10 @@ insert into public.quote_plates (
   material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct,
   computed_total, override_total, override_reason, priced_at, created_at, updated_at
 ) overriding system value
-select id, quote_id, description, printer_id, nullif(print_time_s, 0), quantity,
+select id, quote_id,
+  -- Item descriptions could be blank; plates need one.
+  coalesce(nullif(btrim(description), ''), nullif(btrim(original_filename), ''), 'Plate ' || id),
+  printer_id, nullif(print_time_s, 0), quantity,
   material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct,
   computed_total, override_total, override_reason, priced_at, created_at, updated_at
 from public.quote_items;
