@@ -22,32 +22,31 @@ insert into public.quotes (id, client_id, created_by, status, sent_at, valid_unt
   (900004, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date - 1, 22),
   (900005, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date, 22),
   (900006, 900001, '00000000-0000-4000-8000-0000000000a1', 'sent', now(), (now() at time zone 'Europe/Rome')::date + 30, 22);
-insert into public.quote_items (
-  id, quote_id, model_path, original_filename, description, printer_id, material_id,
-  print_time_s, filament_g, bbox_x_mm, bbox_y_mm, bbox_z_mm, computed_total
-) overriding system value values
-  (900001, 900001, '900001/a/ok.stl', 'ok.stl', 'OK', 900001, 900001, 3600, 25, 50, 40, 30, 10.00),
-  (900002, 900002, '900002/a/nomat.stl', 'nomat.stl', 'No material', 900001, null, null, null, null, null, null, null),
-  (900003, 900002, '900002/b/big.stl', 'big.stl', 'Too big', 900001, 900001, 3600, 25, 300, 40, 30, null);
-insert into public.slicing_jobs (quote_item_id, status) values (900001, 'succeeded'), (900003, 'failed');
+-- 900001 complete and priced · 900002 has a printer but no time or material · 900003 complete, not priced.
+insert into public.quote_plates (id, quote_id, description, printer_id, print_time_s) overriding system value values
+  (900001, 900001, 'OK', 900001, 3600),
+  (900002, 900002, 'No material', 900001, null),
+  (900003, 900002, 'Unpriced', 900001, 3600);
+insert into public.quote_plate_materials (plate_id, material_id, grams) values (900001, 900001, 25), (900003, 900001, 25);
+-- Priced after the material rows, whose inserts clear the price.
+update public.quote_plates set computed_total = 10.00, priced_at = now() where id = 900001;
 
 -- Operator: send checks and outcomes
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-0000000000a2","role":"authenticated"}';
 select is_empty($$select * from public.get_quote_send_blockers(900001)$$, 'a complete quote has no blockers');
 select results_eq(
-  $$select quote_item_id, code from public.get_quote_send_blockers(900002)$$,
-  $$values (900002::bigint, 'missing_printer_or_material'::text), (900002, 'not_priced'), (900002, 'not_sliced'),
-           (900003, 'not_priced'), (900003, 'not_sliced')$$,
-  'each incomplete item is reported with its reasons'
+  $$select quote_plate_id, code from public.get_quote_send_blockers(900002)$$,
+  $$values (900002::bigint, 'plate_incomplete'::text), (900003, 'not_priced')$$,
+  'an incomplete plate and a complete unpriced plate are reported'
 );
 select results_eq(
-  $$select quote_item_id, code from public.get_quote_send_blockers(900003)$$,
-  $$values (null::bigint, 'no_items'::text), (null::bigint, 'valid_until_past'::text)$$,
-  'quote-level problems are reported without an item'
+  $$select quote_plate_id, code from public.get_quote_send_blockers(900003)$$,
+  $$values (null::bigint, 'no_plates'::text), (null::bigint, 'valid_until_past'::text)$$,
+  'quote-level problems are reported without a plate'
 );
 select results_eq(
-  $$select quote_item_id, code from public.get_quote_send_blockers(900004)$$,
+  $$select quote_plate_id, code from public.get_quote_send_blockers(900004)$$,
   $$values (null::bigint, 'not_draft'::text)$$,
   'a sent quote reports only not_draft'
 );
@@ -69,9 +68,8 @@ select is((select status from public.quotes where id = 900005), 'sent', 'a quote
 select is((select status from public.quotes where id = 900003), 'draft', 'drafts never expire');
 
 -- Overrides
-insert into public.quote_items (
-  id, quote_id, model_path, original_filename, description, printer_id, material_id, computed_total
-) overriding system value values (900007, 900002, '900002/c/priced.stl', 'priced.stl', 'Priced', 900001, 900001, 10.00);
+insert into public.quote_plates (id, quote_id, description, printer_id, print_time_s, computed_total)
+  overriding system value values (900007, 900002, 'Priced', 900001, 3600, 10.00);
 set local role authenticated;
 select throws_ok(
   $$select public.set_price_override(900003, 50, 'Friend')$$,
@@ -90,10 +88,10 @@ select throws_ok(
   $$select public.set_price_override(900003, -1, 'Oops')$$,
   '22023', 'invalid_override', 'an override cannot be negative'
 );
-select lives_ok($$select public.set_price_override(900003, 50, 'Friend')$$, 'owners can override a draft item');
-select is((select item_total from public.quote_items where id = 900003), 50.00::numeric, 'the override becomes the item total');
+select lives_ok($$select public.set_price_override(900003, 50, 'Friend')$$, 'owners can override a draft plate');
+select is((select plate_total from public.quote_plates where id = 900003), 50.00::numeric, 'the override becomes the plate total');
 select lives_ok($$select public.clear_price_override(900003)$$, 'owners can remove an override');
-select is((select override_total from public.quote_items where id = 900003), null::numeric, 'the override is gone');
+select is((select override_total from public.quote_plates where id = 900003), null::numeric, 'the override is gone');
 select throws_ok(
   $$select public.set_price_override(900001, 50, 'Late')$$,
   'P0001', 'quote_not_draft', 'prices of a sent quote are frozen'
@@ -104,7 +102,7 @@ select throws_ok(
 );
 select lives_ok($$select public.set_markup_override(900002, 25)$$, 'owners can override the markup of a draft');
 select is((select markup_override_pct from public.quotes where id = 900002), 25.00::numeric, 'the markup override is saved');
-select is((select computed_total from public.quote_items where id = 900007), null::numeric, 'and every item is re-priced');
+select is((select computed_total from public.quote_plates where id = 900007), null::numeric, 'and every plate is re-priced');
 select lives_ok($$select public.set_markup_override(900002, null)$$, 'the markup override can be removed');
 
 select * from finish();

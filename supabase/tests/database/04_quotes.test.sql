@@ -14,10 +14,12 @@ insert into public.clients (id, name) overriding system value values (900001, 'T
 -- (e.g. by the Edge Function tests) can't be deleted through the guards, so they are lifted for this reset only;
 -- everything rolls back at the end.
 alter table public.quotes disable trigger quotes_guard;
-alter table public.quote_items disable trigger quote_items_guard;
+alter table public.quote_plates disable trigger quote_plates_guard;
+alter table public.quote_plate_materials disable trigger quote_plate_materials_guard;
 delete from public.quotes;
 alter table public.quotes enable trigger quotes_guard;
-alter table public.quote_items enable trigger quote_items_guard;
+alter table public.quote_plates enable trigger quote_plates_guard;
+alter table public.quote_plate_materials enable trigger quote_plate_materials_guard;
 delete from private.quote_counters;
 insert into private.quote_counters (year, last_seq)
   values (extract(year from (now() at time zone 'Europe/Rome'))::smallint - 1, 57);

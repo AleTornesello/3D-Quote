@@ -23,12 +23,11 @@ insert into public.quotes (id, client_id, created_by, valid_until) overriding sy
   (930003, 930001, '00000000-0000-4000-8000-0000000000e1', (now() at time zone 'Europe/Rome')::date + 30),
   (930004, 930001, '00000000-0000-4000-8000-0000000000e1', (now() at time zone 'Europe/Rome')::date + 30),
   (930005, 930001, '00000000-0000-4000-8000-0000000000e1', (now() at time zone 'Europe/Rome')::date + 30);
-insert into public.quote_items (
-  id, quote_id, model_path, original_filename, description, printer_id, material_id,
-  print_time_s, filament_g, bbox_x_mm, bbox_y_mm, bbox_z_mm, computed_total
-) overriding system value values
-  (930001, 930001, '930001/a/ok.stl', 'ok.stl', 'OK', 930001, 930001, 3600, 25, 50, 40, 30, 10.00);
-insert into public.slicing_jobs (quote_item_id, status) values (930001, 'succeeded');
+insert into public.quote_plates (id, quote_id, description, printer_id, print_time_s)
+  overriding system value values (930001, 930001, 'OK', 930001, 3600);
+insert into public.quote_plate_materials (plate_id, material_id, grams) values (930001, 930001, 25);
+-- Priced after the material row, whose insert clears the price.
+update public.quote_plates set computed_total = 10.00, priced_at = now() where id = 930001;
 
 -- Constraints
 select throws_ok(
@@ -89,7 +88,7 @@ set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-0000000000e2","
 -- Sending: not enough stock blocks, enough stock deducts
 select lives_ok($$select public.add_quote_consumable(930001, 930002, 5)$$, 'a line above the stock can be drafted');
 select results_eq(
-  $$select quote_item_id, code from public.get_quote_send_blockers(930001)$$,
+  $$select quote_plate_id, code from public.get_quote_send_blockers(930001)$$,
   $$values (null::bigint, 'insufficient_stock'::text)$$,
   'the blockers report the missing stock'
 );
@@ -150,7 +149,7 @@ insert into public.quote_consumables (quote_id, consumable_id, quantity, unit_pr
   (930004, 930001, 3, 0.05),
   (930004, 930002, 1, 0.50);
 update public.consumables set active = false where id = 930002;
-select private.service_copy_quote_items(930004, 930005, '[]'::jsonb);
+select private.service_copy_quote_plates(930004, 930005);
 select results_eq(
   $$select consumable_id::int, quantity, unit_price from public.quote_consumables where quote_id = 930005$$,
   $$values (930001, 3, 0.10::numeric)$$,

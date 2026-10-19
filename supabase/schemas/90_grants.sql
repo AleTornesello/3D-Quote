@@ -22,19 +22,6 @@ grant insert, update, delete on public.printers, public.materials, public.client
 -- select above like every relation in public; its grants are repeated in the quotes_list_setup migration.
 grant delete on public.quotes to authenticated;
 
--- quote_items (update is a column grant in the grants_and_setup migration)
-grant delete on public.quote_items to authenticated;
-
--- item functions
-grant execute on function
-  public.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
-  private.create_quote_item(bigint, text, text, text, bigint, bigint, integer, numeric, integer, boolean),
-  public.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
-  private.update_quote_item_settings(bigint, bigint, bigint, numeric, integer, boolean),
-  public.retry_slicing(bigint),
-  private.retry_slicing(bigint)
-to authenticated;
-
 -- overrides, send check and outcomes
 grant execute on function
   public.set_markup_override(bigint, numeric),
@@ -53,22 +40,12 @@ grant execute on function
   private.mark_quote_rejected(bigint)
 to authenticated;
 
--- worker functions: service role only
-grant execute on function
-  public.worker_claim_job(integer, integer),
-  private.worker_claim_job(integer, integer),
-  public.worker_complete_job(bigint, bigint, jsonb),
-  private.worker_complete_job(bigint, bigint, jsonb),
-  public.worker_fail_job(bigint, bigint, text, boolean),
-  private.worker_fail_job(bigint, bigint, text, boolean)
-to service_role;
-
 -- duplicate-quote service functions: service role only
 grant execute on function
   public.service_create_quote_copy(bigint, uuid),
   private.service_create_quote_copy(bigint, uuid),
-  public.service_copy_quote_items(bigint, bigint, jsonb),
-  private.service_copy_quote_items(bigint, bigint, jsonb)
+  public.service_copy_quote_plates(bigint, bigint),
+  private.service_copy_quote_plates(bigint, bigint)
 to service_role;
 
 -- storage policy helper

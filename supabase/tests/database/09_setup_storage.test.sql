@@ -21,7 +21,7 @@ insert into storage.objects (bucket_id, name) values
 
 -- What the migration sets up
 select is((select count(*)::int from public.settings), 1, 'settings has its single row');
-select ok(exists (select 1 from pgmq.list_queues() where queue_name = 'slicing_jobs'), 'the slicing_jobs queue exists');
+select ok(not exists (select 1 from pgmq.list_queues() where queue_name = 'slicing_jobs'), 'the slicing_jobs queue is gone');
 select results_eq(
   $$select id, public, file_size_limit, allowed_mime_types from storage.buckets
     where id in ('branding', 'models') order by id$$,

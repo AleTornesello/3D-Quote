@@ -15,12 +15,11 @@ insert into public.materials (id, name, type, density_g_cm3, cost_per_kg)
 insert into public.clients (id, name) overriding system value values (910001, 'Test Client');
 insert into public.quotes (id, client_id, created_by, status, sent_at, valid_until) overriding system value values
   (910001, 910001, '00000000-0000-4000-8000-0000000000a1', 'draft', null, (now() at time zone 'Europe/Rome')::date + 30);
-insert into public.quote_items (
-  id, quote_id, model_path, original_filename, description, printer_id, material_id,
-  print_time_s, filament_g, bbox_x_mm, bbox_y_mm, bbox_z_mm, computed_total
-) overriding system value values
-  (910001, 910001, '910001/a/ok.stl', 'ok.stl', 'OK', 910001, 910001, 3600, 25, 50, 40, 30, 10.00);
-insert into public.slicing_jobs (quote_item_id, status) values (910001, 'succeeded');
+insert into public.quote_plates (id, quote_id, description, printer_id, print_time_s)
+  overriding system value values (910001, 910001, 'OK', 910001, 3600);
+insert into public.quote_plate_materials (plate_id, material_id, grams) values (910001, 910001, 25);
+-- Priced after the material row, whose insert clears the price.
+update public.quote_plates set computed_total = 10.00, priced_at = now() where id = 910001;
 
 -- Settings
 select is((select vat_rate_pct from public.settings where id = 1), 22::numeric, 'the VAT rate defaults to 22');

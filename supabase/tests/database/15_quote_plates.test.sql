@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(43);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-0000000000f1', 'op.plates@test.local');
@@ -116,41 +116,124 @@ select throws_ok(
   'P0001', 'quote_not_draft', 'nor can its materials'
 );
 
--- Data copy of the quote_plates migration, run against fresh items: a complete item, an item with a material but
--- no filament weight, and an item with a zero print time.
+-- Totals, column grants and RLS
+insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000f3', 'outsider.plates@test.local');
 insert into public.quotes (id, client_id, created_by) overriding system value values
-  (930003, 930001, '00000000-0000-4000-8000-0000000000f1');
-insert into public.quote_items (
-  id, quote_id, model_path, original_filename, description, printer_id, material_id, print_time_s, filament_g
-) overriding system value values
-  (930101, 930003, '930003/a/a.stl', 'a.stl', 'Complete', 930001, 930001, 3600, 25),
-  (930102, 930003, '930003/a/b.stl', 'b.stl', 'No grams', 930001, 930001, 3600, null),
-  (930103, 930003, '930003/a/c.stl', 'c.stl', 'Zero time', 930001, null, 0, 10);
+  (930011, 930001, '00000000-0000-4000-8000-0000000000f1'),
+  (930012, 930001, '00000000-0000-4000-8000-0000000000f1');
+insert into public.quote_plates (id, quote_id, description, printer_id, print_time_s) overriding system value values
+  (930011, 930011, 'Part', 930001, 3600),
+  (930012, 930012, 'Part', 930001, 3600);
+insert into public.quote_plate_materials (id, plate_id, material_id, grams) overriding system value values
+  (930011, 930011, 930001, 25),
+  (930012, 930012, 930001, 25);
+update public.quote_plates set computed_total = 10.00, priced_at = now() where id in (930011, 930012);
+update public.quotes set status = 'sent', sent_at = now(), vat_rate_pct = 22 where id = 930012;
 
-insert into public.quote_plates (
-  id, quote_id, description, printer_id, print_time_s, quantity,
-  material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct,
-  computed_total, override_total, override_reason, priced_at, created_at, updated_at
-) overriding system value
-select id, quote_id, description, printer_id, nullif(print_time_s, 0), quantity,
-  material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct,
-  computed_total, override_total, override_reason, priced_at, created_at, updated_at
-from public.quote_items where quote_id = 930003;
-insert into public.quote_plate_materials (plate_id, material_id, grams, created_at, updated_at)
-select id, material_id, filament_g, created_at, updated_at
-from public.quote_items
-where quote_id = 930003 and material_id is not null and filament_g > 0;
+select is((select plate_total from public.quote_plates where id = 930011), 10.00::numeric, 'plate_total is the computed total');
+select throws_ok(
+  $$update public.quote_plates set override_total = 12 where id = 930011$$,
+  '23514', null, 'an override needs a reason'
+);
+update public.quote_plates set override_total = 12, override_reason = 'Repeat customer' where id = 930011;
+select is((select plate_total from public.quote_plates where id = 930011), 12.00::numeric, 'plate_total is the override when set');
 
-select is((select count(*)::int from public.quote_plates where quote_id = 930003), 3, 'every item becomes a plate');
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-0000000000f1","role":"authenticated"}';
 select results_eq(
-  $$select plate_id, grams from public.quote_plate_materials where plate_id between 930101 and 930103$$,
-  $$values (930101::bigint, 25.00::numeric)$$,
-  'only the item with a material and grams gets a material row'
+  $$with u as (update public.quote_plates set description = 'Bracket' where id = 930011 returning 1) select count(*)::int from u$$,
+  $$values (1)$$,
+  'operators can edit the description of a draft plate'
 );
+select results_eq(
+  $$with u as (update public.quote_plates set print_time_s = 7200 where id = 930011 returning 1) select count(*)::int from u$$,
+  $$values (1)$$,
+  'operators can change the print time of a draft plate'
+);
+select results_eq(
+  $$with u as (update public.quote_plate_materials set grams = 30 where id = 930011 returning 1) select count(*)::int from u$$,
+  $$values (1)$$,
+  'operators can change the grams of a material row'
+);
+select throws_ok(
+  $$update public.quote_plates set computed_total = 1 where id = 930011$$,
+  '42501', null, 'price columns cannot be written through the API'
+);
+select throws_ok(
+  $$update public.quote_plates set printer_id = null where id = 930011$$,
+  '42501', null, 'the printer changes only through set_plate_printer'
+);
+select throws_ok(
+  $$insert into public.quote_plates (quote_id, description) values (930011, 'y')$$,
+  '42501', null, 'plates are created only through create_quote_plate'
+);
+select throws_ok(
+  $$insert into public.quote_plate_materials (plate_id, material_id, grams) values (930011, 930002, 1)$$,
+  '42501', null, 'material rows are added only through save_plate_material'
+);
+select results_eq(
+  $$with u as (update public.quote_plates set description = 'Late' where id = 930012 returning 1) select count(*)::int from u$$,
+  $$values (0)$$,
+  'plates of a sent quote cannot be edited'
+);
+select results_eq(
+  $$with d as (delete from public.quote_plate_materials where id = 930012 returning 1) select count(*)::int from d$$,
+  $$values (0)$$,
+  'material rows of a sent quote cannot be deleted'
+);
+select results_eq(
+  $$with d as (delete from public.quote_plates where id = 930012 returning 1) select count(*)::int from d$$,
+  $$values (0)$$,
+  'plates of a sent quote cannot be deleted'
+);
+
+-- Signed in without a staff row
+set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-0000000000f3","role":"authenticated"}';
+select is((select count(*)::int from public.quote_plates), 0, 'non-staff see no plates');
+select is((select count(*)::int from public.quote_plate_materials), 0, 'non-staff see no material rows');
+
+-- The service role bypasses RLS but not the freeze
+set local role service_role;
+set local request.jwt.claims to '{"role":"service_role"}';
+select throws_ok(
+  $$update public.quote_plates set computed_total = 1 where id = 930012$$,
+  'P0001', 'quote_not_draft', 'even the service role cannot reprice a plate of a sent quote'
+);
+select throws_ok(
+  $$delete from public.quote_plates where id = 930012$$,
+  'P0001', 'quote_not_draft', 'even the service role cannot delete a plate of a sent quote'
+);
+select lives_ok(
+  $$update public.quote_plates set computed_total = 11 where id = 930011$$,
+  'the service role can price draft plates'
+);
+
+-- Operator removes a material row and a plate from a draft
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-0000000000f1","role":"authenticated"}';
+select results_eq(
+  $$with d as (delete from public.quote_plate_materials where id = 930011 returning 1) select count(*)::int from d$$,
+  $$values (1)$$,
+  'operators can remove a material row from a draft plate'
+);
+select results_eq(
+  $$with d as (delete from public.quote_plates where id = 930011 returning 1) select count(*)::int from d$$,
+  $$values (1)$$,
+  'operators can remove plates from a draft'
+);
+
+-- Deleting a draft quote takes its plates and material rows with it; catalog rows in use stay
+reset role;
+insert into public.quote_plates (id, quote_id, description) overriding system value values (930013, 930011, 'Part');
+insert into public.quote_plate_materials (id, plate_id, material_id, grams)
+  overriding system value values (930013, 930013, 930001, 5);
+select lives_ok($$delete from public.quotes where id = 930011$$, 'a draft quote with plates can be deleted');
 select is(
-  (select print_time_s from public.quote_plates where id = 930103), null::integer,
-  'a zero print time becomes no print time'
+  (select count(*)::int from public.quote_plate_materials where id = 930013), 0,
+  'its plates and material rows are deleted with it'
 );
+select throws_ok($$delete from public.printers where id = 930001$$, '23503', null, 'a printer used by a plate cannot be deleted');
+select throws_ok($$delete from public.materials where id = 930001$$, '23503', null, 'a material used by a plate cannot be deleted');
 
 select * from finish();
 rollback;

@@ -62,30 +62,6 @@ create policy quotes_update on public.quotes
 create policy quotes_delete on public.quotes
   for delete to authenticated using ((select private.is_owner()) and status = 'draft');
 
--- quote_items: staff read; staff edit and remove items of draft quotes (creation goes through create_quote_item)
-create policy quote_items_select on public.quote_items
-  for select to authenticated using ((select private.is_staff()));
-create policy quote_items_update on public.quote_items
-  for update to authenticated
-  using (
-    (select private.is_staff())
-    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
-  )
-  with check (
-    (select private.is_staff())
-    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
-  );
-create policy quote_items_delete on public.quote_items
-  for delete to authenticated
-  using (
-    (select private.is_staff())
-    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
-  );
-
--- slicing_jobs: read-only for staff
-create policy slicing_jobs_select on public.slicing_jobs
-  for select to authenticated using ((select private.is_staff()));
-
 -- consumables: staff read, owners write
 create policy consumables_select on public.consumables
   for select to authenticated using ((select private.is_staff()));
