@@ -83,3 +83,15 @@ grant execute on function
   public.add_quote_consumable(bigint, bigint, integer),
   private.add_quote_consumable(bigint, bigint, integer)
 to authenticated;
+
+-- plates (the column updates are column grants in the quote_plates migration)
+grant delete on public.quote_plates, public.quote_plate_materials to authenticated;
+
+grant execute on function
+  public.create_quote_plate(bigint, text, bigint),
+  private.create_quote_plate(bigint, text, bigint),
+  public.set_plate_printer(bigint, bigint),
+  private.set_plate_printer(bigint, bigint),
+  public.save_plate_material(bigint, bigint, numeric),
+  private.save_plate_material(bigint, bigint, numeric)
+to authenticated;

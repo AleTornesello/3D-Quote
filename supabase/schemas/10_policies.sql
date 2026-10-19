@@ -115,3 +115,52 @@ create policy quote_consumables_delete on public.quote_consumables
     (select private.is_staff())
     and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
   );
+
+-- quote_plates / quote_plate_materials: staff read; staff edit and remove rows of draft quotes (creation goes
+-- through create_quote_plate and save_plate_material)
+create policy quote_plates_select on public.quote_plates
+  for select to authenticated using ((select private.is_staff()));
+create policy quote_plates_update on public.quote_plates
+  for update to authenticated
+  using (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  )
+  with check (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  );
+create policy quote_plates_delete on public.quote_plates
+  for delete to authenticated
+  using (
+    (select private.is_staff())
+    and exists (select 1 from public.quotes q where q.id = quote_id and q.status = 'draft')
+  );
+
+create policy quote_plate_materials_select on public.quote_plate_materials
+  for select to authenticated using ((select private.is_staff()));
+create policy quote_plate_materials_update on public.quote_plate_materials
+  for update to authenticated
+  using (
+    (select private.is_staff())
+    and exists (
+      select 1 from public.quote_plates p join public.quotes q on q.id = p.quote_id
+      where p.id = plate_id and q.status = 'draft'
+    )
+  )
+  with check (
+    (select private.is_staff())
+    and exists (
+      select 1 from public.quote_plates p join public.quotes q on q.id = p.quote_id
+      where p.id = plate_id and q.status = 'draft'
+    )
+  );
+create policy quote_plate_materials_delete on public.quote_plate_materials
+  for delete to authenticated
+  using (
+    (select private.is_staff())
+    and exists (
+      select 1 from public.quote_plates p join public.quotes q on q.id = p.quote_id
+      where p.id = plate_id and q.status = 'draft'
+    )
+  );

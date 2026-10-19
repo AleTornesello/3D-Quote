@@ -662,3 +662,118 @@ begin
   return not exists (select 1 from public.quotes where id = v_folder::bigint and status <> 'draft');
 end;
 $$;
+
+-- Plates: create_quote_plate, set_plate_printer, save_plate_material.
+
+create or replace function private.create_quote_plate(p_quote_id bigint, p_description text, p_printer_id bigint)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id bigint;
+begin
+  perform private.require_staff();
+  perform private.require_draft_quote(p_quote_id);
+  if nullif(btrim(p_description), '') is null then
+    raise exception 'invalid_description' using errcode = '22023';
+  end if;
+  perform private.require_active_catalog(p_printer_id, null);
+
+  insert into public.quote_plates (quote_id, description, printer_id)
+  values (p_quote_id, btrim(p_description), p_printer_id)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+create or replace function public.create_quote_plate(
+  quote_id bigint,
+  description text,
+  printer_id bigint default null
+)
+returns bigint
+language sql
+security invoker
+set search_path = ''
+as $$
+  select private.create_quote_plate($1, $2, $3);
+$$;
+
+create or replace function private.set_plate_printer(p_plate_id bigint, p_printer_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_plate public.quote_plates;
+begin
+  perform private.require_staff();
+  select * into v_plate from public.quote_plates where id = p_plate_id;
+  if not found then
+    raise exception 'plate_not_found' using errcode = 'P0002';
+  end if;
+  perform private.require_draft_quote(v_plate.quote_id);
+
+  if v_plate.printer_id is not distinct from p_printer_id then
+    return;
+  end if;
+  perform private.require_active_catalog(p_printer_id, null);
+  update public.quote_plates set printer_id = p_printer_id where id = p_plate_id;
+end;
+$$;
+
+create or replace function public.set_plate_printer(plate_id bigint, printer_id bigint)
+returns void
+language sql
+security invoker
+set search_path = ''
+as $$
+  select private.set_plate_printer($1, $2);
+$$;
+
+-- Adds the material to the plate, or sets the grams of the row it already has.
+create or replace function private.save_plate_material(p_plate_id bigint, p_material_id bigint, p_grams numeric)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_quote_id bigint;
+  v_id bigint;
+begin
+  perform private.require_staff();
+  select quote_id into v_quote_id from public.quote_plates where id = p_plate_id;
+  if not found then
+    raise exception 'plate_not_found' using errcode = 'P0002';
+  end if;
+  perform private.require_draft_quote(v_quote_id);
+
+  if p_grams is null or round(p_grams, 2) <= 0 then
+    raise exception 'invalid_grams' using errcode = '22023';
+  end if;
+
+  select id into v_id from public.quote_plate_materials where plate_id = p_plate_id and material_id = p_material_id;
+  if found then
+    update public.quote_plate_materials set grams = p_grams where id = v_id;
+  else
+    perform private.require_active_catalog(null, p_material_id);
+    insert into public.quote_plate_materials (plate_id, material_id, grams)
+    values (p_plate_id, p_material_id, p_grams)
+    returning id into v_id;
+  end if;
+  return v_id;
+end;
+$$;
+
+create or replace function public.save_plate_material(plate_id bigint, material_id bigint, grams numeric)
+returns bigint
+language sql
+security invoker
+set search_path = ''
+as $$
+  select private.save_plate_material($1, $2, $3);
+$$;
