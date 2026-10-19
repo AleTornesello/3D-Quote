@@ -1,9 +1,12 @@
-import { assert, assertEquals, assertMatch, assertNotEquals } from './deps.ts'
+import { assert, assertEquals, assertNotEquals, assertRejects } from './deps.ts'
+import { duplicateQuote } from '../duplicate-quote/duplicate.ts'
+import { HttpError } from '../_shared/http.ts'
 import {
   adminClient,
   callFunction,
+  completePlate,
   createCatalog,
-  createItem,
+  createPlate,
   createQuote,
   markSent,
   must,
@@ -12,7 +15,6 @@ import {
   preflight,
   signIn,
 } from './helpers.ts'
-import type { SupabaseClient } from '../_shared/supabase.ts'
 
 interface QuoteRow {
   id: number
@@ -24,39 +26,34 @@ interface QuoteRow {
   created_by: string
 }
 
-interface CopiedItem {
-  id: number
-  model_path: string
-  original_filename: string
+interface CopiedPlate {
+  description: string
+  printer_id: number | null
+  print_time_s: number | null
+  quantity: number
   computed_total: number | null
   override_total: number | null
   override_reason: string | null
-  print_time_s: number | null
-  slicing_jobs: { status: string }[]
+  materials: { material_id: number; grams: number }[]
 }
 
-async function topLevelFolders(admin: SupabaseClient): Promise<string[]> {
-  const entries = await must<{ name: string }[]>(
-    admin.storage.from('models').list('', { limit: 10000 }),
-  )
-  return entries.map((entry) => entry.name).sort()
-}
+const COPIED =
+  'description, printer_id, print_time_s, quantity, computed_total, override_total, override_reason, materials:quote_plate_materials(material_id, grams)'
 
 Deno.test('duplicates a sent quote into a new priced draft', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const sourceId = await createQuote(admin, clientId, {
+  const catalog = await createCatalog(admin)
+  const sourceId = await createQuote(admin, catalog.clientId, {
     notes: 'Rush job',
     markup_override_pct: 12.5,
   })
-  const sliced = await createItem(admin, sourceId, {
-    printerId,
-    materialId,
-    sliced: true,
-    override: { total: 50, reason: 'Agreed price' },
-  })
-  const waiting = await createItem(admin, sourceId, { printerId, materialId })
-  const bare = await createItem(admin, sourceId)
+  await createPlate(
+    admin,
+    sourceId,
+    completePlate(catalog, { quantity: 3, override: { total: 50, reason: 'Agreed price' } }),
+  )
+  await createPlate(admin, sourceId, completePlate(catalog))
+  await createPlate(admin, sourceId, { printerId: catalog.printerId })
   await markSent(admin, sourceId)
 
   const response = await callFunction(
@@ -73,62 +70,75 @@ Deno.test('duplicates a sent quote into a new priced draft', async () => {
     ),
   )
   assertEquals(copy.status, 'draft')
-  assertEquals(copy.client_id, clientId)
+  assertEquals(copy.client_id, catalog.clientId)
   assertEquals(copy.notes, 'Rush job')
   assertEquals(Number(copy.markup_override_pct), 12.5)
   assertEquals(copy.created_by, OPERATOR_ID)
   assertNotEquals(copy.number, source.number)
 
-  const items = await must<CopiedItem[]>(
-    admin.from('quote_items')
-      .select(
-        'id, model_path, original_filename, computed_total, override_total, override_reason, print_time_s, slicing_jobs(status)',
-      )
-      .eq('quote_id', newId)
-      .order('id'),
+  const [sourcePlates, plates] = await Promise.all(
+    [sourceId, newId].map((id) =>
+      must<CopiedPlate[]>(admin.from('quote_plates').select(COPIED).eq('quote_id', id).order('id'))
+    ),
   )
-  assertEquals(items.length, 3)
-  for (
-    const [item, original] of items.map((item, i) => [item, [sliced, waiting, bare][i]] as const)
-  ) {
-    assertMatch(item.model_path, new RegExp(`^${newId}/[0-9a-f-]{36}/part\\.stl$`))
-    assertNotEquals(item.model_path, original.model_path)
-    await must(admin.storage.from('models').download(item.model_path))
-  }
-  // The sliced item keeps its results, override and a succeeded job, and is priced.
-  assertEquals(items[0].print_time_s, 19800)
-  assertEquals(Number(items[0].override_total), 50)
-  assertEquals(items[0].override_reason, 'Agreed price')
-  assertEquals(items[0].slicing_jobs.map((job) => job.status), ['succeeded'])
-  assert(items[0].computed_total !== null)
-  // The unsliced item is queued again; the bare one waits for printer and material.
-  assertEquals(items[1].slicing_jobs.map((job) => job.status), ['queued'])
-  assertEquals(items[1].computed_total, null)
-  assertEquals(items[2].slicing_jobs, [])
+  const inputs = (rows: CopiedPlate[]) =>
+    rows.map(({ computed_total: _, ...rest }) => ({
+      ...rest,
+      override_total: rest.override_total === null ? null : Number(rest.override_total),
+      materials: rest.materials.map((m) => ({
+        material_id: m.material_id,
+        grams: Number(m.grams),
+      })),
+    }))
+  assertEquals(plates.length, 3)
+  assertEquals(inputs(plates), inputs(sourcePlates))
+  // The complete plates are priced; the incomplete one waits for its print time and materials.
+  assert(plates[0].computed_total !== null)
+  assert(plates[1].computed_total !== null)
+  assertEquals(plates[2].computed_total, null)
 })
 
-Deno.test('cleans up when a file cannot be copied', async () => {
+Deno.test('copies without touching storage', async () => {
+  const requests: string[] = []
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const sourceId = await createQuote(admin, clientId)
-  await createItem(admin, sourceId, { printerId, materialId, sliced: true })
-  const lost = await createItem(admin, sourceId, { printerId, materialId, sliced: true })
-  await must(admin.storage.from('models').remove([lost.model_path]))
-  const foldersBefore = await topLevelFolders(admin)
+  const recording = await adminClient((input, init) => {
+    requests.push(new URL(input instanceof Request ? input.url : String(input)).pathname)
+    return fetch(input, init)
+  })
+  const catalog = await createCatalog(admin)
+  const sourceId = await createQuote(admin, catalog.clientId)
+  await createPlate(admin, sourceId, completePlate(catalog))
 
-  const response = await callFunction(
-    'duplicate-quote',
-    { quote_id: sourceId },
-    await signIn(OPERATOR_EMAIL),
-  )
+  await duplicateQuote(recording, sourceId, OPERATOR_ID)
 
-  assertEquals(response.status, 500)
-  assertEquals(response.body, { code: 'duplicate_failed' })
+  assert(requests.some((path) => path.endsWith('/rpc/service_copy_quote_plates')))
+  assertEquals(requests.filter((path) => path.includes('/storage/')), [])
+})
+
+Deno.test('deletes the new draft when the plates cannot be copied', async () => {
+  const admin = await adminClient()
+  const failing = await adminClient((input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (url.pathname.endsWith('/rpc/service_copy_quote_plates')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ code: 'XX000', message: 'itest failure' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    }
+    return fetch(input, init)
+  })
+  const catalog = await createCatalog(admin)
+  const sourceId = await createQuote(admin, catalog.clientId)
+  await createPlate(admin, sourceId, completePlate(catalog))
+
+  const error = await assertRejects(() => duplicateQuote(failing, sourceId, OPERATOR_ID), HttpError)
+  assertEquals(error.code, 'duplicate_failed')
   const quotes = await must<{ id: number }[]>(
-    admin.from('quotes').select('id').eq('client_id', clientId),
+    admin.from('quotes').select('id').eq('client_id', catalog.clientId),
   )
   assertEquals(quotes.map((quote) => quote.id), [sourceId])
-  assertEquals(await topLevelFolders(admin), foldersBefore)
 })
 
 Deno.test('answers 404 for an unknown quote', async () => {

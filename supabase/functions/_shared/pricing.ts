@@ -73,9 +73,9 @@ export class Fraction {
 
 export interface PriceInput {
   printTimeS: number
-  filamentG: Decimal
+  /** The plate's materials, per copy. */
+  materials: { grams: Decimal; costPerKg: Decimal }[]
   quantity: number
-  costPerKg: Decimal
   hourlyRate: Decimal
   powerW: number
   energyPriceKwh: Decimal
@@ -85,7 +85,7 @@ export interface PriceInput {
   minimumPrice: Decimal
 }
 
-/** The `quote_items` price columns, as decimal strings. */
+/** The `quote_plates` price columns, as decimal strings. */
 export interface PriceBreakdown {
   material_cost: string
   machine_cost: string
@@ -102,15 +102,18 @@ const int = (value: number) => Fraction.of(BigInt(value))
 const HUNDRED = int(100)
 const THOUSAND = int(1000)
 
-export function priceItem(input: PriceInput): PriceBreakdown {
+export function pricePlate(input: PriceInput): PriceBreakdown {
   const hours = Fraction.of(BigInt(input.printTimeS), 3600n)
   // Per copy
-  const material = dec(input.filamentG).div(THOUSAND).mul(dec(input.costPerKg))
+  const material = input.materials.reduce(
+    (sum, m) => sum.add(dec(m.grams).div(THOUSAND).mul(dec(m.costPerKg))),
+    int(0),
+  )
   const machine = hours.mul(dec(input.hourlyRate))
   const energy = int(input.powerW).div(THOUSAND).mul(hours).mul(dec(input.energyPriceKwh))
   const copy = material.add(machine).add(energy)
   const failure = copy.mul(dec(input.failurePct)).div(HUNDRED)
-  // Per item
+  // Per plate
   const setupFee = dec(input.setupFee)
   const markupPct = dec(input.markupPct)
   const production = copy.add(failure).mul(int(input.quantity)).add(setupFee)

@@ -4,8 +4,9 @@ import { loadPricingSnapshot, writePrices } from '../_shared/price-quote.ts'
 import {
   adminClient,
   callFunction,
+  completePlate,
   createCatalog,
-  createItem,
+  createPlate,
   createQuote,
   expectedPrice,
   markSent,
@@ -16,11 +17,11 @@ import {
 } from './helpers.ts'
 
 const COLUMNS =
-  'id, material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct, computed_total, override_total, item_total, priced_at'
+  'id, material_cost, machine_cost, energy_cost, failure_cost, setup_fee, markup_amount, markup_pct, computed_total, override_total, plate_total, priced_at'
 
 type Row = Record<string, string | number | null>
 
-/** The stored breakdown as the decimal strings priceItem returns. */
+/** The stored breakdown as the decimal strings pricePlate returns. */
 function breakdown(row: Row) {
   const fixed = (value: string | number | null, places: number) =>
     value === null ? null : Fraction.fromDecimal(value).toFixed(places)
@@ -36,23 +37,17 @@ function breakdown(row: Row) {
   }
 }
 
-Deno.test('prices sliced items, skips unsliced ones and keeps overrides', async () => {
+Deno.test('prices complete plates, skips incomplete ones and keeps overrides', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId)
-  const sliced = await createItem(admin, quoteId, {
-    printerId,
-    materialId,
-    quantity: 2,
-    sliced: true,
-  })
-  const waiting = await createItem(admin, quoteId, { printerId, materialId })
-  const overridden = await createItem(admin, quoteId, {
-    printerId,
-    materialId,
-    sliced: true,
-    override: { total: 50, reason: 'Agreed price' },
-  })
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  const complete = await createPlate(admin, quoteId, completePlate(catalog, { quantity: 2 }))
+  const waiting = await createPlate(admin, quoteId, completePlate(catalog, { printTimeS: null }))
+  const overridden = await createPlate(
+    admin,
+    quoteId,
+    completePlate(catalog, { override: { total: 50, reason: 'Agreed price' } }),
+  )
 
   const response = await callFunction(
     'price-quote',
@@ -63,42 +58,41 @@ Deno.test('prices sliced items, skips unsliced ones and keeps overrides', async 
   assertEquals(response.status, 200)
   assertEquals(response.body, { priced: 2, skipped: 1 })
   const rows = await must<Row[]>(
-    admin.from('quote_items').select(COLUMNS).eq('quote_id', quoteId).order('id'),
+    admin.from('quote_plates').select(COLUMNS).eq('quote_id', quoteId).order('id'),
   )
-  assertEquals(breakdown(rows[0]), await expectedPrice(admin, sliced))
+  assertEquals(breakdown(rows[0]), await expectedPrice(admin, complete))
   assert(rows[0].priced_at !== null)
   assertEquals(rows[1].computed_total, null)
   assertEquals(rows[1].priced_at, null)
   assertEquals(breakdown(rows[2]), await expectedPrice(admin, overridden))
   assertEquals(Number(rows[2].override_total), 50)
-  assertEquals(Number(rows[2].item_total), 50)
+  assertEquals(Number(rows[2].plate_total), 50)
   assertEquals(waiting.id, rows[1].id)
 })
 
-Deno.test('uses the quote markup override', async () => {
+Deno.test('sums the cost of every material of a plate', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId, { markup_override_pct: 12.5 })
-  const item = await createItem(admin, quoteId, { printerId, materialId, sliced: true })
-
-  const response = await callFunction(
-    'price-quote',
-    { quote_id: quoteId },
-    await signIn(OPERATOR_EMAIL),
+  const catalog = await createCatalog(admin)
+  const second = await must<{ id: number }>(
+    admin.from('materials').insert({
+      name: `itest material ${crypto.randomUUID().slice(0, 8)}`,
+      type: 'TPU',
+      density_g_cm3: 1.21,
+      cost_per_kg: 40,
+    }).select('id').single(),
   )
-
-  assertEquals(response.status, 200)
-  const row = await must<Row>(admin.from('quote_items').select(COLUMNS).eq('id', item.id).single())
-  assertEquals(breakdown(row), await expectedPrice(admin, item, 12.5))
-  assertEquals(breakdown(row).markup_pct, '12.50')
-})
-
-Deno.test('prices an item whose printer was deactivated', async () => {
-  const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId)
-  const item = await createItem(admin, quoteId, { printerId, materialId, sliced: true })
-  await must(admin.from('printers').update({ active: false }).eq('id', printerId))
+  const quoteId = await createQuote(admin, catalog.clientId)
+  // 120 g at 25/kg = 3.00 and 50 g at 40/kg = 2.00
+  const plate = await createPlate(
+    admin,
+    quoteId,
+    completePlate(catalog, {
+      materials: [{ materialId: catalog.materialId, grams: 120 }, {
+        materialId: second.id,
+        grams: 50,
+      }],
+    }),
+  )
 
   const response = await callFunction(
     'price-quote',
@@ -107,8 +101,70 @@ Deno.test('prices an item whose printer was deactivated', async () => {
   )
 
   assertEquals(response.body, { priced: 1, skipped: 0 })
-  const row = await must<Row>(admin.from('quote_items').select(COLUMNS).eq('id', item.id).single())
-  assertEquals(breakdown(row), await expectedPrice(admin, item))
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
+  assertEquals(breakdown(row).material_cost, '5.0000')
+  assertEquals(breakdown(row), await expectedPrice(admin, plate))
+})
+
+Deno.test('skips a plate without materials', async () => {
+  const admin = await adminClient()
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  const plate = await createPlate(admin, quoteId, completePlate(catalog, { materials: [] }))
+
+  const response = await callFunction(
+    'price-quote',
+    { quote_id: quoteId },
+    await signIn(OPERATOR_EMAIL),
+  )
+
+  assertEquals(response.body, { priced: 0, skipped: 1 })
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
+  assertEquals(row.computed_total, null)
+})
+
+Deno.test('uses the quote markup override', async () => {
+  const admin = await adminClient()
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId, { markup_override_pct: 12.5 })
+  const plate = await createPlate(admin, quoteId, completePlate(catalog))
+
+  const response = await callFunction(
+    'price-quote',
+    { quote_id: quoteId },
+    await signIn(OPERATOR_EMAIL),
+  )
+
+  assertEquals(response.status, 200)
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
+  assertEquals(breakdown(row), await expectedPrice(admin, plate, 12.5))
+  assertEquals(breakdown(row).markup_pct, '12.50')
+})
+
+Deno.test('prices a plate whose printer was deactivated', async () => {
+  const admin = await adminClient()
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  const plate = await createPlate(admin, quoteId, completePlate(catalog))
+  await must(admin.from('printers').update({ active: false }).eq('id', catalog.printerId))
+
+  const response = await callFunction(
+    'price-quote',
+    { quote_id: quoteId },
+    await signIn(OPERATOR_EMAIL),
+  )
+
+  assertEquals(response.body, { priced: 1, skipped: 0 })
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
+  assertEquals(breakdown(row), await expectedPrice(admin, plate))
 })
 
 Deno.test('answers an empty draft with nothing priced', async () => {
@@ -126,26 +182,28 @@ Deno.test('answers an empty draft with nothing priced', async () => {
   assertEquals(response.body, { priced: 0, skipped: 0 })
 })
 
-Deno.test('skips an item that changed after it was read', async () => {
+Deno.test('skips a plate that changed after it was read', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId)
-  const item = await createItem(admin, quoteId, { printerId, materialId, sliced: true })
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  const plate = await createPlate(admin, quoteId, completePlate(catalog))
 
   const snapshot = await loadPricingSnapshot(admin, quoteId)
-  await must(admin.from('quote_items').update({ quantity: 5 }).eq('id', item.id))
+  await must(admin.from('quote_plates').update({ quantity: 5 }).eq('id', plate.id))
   const result = await writePrices(admin, snapshot)
 
   assertEquals(result, { priced: 0, skipped: 1 })
-  const row = await must<Row>(admin.from('quote_items').select(COLUMNS).eq('id', item.id).single())
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
   assertEquals(row.computed_total, null)
 })
 
 Deno.test('a markup change while the quote is being read is not priced with the old markup', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId)
-  const item = await createItem(admin, quoteId, { printerId, materialId, sliced: true })
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  const plate = await createPlate(admin, quoteId, completePlate(catalog))
   let changed = false
   // Lands the owner's markup change right after the first read of the quote.
   const racing = await adminClient(async (input, init) => {
@@ -154,8 +212,8 @@ Deno.test('a markup change while the quote is being read is not priced with the 
     if (!changed && url.pathname.endsWith('/rest/v1/quotes') && (init?.method ?? 'GET') === 'GET') {
       changed = true
       await must(admin.from('quotes').update({ markup_override_pct: 10 }).eq('id', quoteId))
-      // As set_markup_override does: clearing every item's breakdown changes its updated_at.
-      await must(admin.from('quote_items').update({ markup_pct: null }).eq('quote_id', quoteId))
+      // As set_markup_override does: clearing every plate's breakdown changes its updated_at.
+      await must(admin.from('quote_plates').update({ markup_pct: null }).eq('quote_id', quoteId))
     }
     return response
   })
@@ -164,15 +222,17 @@ Deno.test('a markup change while the quote is being read is not priced with the 
 
   assert(changed)
   assertEquals(result, { priced: 0, skipped: 1 })
-  const row = await must<Row>(admin.from('quote_items').select(COLUMNS).eq('id', item.id).single())
+  const row = await must<Row>(
+    admin.from('quote_plates').select(COLUMNS).eq('id', plate.id).single(),
+  )
   assertEquals(row.computed_total, null)
 })
 
 Deno.test('refuses a quote that is not a draft', async () => {
   const admin = await adminClient()
-  const { printerId, materialId, clientId } = await createCatalog(admin)
-  const quoteId = await createQuote(admin, clientId)
-  await createItem(admin, quoteId, { printerId, materialId, sliced: true })
+  const catalog = await createCatalog(admin)
+  const quoteId = await createQuote(admin, catalog.clientId)
+  await createPlate(admin, quoteId, completePlate(catalog))
   await markSent(admin, quoteId)
 
   const response = await callFunction(

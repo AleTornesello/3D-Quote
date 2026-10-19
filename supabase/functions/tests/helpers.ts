@@ -1,7 +1,7 @@
 // Integration test helpers. They run against the local stack (`supabase start`), read its URLs and keys from
 // `supabase status`, and create their own uniquely named rows, so runs don't depend on each other.
 import { createClient, type SupabaseClient } from '../_shared/supabase.ts'
-import { type Decimal, type PriceBreakdown, priceItem } from '../_shared/pricing.ts'
+import { type Decimal, type PriceBreakdown, pricePlate } from '../_shared/pricing.ts'
 import { fromFileUrl } from './deps.ts'
 
 export const OWNER_ID = '00000000-0000-4000-8000-000000000001'
@@ -163,73 +163,69 @@ export async function createQuote(
   return quote.id
 }
 
-export interface ItemOptions {
+export interface PlateOptions {
   printerId?: number
-  materialId?: number
+  /** Leave out for none; null makes the plate incomplete. */
+  printTimeS?: number | null
   quantity?: number
-  /** Sets the item's results and a succeeded job. */
-  sliced?: boolean
+  materials?: { materialId: number; grams: number }[]
   override?: { total: number; reason: string }
 }
 
-export interface ItemRow {
+export interface PlateRow {
   id: number
-  model_path: string
   updated_at: string
   quantity: number
   print_time_s: number | null
-  filament_g: Decimal | null
   printer_id: number | null
-  material_id: number | null
+  materials: { material_id: number; grams: Decimal }[]
 }
 
-/** Uploads a small file and creates an item for it with the service role. */
-export async function createItem(
+const PLATE_COLUMNS =
+  'id, updated_at, quantity, print_time_s, printer_id, materials:quote_plate_materials(material_id, grams)'
+
+/** Creates a plate and its material rows with the service role, then reads it back (the rows bump updated_at). */
+export async function createPlate(
   admin: SupabaseClient,
   quoteId: number,
-  options: ItemOptions = {},
-): Promise<ItemRow> {
-  const path = `${quoteId}/${crypto.randomUUID()}/part.stl`
-  await must(admin.storage.from('models').upload(path, new Blob(['solid itest\nendsolid itest\n'])))
-  const item = await must<ItemRow>(
-    admin.from('quote_items').insert({
+  options: PlateOptions = {},
+): Promise<PlateRow> {
+  const plate = await must<{ id: number }>(
+    admin.from('quote_plates').insert({
       quote_id: quoteId,
-      model_path: path,
-      original_filename: 'part.stl',
-      description: 'Part',
+      description: 'Plate',
       printer_id: options.printerId ?? null,
-      material_id: options.materialId ?? null,
+      print_time_s: options.printTimeS ?? null,
       quantity: options.quantity ?? 1,
-      ...(options.sliced
-        ? { print_time_s: 19800, filament_g: 120, bbox_x_mm: 100, bbox_y_mm: 80, bbox_z_mm: 40 }
-        : {}),
       ...(options.override
         ? { override_total: options.override.total, override_reason: options.override.reason }
         : {}),
-    }).select(
-      'id, model_path, updated_at, quantity, print_time_s, filament_g, printer_id, material_id',
-    ).single(),
+    }).select('id').single(),
   )
-  if (options.sliced) {
+  if (options.materials?.length) {
     await must(
-      admin.from('slicing_jobs').insert({
-        quote_item_id: item.id,
-        status: 'succeeded',
-        attempts: 1,
-        print_time_s: 19800,
-        filament_g: 120,
-        filament_mm: 40000,
-        layer_count: 266,
-        bbox_x_mm: 100,
-        bbox_y_mm: 80,
-        bbox_z_mm: 40,
-        slicer_version: 'itest',
-        started_at: new Date().toISOString(),
-        finished_at: new Date().toISOString(),
-      }),
+      admin.from('quote_plate_materials').insert(
+        options.materials.map((m) => ({
+          plate_id: plate.id,
+          material_id: m.materialId,
+          grams: m.grams,
+        })),
+      ),
     )
   }
-  return item
+  return must<PlateRow>(
+    admin.from('quote_plates').select(PLATE_COLUMNS).eq('id', plate.id).single(),
+  )
+}
+
+/** A complete plate: the catalog's printer, 5 h 30 min, 120 g of the catalog's material. */
+export function completePlate(catalog: Catalog, extra: PlateOptions = {}): PlateOptions {
+  return {
+    printerId: catalog.printerId,
+    printTimeS: 19800,
+    materials: [{ materialId: catalog.materialId, grams: 120 }],
+    ...extra,
+  }
 }
 
 export async function markSent(admin: SupabaseClient, quoteId: number): Promise<void> {
@@ -246,26 +242,32 @@ export async function markSent(admin: SupabaseClient, quoteId: number): Promise<
   )
 }
 
-/** What priceItem gives for this item with the current settings, printer and material. */
+/** What pricePlate gives for this plate with the current settings, printer and materials. */
 export async function expectedPrice(
   admin: SupabaseClient,
-  item: ItemRow,
+  plate: PlateRow,
   markupOverridePct: Decimal | null = null,
 ): Promise<PriceBreakdown> {
   const settings = await must<Record<string, Decimal>>(
     admin.from('settings').select('*').eq('id', 1).single(),
   )
   const printer = await must<{ hourly_rate: Decimal; power_w: number; failure_rate: number }>(
-    admin.from('printers').select('hourly_rate, power_w, failure_rate').eq('id', item.printer_id).single(),
+    admin.from('printers').select('hourly_rate, power_w, failure_rate').eq('id', plate.printer_id)
+      .single(),
   )
-  const material = await must<{ cost_per_kg: Decimal }>(
-    admin.from('materials').select('cost_per_kg').eq('id', item.material_id).single(),
+  const costs = await must<{ id: number; cost_per_kg: Decimal }[]>(
+    admin.from('materials').select('id, cost_per_kg').in(
+      'id',
+      plate.materials.map((m) => m.material_id),
+    ),
   )
-  return priceItem({
-    printTimeS: item.print_time_s!,
-    filamentG: item.filament_g!,
-    quantity: item.quantity,
-    costPerKg: material.cost_per_kg,
+  return pricePlate({
+    printTimeS: plate.print_time_s!,
+    materials: plate.materials.map((m) => ({
+      grams: m.grams,
+      costPerKg: costs.find((c) => c.id === m.material_id)!.cost_per_kg,
+    })),
+    quantity: plate.quantity,
     hourlyRate: printer.hourly_rate,
     powerW: printer.power_w,
     energyPriceKwh: settings.energy_price_kwh,

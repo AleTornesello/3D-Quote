@@ -1,11 +1,11 @@
 import type { SupabaseClient } from './supabase.ts'
 import { HttpError } from './http.ts'
-import { type Decimal, type PriceInput, priceItem } from './pricing.ts'
+import { type Decimal, type PriceInput, pricePlate } from './pricing.ts'
 
 interface QuoteRow {
   status: string
   markup_override_pct: Decimal | null
-  quote_items: ItemRow[]
+  quote_plates: PlateRow[]
 }
 
 interface SettingsRow {
@@ -16,20 +16,19 @@ interface SettingsRow {
 }
 
 // Many-to-one embeds come back as one object; without generated types supabase-js types them as arrays.
-interface ItemRow {
+interface PlateRow {
   id: number
   updated_at: string
   quantity: number
   print_time_s: number | null
-  filament_g: Decimal | null
   printer: { hourly_rate: Decimal; power_w: number; failure_rate: number } | null
-  material: { cost_per_kg: Decimal } | null
+  materials: { grams: Decimal; material: { cost_per_kg: Decimal } | null }[]
 }
 
 export interface PricingSnapshot {
   quoteId: number
-  /** `input` is null for items that can't be priced yet (no printer, material or results). */
-  items: { id: number; updatedAt: string; input: PriceInput | null }[]
+  /** `input` is null for plates that can't be priced yet (no printer, print time or materials). */
+  plates: { id: number; updatedAt: string; input: PriceInput | null }[]
 }
 
 export interface PriceQuoteResult {
@@ -50,15 +49,15 @@ export async function loadPricingSnapshot(
     .single()
   if (settingsError) throw settingsError
 
-  // One statement, so the markup and the items' updated_at come from the same snapshot: a markup change after it
-  // clears every item (set_markup_override), which the guarded write then sees.
+  // One statement, so the markup and the plates' updated_at come from the same snapshot: a markup change after it
+  // clears every plate (set_markup_override), which the guarded write then sees.
   const { data, error } = await admin
     .from('quotes')
     .select(
-      'status, markup_override_pct, quote_items(id, updated_at, quantity, print_time_s, filament_g, printer:printers(hourly_rate, power_w, failure_rate), material:materials(cost_per_kg))',
+      'status, markup_override_pct, quote_plates(id, updated_at, quantity, print_time_s, printer:printers(hourly_rate, power_w, failure_rate), materials:quote_plate_materials(grams, material:materials(cost_per_kg)))',
     )
     .eq('id', quoteId)
-    .order('id', { referencedTable: 'quote_items' })
+    .order('id', { referencedTable: 'quote_plates' })
     .maybeSingle()
   if (error) throw error
   if (!data) throw new HttpError(404, 'quote_not_found')
@@ -69,19 +68,22 @@ export async function loadPricingSnapshot(
   const markupPct = quote.markup_override_pct ?? s.default_markup_pct
   return {
     quoteId,
-    items: quote.quote_items.map((item) => ({
-      id: item.id,
-      updatedAt: item.updated_at,
-      input: item.printer && item.material && item.print_time_s !== null && item.filament_g !== null
+    plates: quote.quote_plates.map((plate) => ({
+      id: plate.id,
+      updatedAt: plate.updated_at,
+      input: plate.printer && plate.print_time_s !== null && plate.materials.length > 0 &&
+          plate.materials.every((m) => m.material)
         ? {
-          printTimeS: item.print_time_s,
-          filamentG: item.filament_g,
-          quantity: item.quantity,
-          costPerKg: item.material.cost_per_kg,
-          hourlyRate: item.printer.hourly_rate,
-          powerW: item.printer.power_w,
+          printTimeS: plate.print_time_s,
+          materials: plate.materials.map((m) => ({
+            grams: m.grams,
+            costPerKg: m.material!.cost_per_kg,
+          })),
+          quantity: plate.quantity,
+          hourlyRate: plate.printer.hourly_rate,
+          powerW: plate.printer.power_w,
           energyPriceKwh: s.energy_price_kwh,
-          failurePct: item.printer.failure_rate,
+          failurePct: plate.printer.failure_rate,
           setupFee: s.setup_fee,
           markupPct,
           minimumPrice: s.minimum_item_price,
@@ -92,7 +94,7 @@ export async function loadPricingSnapshot(
 }
 
 /**
- * Writes each breakdown only if the item is unchanged since the snapshot, so a price computed from stale inputs
+ * Writes each breakdown only if the plate is unchanged since the snapshot, so a price computed from stale inputs
  * never overwrites a newer change. Overrides are never written.
  */
 export async function writePrices(
@@ -101,19 +103,19 @@ export async function writePrices(
 ): Promise<PriceQuoteResult> {
   let priced = 0
   let skipped = 0
-  for (const item of snapshot.items) {
-    if (!item.input) {
+  for (const plate of snapshot.plates) {
+    if (!plate.input) {
       skipped++
       continue
     }
     const { data, error } = await admin
-      .from('quote_items')
-      .update({ ...priceItem(item.input), priced_at: new Date().toISOString() })
-      .eq('id', item.id)
-      .eq('updated_at', item.updatedAt)
+      .from('quote_plates')
+      .update({ ...pricePlate(plate.input), priced_at: new Date().toISOString() })
+      .eq('id', plate.id)
+      .eq('updated_at', plate.updatedAt)
       .select('id')
     if (error) {
-      // quote_items_guard: the quote was sent after the snapshot.
+      // quote_plates_guard: the quote was sent after the snapshot.
       if (error.message === 'quote_not_draft') throw new HttpError(409, 'quote_not_draft')
       throw error
     }
