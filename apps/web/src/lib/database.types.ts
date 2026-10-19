@@ -230,128 +230,134 @@ export type Database = {
           },
         ]
       }
-      quote_items: {
+      quote_plate_materials: {
         Row: {
-          bbox_x_mm: number | null
-          bbox_y_mm: number | null
-          bbox_z_mm: number | null
-          computed_total: number | null
           created_at: string
-          description: string
-          energy_cost: number | null
-          failure_cost: number | null
-          filament_g: number | null
+          grams: number
           id: number
-          infill_percent: number
-          item_total: number | null
-          layer_height_mm: number
-          machine_cost: number | null
-          markup_amount: number | null
-          markup_pct: number | null
-          material_cost: number | null
-          material_id: number | null
-          model_path: string
-          original_filename: string
-          override_reason: string | null
-          override_total: number | null
-          priced_at: string | null
-          print_time_s: number | null
-          printer_id: number | null
-          quantity: number
-          quote_id: number
-          setup_fee: number | null
-          supports: boolean
+          material_id: number
+          plate_id: number
           updated_at: string
         }
         ComputedFields: never
         Insert: {
-          bbox_x_mm?: number | null
-          bbox_y_mm?: number | null
-          bbox_z_mm?: number | null
-          computed_total?: number | null
           created_at?: string
-          description: string
-          energy_cost?: number | null
-          failure_cost?: number | null
-          filament_g?: number | null
+          grams: number
           id?: never
-          infill_percent?: number
-          item_total?: never
-          layer_height_mm?: number
-          machine_cost?: number | null
-          markup_amount?: number | null
-          markup_pct?: number | null
-          material_cost?: number | null
-          material_id?: number | null
-          model_path: string
-          original_filename: string
-          override_reason?: string | null
-          override_total?: number | null
-          priced_at?: string | null
-          print_time_s?: number | null
-          printer_id?: number | null
-          quantity?: number
-          quote_id: number
-          setup_fee?: number | null
-          supports?: boolean
+          material_id: number
+          plate_id: number
           updated_at?: string
         }
         Update: {
-          bbox_x_mm?: number | null
-          bbox_y_mm?: number | null
-          bbox_z_mm?: number | null
-          computed_total?: number | null
           created_at?: string
-          description?: string
-          energy_cost?: number | null
-          failure_cost?: number | null
-          filament_g?: number | null
+          grams?: number
           id?: never
-          infill_percent?: number
-          item_total?: never
-          layer_height_mm?: number
-          machine_cost?: number | null
-          markup_amount?: number | null
-          markup_pct?: number | null
-          material_cost?: number | null
-          material_id?: number | null
-          model_path?: string
-          original_filename?: string
-          override_reason?: string | null
-          override_total?: number | null
-          priced_at?: string | null
-          print_time_s?: number | null
-          printer_id?: number | null
-          quantity?: number
-          quote_id?: number
-          setup_fee?: number | null
-          supports?: boolean
+          material_id?: number
+          plate_id?: number
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'quote_items_material_id_fkey'
+            foreignKeyName: 'quote_plate_materials_material_id_fkey'
             columns: ['material_id']
             isOneToOne: false
             referencedRelation: 'materials'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'quote_items_printer_id_fkey'
+            foreignKeyName: 'quote_plate_materials_plate_id_fkey'
+            columns: ['plate_id']
+            isOneToOne: false
+            referencedRelation: 'quote_plates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      quote_plates: {
+        Row: {
+          computed_total: number | null
+          created_at: string
+          description: string
+          energy_cost: number | null
+          failure_cost: number | null
+          id: number
+          machine_cost: number | null
+          markup_amount: number | null
+          markup_pct: number | null
+          material_cost: number | null
+          override_reason: string | null
+          override_total: number | null
+          plate_total: number | null
+          priced_at: string | null
+          print_time_s: number | null
+          printer_id: number | null
+          quantity: number
+          quote_id: number
+          setup_fee: number | null
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          computed_total?: number | null
+          created_at?: string
+          description: string
+          energy_cost?: number | null
+          failure_cost?: number | null
+          id?: never
+          machine_cost?: number | null
+          markup_amount?: number | null
+          markup_pct?: number | null
+          material_cost?: number | null
+          override_reason?: string | null
+          override_total?: number | null
+          plate_total?: never
+          priced_at?: string | null
+          print_time_s?: number | null
+          printer_id?: number | null
+          quantity?: number
+          quote_id: number
+          setup_fee?: number | null
+          updated_at?: string
+        }
+        Update: {
+          computed_total?: number | null
+          created_at?: string
+          description?: string
+          energy_cost?: number | null
+          failure_cost?: number | null
+          id?: never
+          machine_cost?: number | null
+          markup_amount?: number | null
+          markup_pct?: number | null
+          material_cost?: number | null
+          override_reason?: string | null
+          override_total?: number | null
+          plate_total?: never
+          priced_at?: string | null
+          print_time_s?: number | null
+          printer_id?: number | null
+          quantity?: number
+          quote_id?: number
+          setup_fee?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quote_plates_printer_id_fkey'
             columns: ['printer_id']
             isOneToOne: false
             referencedRelation: 'printers'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'quote_items_quote_id_fkey'
+            foreignKeyName: 'quote_plates_quote_id_fkey'
             columns: ['quote_id']
             isOneToOne: false
             referencedRelation: 'quotes'
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'quote_items_quote_id_fkey'
+            foreignKeyName: 'quote_plates_quote_id_fkey'
             columns: ['quote_id']
             isOneToOne: false
             referencedRelation: 'quotes_list'
@@ -493,72 +499,6 @@ export type Database = {
         }
         Relationships: []
       }
-      slicing_jobs: {
-        Row: {
-          attempts: number
-          bbox_x_mm: number | null
-          bbox_y_mm: number | null
-          bbox_z_mm: number | null
-          error: string | null
-          filament_g: number | null
-          filament_mm: number | null
-          finished_at: string | null
-          id: number
-          layer_count: number | null
-          print_time_s: number | null
-          queued_at: string
-          quote_item_id: number
-          slicer_version: string | null
-          started_at: string | null
-          status: string
-        }
-        ComputedFields: never
-        Insert: {
-          attempts?: number
-          bbox_x_mm?: number | null
-          bbox_y_mm?: number | null
-          bbox_z_mm?: number | null
-          error?: string | null
-          filament_g?: number | null
-          filament_mm?: number | null
-          finished_at?: string | null
-          id?: never
-          layer_count?: number | null
-          print_time_s?: number | null
-          queued_at?: string
-          quote_item_id: number
-          slicer_version?: string | null
-          started_at?: string | null
-          status?: string
-        }
-        Update: {
-          attempts?: number
-          bbox_x_mm?: number | null
-          bbox_y_mm?: number | null
-          bbox_z_mm?: number | null
-          error?: string | null
-          filament_g?: number | null
-          filament_mm?: number | null
-          finished_at?: string | null
-          id?: never
-          layer_count?: number | null
-          print_time_s?: number | null
-          queued_at?: string
-          quote_item_id?: number
-          slicer_version?: string | null
-          started_at?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'slicing_jobs_quote_item_id_fkey'
-            columns: ['quote_item_id']
-            isOneToOne: false
-            referencedRelation: 'quote_items'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       staff: {
         Row: {
           active: boolean
@@ -602,10 +542,10 @@ export type Database = {
           created_by_name: string | null
           created_on: string | null
           id: number | null
-          item_count: number | null
           number: string | null
           number_seq: number | null
           number_year: number | null
+          plate_count: number | null
           sent_at: string | null
           status: string | null
           total: number | null
@@ -635,27 +575,16 @@ export type Database = {
         Args: { consumable_id: number; quantity: number; quote_id: number }
         Returns: number
       }
-      clear_price_override: { Args: { item_id: number }; Returns: undefined }
-      create_quote_item: {
-        Args: {
-          description: string
-          infill_percent?: number
-          layer_height_mm?: number
-          material_id?: number
-          model_path: string
-          original_filename: string
-          printer_id?: number
-          quantity?: number
-          quote_id: number
-          supports?: boolean
-        }
+      clear_price_override: { Args: { plate_id: number }; Returns: undefined }
+      create_quote_plate: {
+        Args: { description: string; printer_id?: number; quote_id: number }
         Returns: number
       }
       get_quote_send_blockers: {
         Args: { quote_id: number }
         Returns: {
           code: string
-          quote_item_id: number
+          quote_plate_id: number
         }[]
       }
       list_staff: {
@@ -674,45 +603,19 @@ export type Database = {
       mark_quote_accepted: { Args: { quote_id: number }; Returns: undefined }
       mark_quote_rejected: { Args: { quote_id: number }; Returns: undefined }
       mark_quote_sent: { Args: { quote_id: number }; Returns: undefined }
-      retry_slicing: { Args: { item_id: number }; Returns: number }
-      service_copy_quote_items: {
-        Args: { files: Json; new_id: number; source_id: number }
-        Returns: undefined
+      save_plate_material: {
+        Args: { grams: number; material_id: number; plate_id: number }
+        Returns: number
       }
+      service_copy_quote_plates: { Args: { new_id: number; source_id: number }; Returns: undefined }
       service_create_quote_copy: {
         Args: { created_by: string; source_id: number }
         Returns: number
       }
       set_markup_override: { Args: { pct: number; quote_id: number }; Returns: undefined }
+      set_plate_printer: { Args: { plate_id: number; printer_id: number }; Returns: undefined }
       set_price_override: {
-        Args: { item_id: number; reason: string; total: number }
-        Returns: undefined
-      }
-      update_quote_item_settings: {
-        Args: {
-          infill_percent: number
-          item_id: number
-          layer_height_mm: number
-          material_id: number
-          printer_id: number
-          supports: boolean
-        }
-        Returns: undefined
-      }
-      worker_claim_job: {
-        Args: { max_attempts: number; visibility_timeout_s: number }
-        Returns: {
-          message: Json
-          msg_id: number
-          read_ct: number
-        }[]
-      }
-      worker_complete_job: {
-        Args: { job_id: number; msg_id: number; results: Json }
-        Returns: undefined
-      }
-      worker_fail_job: {
-        Args: { error: string; final: boolean; job_id: number; msg_id: number }
+        Args: { plate_id: number; reason: string; total: number }
         Returns: undefined
       }
     }

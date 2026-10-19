@@ -28,14 +28,14 @@ export type QuoteListRow = {
   valid_until: string
   created_at: string
   created_by_name: string
-  item_count: number
+  plate_count: number
   total: number | null
 }
 
 export type QuoteListPage = { rows: QuoteListRow[]; count: number; outOfRange: boolean }
 
 const LIST_COLUMNS =
-  'id, number, status, client_id, client_name, client_company, valid_until, created_at, created_by_name, item_count, total'
+  'id, number, status, client_id, client_name, client_company, valid_until, created_at, created_by_name, plate_count, total'
 
 const SORT_COLUMN: Record<Exclude<QuoteSort, 'number'>, string> = {
   created: 'created_at',
@@ -43,11 +43,11 @@ const SORT_COLUMN: Record<Exclude<QuoteSort, 'number'>, string> = {
   total: 'total',
 }
 
-/** The quote's status changed under an action: reload it, its items, its send blockers, the lists and the consumables' stock. */
+/** The quote's status changed under an action: reload it, its plates, its send blockers, the lists and the consumables' stock. */
 function refreshChangedQuote(queryClient: QueryClient, quoteId: number) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.quote(quoteId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.quotePlates(quoteId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.sendBlockers(quoteId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
     queryClient.invalidateQueries({ queryKey: queryKeys.consumables }),
@@ -125,7 +125,7 @@ export function useCreateQuote() {
   })
 }
 
-/** Owner only. `pct` null removes the override; every item's price breakdown is cleared. */
+/** Owner only. `pct` null removes the override; every plate's price breakdown is cleared. */
 export function useSetMarkupOverride() {
   const supabase = useSupabase()
   const queryClient = useQueryClient()
@@ -188,27 +188,16 @@ export function useUpdateQuote() {
   })
 }
 
-/** Owner, draft only. Removes the items' files afterwards, on a best-effort basis. */
+/** Owner, draft only. Its plates and their materials cascade. */
 export function useDeleteQuote() {
   const supabase = useSupabase()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: number) => {
-      const items = await supabase.from('quote_items').select('model_path').eq('quote_id', id)
-      if (items.error) throw toAppError(items.error)
       const { data, error } = await supabase.from('quotes').delete().eq('id', id).select('id')
       if (error) throw toAppError(error)
       // RLS hides non-drafts from deletes; the usual cause is that someone has just sent it.
       if (data.length === 0) throw new AppError('notDraft')
-      const paths = items.data.map((item) => item.model_path)
-      // A file left behind is an orphan for the cleanup job, not a reason to report the delete as failed.
-      if (paths.length > 0) {
-        try {
-          await supabase.storage.from('models').remove(paths)
-        } catch {
-          // Already deleted: see above.
-        }
-      }
     },
     // Only the lists: refetching the deleted quote would flash "not found" before leaving the page.
     onSuccess: () =>
@@ -222,7 +211,7 @@ export function useDeleteQuote() {
   })
 }
 
-export type SendBlocker = { quote_item_id: number | null; code: string }
+export type SendBlocker = { quote_plate_id: number | null; code: string }
 
 /** Why the quote can't be sent yet; empty means it can. Always fetched fresh when the dialog opens. */
 export function useSendBlockers(quoteId: number, enabled: boolean) {
@@ -235,7 +224,7 @@ export function useSendBlockers(quoteId: number, enabled: boolean) {
     queryFn: async (): Promise<SendBlocker[]> => {
       const { data, error } = await supabase.rpc('get_quote_send_blockers', { quote_id: quoteId })
       if (error) throw toAppError(error)
-      // quote_item_id is null for quote-level blockers, though the generated type says number.
+      // quote_plate_id is null for quote-level blockers, though the generated type says number.
       return data as SendBlocker[]
     },
   })
@@ -289,14 +278,14 @@ export function useDuplicateQuote() {
   })
 }
 
-/** Reloads a quote and its items, e.g. after an action found that it is no longer a draft. */
+/** Reloads a quote and its plates, e.g. after an action found that it is no longer a draft. */
 export function useRefreshQuote() {
   const queryClient = useQueryClient()
   return useCallback(
     async (quoteId: number) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.quote(quoteId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.quotePlates(quoteId) }),
       ])
     },
     [queryClient],
@@ -305,7 +294,7 @@ export function useRefreshQuote() {
 
 export type PriceResult = { priced: number; skipped: number }
 
-/** Prices the draft's sliced items (Edge Function). Resolves once the items have been refetched. */
+/** Prices the draft's complete plates (Edge Function). Resolves once the plates have been refetched. */
 export function usePriceQuote() {
   const supabase = useSupabase()
   const queryClient = useQueryClient()
@@ -314,7 +303,7 @@ export function usePriceQuote() {
       invokeFunction<PriceResult>(supabase, 'price-quote', { quote_id: quoteId }),
     onSuccess: (_result, quoteId) =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.quotePlates(quoteId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.quoteLists }),
       ]),
   })

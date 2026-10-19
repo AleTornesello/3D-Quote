@@ -1,4 +1,3 @@
-import type { ItemJob } from '@/data/quote-rules'
 import type { Tables } from '@/lib/database.types'
 
 const CREATED = '2026-01-01T09:00:00Z'
@@ -173,47 +172,41 @@ export function quoteListRow(overrides: Record<string, unknown> = {}) {
     created_on: '2026-10-12',
     created_by: 'user-1',
     created_by_name: 'Anna Rossi',
-    item_count: 1,
+    plate_count: 1,
     total: 39.24,
     ...overrides,
   }
 }
 
-export function jobRow(overrides: Partial<ItemJob> = {}): ItemJob {
+export function plateMaterialRow(
+  overrides: Partial<Tables<'quote_plate_materials'>> = {},
+): Tables<'quote_plate_materials'> {
   return {
     id: nextId++,
-    status: 'queued',
-    error: null,
-    queued_at: '2026-10-13T09:59:00Z',
-    started_at: null,
-    finished_at: null,
+    plate_id: 1,
+    material_id: 1,
+    grams: 12,
+    created_at: CREATED,
+    updated_at: CREATED,
     ...overrides,
   }
 }
 
-/** A quote item as the items query returns it; `job` is the newest slicing job (embedded as a 0–1 array). */
-export function quoteItemRow(
-  overrides: Partial<Tables<'quote_items'>> & { job?: ItemJob | null } = {},
+/** A quote plate as the plates query returns it, with its materials embedded. */
+export function quotePlateRow(
+  overrides: Partial<Tables<'quote_plates'>> & {
+    materials?: Tables<'quote_plate_materials'>[]
+  } = {},
 ) {
-  const { job = null, ...rest } = overrides
+  const { materials = [], ...rest } = overrides
   const id = rest.id ?? nextId++
   return {
     id,
     quote_id: 7,
-    model_path: `7/u${id}/staffa.stl`,
-    original_filename: 'staffa.stl',
-    description: 'Staffa',
+    description: 'Plate 1',
     printer_id: null,
-    material_id: null,
-    quantity: 1,
-    layer_height_mm: 0.2,
-    infill_percent: 20,
-    supports: false,
     print_time_s: null,
-    filament_g: null,
-    bbox_x_mm: null,
-    bbox_y_mm: null,
-    bbox_z_mm: null,
+    quantity: 1,
     material_cost: null,
     machine_cost: null,
     energy_cost: null,
@@ -224,11 +217,11 @@ export function quoteItemRow(
     computed_total: null,
     override_total: null,
     override_reason: null,
-    item_total: null,
+    plate_total: null,
     priced_at: null,
     created_at: CREATED,
     updated_at: CREATED,
     ...rest,
-    job: job ? [job] : [],
+    materials: materials.map((m) => ({ ...m, plate_id: id })),
   }
 }

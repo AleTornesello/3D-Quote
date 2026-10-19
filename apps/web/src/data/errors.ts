@@ -44,6 +44,8 @@ const INVALID_MESSAGES: Record<string, string> = {
   consumable_inactive: 'errors.consumableInactive',
   invalid_override: 'errors.invalidOverride',
   invalid_markup: 'errors.invalidMarkup',
+  invalid_grams: 'errors.invalidGrams',
+  invalid_description: 'errors.invalidDescription',
 }
 
 export function toAppError(error: unknown): AppError {
@@ -74,13 +76,10 @@ export function toAppError(error: unknown): AppError {
       if (message === 'quote_not_sent') {
         return new AppError('invalid', { messageKey: 'errors.quoteNotSent', cause: error })
       }
-      if (message === 'retry_not_allowed') {
-        return new AppError('invalid', { messageKey: 'errors.retryNotAllowed', cause: error })
-      }
       break
     case 'P0002':
       return new AppError('notFound', {
-        messageKey: message === 'model_not_found' ? 'errors.modelNotFound' : undefined,
+        messageKey: message === 'plate_not_found' ? 'errors.plateNotFound' : undefined,
         cause: error,
       })
     case '22023':
@@ -118,19 +117,4 @@ export function fromFunctionCode(code: string, cause?: unknown): AppError {
     default:
       return new AppError('unknown', { cause })
   }
-}
-
-/**
- * A failed resumable upload. `status` is null when no response arrived. Storage reports a policy refusal (the quote
- * left draft) and an oversized file in the body as well as the status, so both are checked.
- */
-export function fromUploadResponse(status: number | null, body: string, cause?: unknown): AppError {
-  if (status === null) return new AppError('network', { cause })
-  if (status === 403 || /row-level security/i.test(body)) {
-    return new AppError('notDraft', { messageKey: 'errors.uploadNotAllowed', cause })
-  }
-  if (status === 413 || /maximum allowed size|too large/i.test(body)) {
-    return new AppError('invalid', { messageKey: 'errors.fileTooLarge', cause })
-  }
-  return new AppError('unknown', { cause })
 }

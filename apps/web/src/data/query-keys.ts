@@ -15,7 +15,7 @@ export const queryKeys = {
   quoteLists: ['quotes', 'list'] as const,
   quotesList: (params: QuoteListParams) => ['quotes', 'list', params] as const,
   quote: (id: number) => ['quotes', 'detail', id] as const,
-  quoteItems: (id: number) => ['quotes', 'items', id] as const,
+  quotePlates: (id: number) => ['quotes', 'plates', id] as const,
   quoteConsumables: (id: number) => ['quotes', 'consumables', id] as const,
   sendBlockers: (id: number) => ['quotes', 'blockers', id] as const,
   settings: ['settings'] as const,

@@ -6,15 +6,15 @@ import { queryKeys } from './query-keys'
 let channelSeq = 0
 
 /**
- * Refetches the quote's items whenever Realtime reports a change to them or to their slicing jobs. Events only
- * trigger a refetch (debounced 250 ms); their payloads are never merged, so the database stays the source.
+ * Refetches the quote's plates whenever Realtime reports a change to them or to their material rows. Events only
+ * trigger a refetch (debounced 250 ms); their payloads are never merged, so the database stays the source. Material
+ * rows carry no quote id, so every staff-visible material change refetches; the refetch is cheap and debounced.
  */
-export function useQuoteLiveUpdates(quoteId: number, itemIds: number[]) {
+export function useQuoteLiveUpdates(quoteId: number) {
   const supabase = useSupabase()
   const queryClient = useQueryClient()
-  const ids = [...itemIds].sort((a, b) => a - b).join(',')
-  // Across rebuilds: the channel is replaced whenever the item ids change, and changes made between the old one's
-  // removal and the new one's subscription are never delivered.
+  // Across rebuilds: changes made between the old channel's removal and the new one's subscription are never
+  // delivered.
   const subscribedBefore = useRef(false)
 
   useEffect(() => {
@@ -23,30 +23,23 @@ export function useQuoteLiveUpdates(quoteId: number, itemIds: number[]) {
     const refresh = () => {
       clearTimeout(timer)
       timer = setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.quoteItems(quoteId) })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.quotePlates(quoteId) })
       }, 250)
     }
     // A fresh topic per subscription: supabase-js reuses a channel with the same topic, and the old one may still
     // be closing.
-    let channel = supabase
+    const channel = supabase
       .channel(`quote-${quoteId}-${++channelSeq}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'quote_items', filter: `quote_id=eq.${quoteId}` },
+        { event: '*', schema: 'public', table: 'quote_plates', filter: `quote_id=eq.${quoteId}` },
         refresh,
       )
-    if (ids) {
-      channel = channel.on(
+      .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'slicing_jobs',
-          filter: `quote_item_id=in.(${ids})`,
-        },
+        { event: '*', schema: 'public', table: 'quote_plate_materials' },
         refresh,
       )
-    }
     channel.subscribe((status) => {
       if (closed || status !== 'SUBSCRIBED') return
       // Back after a drop, or a rebuilt channel: changes made meanwhile were never delivered. Only the editor's first
@@ -59,5 +52,5 @@ export function useQuoteLiveUpdates(quoteId: number, itemIds: number[]) {
       clearTimeout(timer)
       void supabase.removeChannel(channel)
     }
-  }, [supabase, queryClient, quoteId, ids])
+  }, [supabase, queryClient, quoteId])
 }

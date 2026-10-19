@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { AppError, fromFunctionCode, fromUploadResponse, toAppError } from './errors'
+import { AppError, fromFunctionCode, toAppError } from './errors'
 
 describe('toAppError', () => {
   test.each([
@@ -47,13 +47,14 @@ describe('toAppError', () => {
 describe('messages for quote errors', () => {
   test.each([
     [{ code: 'P0001', message: 'quote_not_sent' }, 'invalid', 'errors.quoteNotSent'],
-    [{ code: 'P0001', message: 'retry_not_allowed' }, 'invalid', 'errors.retryNotAllowed'],
-    [{ code: 'P0002', message: 'item_not_found' }, 'notFound', 'errors.notFound'],
-    [{ code: 'P0002', message: 'model_not_found' }, 'notFound', 'errors.modelNotFound'],
+    [{ code: 'P0002', message: 'plate_not_found' }, 'notFound', 'errors.plateNotFound'],
+    [{ code: 'P0002', message: 'quote_not_found' }, 'notFound', 'errors.notFound'],
     [{ code: '22023', message: 'printer_inactive' }, 'invalid', 'errors.printerInactive'],
     [{ code: '22023', message: 'material_inactive' }, 'invalid', 'errors.materialInactive'],
     [{ code: '22023', message: 'invalid_override' }, 'invalid', 'errors.invalidOverride'],
     [{ code: '22023', message: 'invalid_markup' }, 'invalid', 'errors.invalidMarkup'],
+    [{ code: '22023', message: 'invalid_grams' }, 'invalid', 'errors.invalidGrams'],
+    [{ code: '22023', message: 'invalid_description' }, 'invalid', 'errors.invalidDescription'],
     [{ code: 'P0001', message: 'quote_not_draft' }, 'notDraft', 'errors.notDraft'],
     [{ code: 'P0001', message: 'quote_not_sendable' }, 'notSendable', 'errors.notSendable'],
   ])('%o → %s, %s', (error, kind, messageKey) => {
@@ -73,29 +74,6 @@ describe('fromFunctionCode', () => {
     ['', 'unknown', 'errors.unknown'],
   ])('%s → %s, %s', (code, kind, messageKey) => {
     expect(fromFunctionCode(code)).toMatchObject({ kind, messageKey })
-  })
-})
-
-describe('fromUploadResponse', () => {
-  test.each([
-    [null, '', 'network', 'errors.network'],
-    [403, '', 'notDraft', 'errors.uploadNotAllowed'],
-    [
-      400,
-      '{"message":"new row violates row-level security policy"}',
-      'notDraft',
-      'errors.uploadNotAllowed',
-    ],
-    [413, '', 'invalid', 'errors.fileTooLarge'],
-    [
-      400,
-      '{"message":"The object exceeded the maximum allowed size"}',
-      'invalid',
-      'errors.fileTooLarge',
-    ],
-    [500, 'boom', 'unknown', 'errors.unknown'],
-  ])('%s %s → %s, %s', (status, body, kind, messageKey) => {
-    expect(fromUploadResponse(status, body)).toMatchObject({ kind, messageKey })
   })
 })
 

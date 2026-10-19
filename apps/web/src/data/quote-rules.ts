@@ -96,119 +96,34 @@ export function expiresSoon(quote: { status: string; valid_until: string }, toda
   )
 }
 
-export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed'
-
-/** An item's newest slicing job, as the items query embeds it. */
-export type ItemJob = {
-  id: number
-  status: JobStatus
-  error: string | null
-  queued_at: string
-  started_at: string | null
-  finished_at: string | null
-}
-
-type SlicingInput = {
+type PlateShape = {
   printer_id: number | null
-  material_id: number | null
   print_time_s: number | null
-  job: ItemJob | null
+  materials: { grams: number }[]
 }
 
-export type SlicingState =
-  | { kind: 'waiting' }
-  | { kind: 'queued' }
-  | { kind: 'slow' }
-  | { kind: 'slicing'; elapsedS: number }
-  | { kind: 'done' }
-  | { kind: 'failed'; error: string | null }
-
-export const SLOW_QUEUE_MS = 10 * 60 * 1000
-
-/** What the item card shows about slicing (functional analysis §7). */
-export function slicingState(item: SlicingInput, now: number): SlicingState {
-  if (item.printer_id === null || item.material_id === null) return { kind: 'waiting' }
-  const job = item.job
-  if (job?.status === 'failed') return { kind: 'failed', error: job.error }
-  if (job?.status === 'running') {
-    const started = Date.parse(job.started_at ?? job.queued_at)
-    return { kind: 'slicing', elapsedS: Math.max(0, Math.floor((now - started) / 1000)) }
-  }
-  if (item.print_time_s !== null) return { kind: 'done' }
-  if (job && now - Date.parse(job.queued_at) > SLOW_QUEUE_MS) return { kind: 'slow' }
-  return { kind: 'queued' }
+/** A plate can be priced: it has a printer, a print time and at least one material. */
+export function isPlateComplete(plate: PlateShape): boolean {
+  return plate.printer_id !== null && plate.print_time_s !== null && plate.materials.length > 0
 }
 
-/** Queued or running: Mark as sent waits for it. Needs no clock, so it is safe to call while rendering. */
-export function isSlicingInProgress(item: SlicingInput): boolean {
-  const kind = slicingState(item, 0).kind
-  return kind === 'queued' || kind === 'slicing'
+export function incompletePlates<T extends PlateShape>(plates: T[]): T[] {
+  return plates.filter((plate) => !isPlateComplete(plate))
 }
 
-/** The `models` bucket's limit: 100 MiB. */
-export const MAX_MODEL_BYTES = 100 * 1024 * 1024
-export const MAX_PARALLEL_UPLOADS = 3
-
-export type FileProblem = 'extension' | 'empty' | 'tooLarge'
-
-export function validateModelFile(file: { name: string; size: number }): FileProblem | null {
-  if (!/.\.(stl|3mf)$/i.test(file.name)) return 'extension'
-  if (file.size === 0) return 'empty'
-  if (file.size > MAX_MODEL_BYTES) return 'tooLarge'
-  return null
+/** Complete plates `price-quote` would price that have no price yet. */
+export function unpricedPlates<T extends PlateShape & { priced_at: string | null }>(
+  plates: T[],
+): T[] {
+  return plates.filter((plate) => isPlateComplete(plate) && plate.priced_at === null)
 }
 
-export function descriptionFromFilename(name: string): string {
-  const dot = name.lastIndexOf('.')
-  return dot > 0 ? name.slice(0, dot) : name
-}
-
-/** Storage rejects some characters in object keys; the original name is kept on the item. */
-export function safeObjectName(name: string): string {
-  return name.replace(/[^\w.\- ()]/g, '_')
-}
-
-/** `<quote_id>/<upload_id>/<file>`, the layout the `models` storage policies expect. */
-export function modelPath(quoteId: number, uploadId: string, filename: string): string {
-  return `${quoteId}/${uploadId}/${filename}`
-}
-
-type PricingInput = {
-  printer_id: number | null
-  material_id: number | null
-  print_time_s: number | null
-  priced_at: string | null
-}
-
-/** Items `price-quote` would price that have no price yet. */
-export function unpricedItems<T extends PricingInput>(items: T[]): T[] {
-  return items.filter(
-    (item) =>
-      item.printer_id !== null &&
-      item.material_id !== null &&
-      item.print_time_s !== null &&
-      item.priced_at === null,
-  )
-}
-
-/** Printer and material for a new item: the newest item's (§3.4) when both are still active, else none. */
-export function defaultCatalogChoice(
-  items: { id: number; printer_id: number | null; material_id: number | null }[],
-  activePrinterIds: ReadonlySet<number>,
-  activeMaterialIds: ReadonlySet<number>,
-): { printer_id: number | null; material_id: number | null } {
-  const newest = [...items]
-    .sort((a, b) => b.id - a.id)
-    .find((item) => item.printer_id !== null && item.material_id !== null)
-  if (
-    newest?.printer_id != null &&
-    newest.material_id != null &&
-    activePrinterIds.has(newest.printer_id) &&
-    activeMaterialIds.has(newest.material_id)
-  ) {
-    return { printer_id: newest.printer_id, material_id: newest.material_id }
-  }
-  return { printer_id: null, material_id: null }
+/** "h:mm" (minutes 00–59, at least one minute in total) as seconds, or null. */
+export function parseDuration(text: string): number | null {
+  const match = /^(\d{1,4}):([0-5]\d)$/.exec(text.trim())
+  if (!match) return null
+  const seconds = (Number(match[1]) * 60 + Number(match[2])) * 60
+  return seconds > 0 ? seconds : null
 }
 
 /** The quote's frozen VAT rate, or the shop's while it is a draft; null while settings are still loading. */
@@ -222,22 +137,22 @@ export function vatRateFor(
 export type QuoteTotals = { net: number; vat: number; gross: number }
 
 /**
- * Net (the item totals plus the consumable lines), VAT and gross, worked out in integer cents. VAT is rounded
- * half-up once, on the net. Null without items or while any item has no price.
+ * Net (the plate totals plus the consumable lines), VAT and gross, worked out in integer cents. VAT is rounded
+ * half-up once, on the net. Null without plates, or while any plate is incomplete or has no price: an override on
+ * an incomplete plate does not make the total appear.
  */
 export function quoteTotals(
-  items: { item_total: number | null }[],
+  plates: (PlateShape & { plate_total: number | null })[],
   ratePct: number,
   consumables: { line_total: number }[] = [],
 ): QuoteTotals | null {
-  if (items.length === 0 || items.some((item) => item.item_total === null)) return null
-  const itemCents = items.reduce(
-    (sum, item) => sum + Math.round((item.item_total as number) * 100),
-    0,
-  )
+  if (plates.length === 0 || plates.some((p) => !isPlateComplete(p) || p.plate_total === null)) {
+    return null
+  }
+  const plateCents = plates.reduce((sum, p) => sum + Math.round((p.plate_total as number) * 100), 0)
   const netCents = consumables.reduce(
     (sum, line) => sum + Math.round(line.line_total * 100),
-    itemCents,
+    plateCents,
   )
   // The rate in hundredths of a percent keeps the maths in integers.
   const rateBasisPoints = Math.round(ratePct * 100)
