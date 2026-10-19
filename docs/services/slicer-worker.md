@@ -1,8 +1,10 @@
 # slicer-worker
 
 - **Location:** `services/slicer-worker/` (uv workspace member `slicer-worker`, package `slicer_worker`)
-- **Status:** Skeleton — the package exists but the worker is not implemented yet. Its database side (job message,
-  output and the `worker_*` functions) is implemented; the HTTP surface and configuration defaults are proposed.
+- **Status:** Paused — the package is a skeleton and nothing uses it. Its database side (the `slicing_jobs` queue
+  and table, `enqueue_slicing_job`, the `worker_*` functions) was dropped on 2026-10-16 together with `quote_items`
+  (migration `quote_plates_cutover`), when quote plates with hand-typed figures replaced quote items. The rest of
+  this page describes that former design, kept for the coming upload system.
 
 ## Responsibility
 

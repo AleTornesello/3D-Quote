@@ -30,9 +30,9 @@ apps/web/src/
 ├── index.css         # Tailwind + shadcn theme tokens
 ├── app/              # App, AppProviders, routes (SECTION_PAGES), sections
 ├── lib/              # env, typed Supabase client, generated database types, query client, formatting, form helpers
-├── data/             # one TanStack Query module per entity (quotes, quote items, consumables in `consumables.ts` and
-│                     # quote consumable lines in `quote-consumables.ts` included), AppError mapping,
-│                     # query keys, Edge Function calls, the model uploader, quote rules and live updates
+├── data/             # one TanStack Query module per entity (quotes, quote plates in `quote-plates.ts`, consumables in
+│                     # `consumables.ts` and quote consumable lines in `quote-consumables.ts` included), AppError
+│                     # mapping, query keys, Edge Function calls, quote rules and live updates
 ├── i18n/             # i18next setup, language detection/switching, locales/it.json + en.json
 ├── auth/             # session (AuthProvider, RequireAuth), staff profile (StaffProvider, useStaff), RequireOwner
 ├── layout/           # AppShell (sidebar / drawer), Navigation, LanguageSwitcher
@@ -83,7 +83,7 @@ apps/web/src/
   - `tables` seeds in-memory rows;
   - `rpc` maps database function names to handlers; `functions` does the same for Edge Functions.
 
-  It returns `{ db, user, auth, router, queryClient, uploader, realtime }`:
+  It returns `{ db, user, auth, router, queryClient, realtime, pdf }`:
   - `db.calls('printers')` lists the requests made (`{ op, values, filters }`);
   - `db.failNext('printers', { code, message })` makes the next one fail;
   - fixtures live in `src/test/fixtures.ts`.
@@ -95,26 +95,23 @@ apps/web/src/
   (`parseQuoteListParams` / `toQuoteListSearch` in `src/data/quote-rules.ts`). `/quotes/new` is the same page with
   the New quote sheet open; the sheet stays open with a loading state (and Retry on error) while settings and the
   client load.
-- **Editor:** `QuoteEditorPage` with its parts in `src/pages/quote-editor/`. Item changes save as soon as they happen
-  (selects and switches at once, text and numbers on blur or Enter, through `InlineField`). The item card disables
-  every control while any of its saves is pending. Download opens the tab synchronously in the click, then points it
-  at the signed URL (so Safari doesn't block it).
-- **Uploads:** `useModelUploader()` (`src/data/model-upload.ts`) uploads with `tus-js-client` to
-  `/storage/v1/upload/resumable` in 6 MB chunks; `useUploads` runs at most three at a time and keeps files in memory
-  for Retry. Leaving the editor asks first and cancels running and waiting uploads; closing or reloading the tab
-  while uploads run brings up the browser's own warning (`beforeunload`). A quote that leaves draft (an upload
-  refused for that reason, or a refetch showing the new status) cancels every pending upload. Tests get a
-  `FakeUploader` (`renderApp(...).uploader`) and finish, fail or advance each upload by hand.
-- **Live status:** `useQuoteLiveUpdates` subscribes to `quote_items` and `slicing_jobs` (Supabase Realtime) and
-  refetches the items on any change. The channel is rebuilt whenever the item ids change, so every subscription
-  after the editor's first one refetches too (as does a reconnect). Tests drive it with `renderApp(...).realtime`
-  (`emit`, `reconnect`, and `hold` / `release` to keep new subscriptions pending); a channel only receives changes
-  once subscribed.
-- **Pricing:** `useAutoPrice` calls the `price-quote` Edge Function whenever a draft has items with results and no
-  price; it retries once per pending item, then shows "Price not calculated" until the item changes. Recalculate and
+- **Editor:** `QuoteEditorPage` with its parts in `src/pages/quote-editor/`. **Add plate** calls `create_quote_plate`;
+  each plate is a `PlateCard` (description, printer, print time, copies), `PlateMaterials` (one grams field per
+  material, a select and a grams field to add one) and `PlatePrice`. Changes save as soon as they happen (selects at
+  once, text and numbers on blur or Enter, through `InlineField`): the printer through `set_plate_printer`, materials
+  through `save_plate_material` (add or set grams), everything else as plain table updates and deletes. Print time is
+  typed as `h:mm` (`parseDuration`), grams with a comma or a dot. The plate card disables every control while any of
+  its saves is pending. `isPlateComplete`, `incompletePlates`, `unpricedPlates` and `quoteTotals`
+  (`src/data/quote-rules.ts`) decide what counts: the totals are "—" until every plate is complete and priced.
+- **Live status:** `useQuoteLiveUpdates` subscribes to `quote_plates` (filtered by quote) and `quote_plate_materials`
+  (unfiltered: rows carry no quote id) through Supabase Realtime and refetches the plates, debounced 250 ms, on any
+  change, and after every reconnect. Tests drive it with `renderApp(...).realtime` (`emit`, `reconnect`, and
+  `hold` / `release` to keep new subscriptions pending); a channel only receives changes once subscribed.
+- **Pricing:** `useAutoPrice` calls the `price-quote` Edge Function whenever a draft has complete plates with no
+  price; it retries once per pending plate, then shows "Price not calculated" until the plate changes. Recalculate and
   the error toast's Retry always call. Edge Functions are called through `invokeFunction`
   (`src/data/edge-functions.ts`); tests pass handlers with `renderApp(path, { functions })`. `price-quote`
-  defaults to a handler that prices nothing, so tests with sliced-but-unpriced items don't raise error toasts.
+  defaults to a handler that prices nothing, so tests with complete unpriced plates don't raise error toasts.
 - **PDF:** `ExportPdfDialog` (`src/pdf/`) builds a `QuotePdfData` with `toQuotePdfData` (pure: translated and
   formatted in the chosen language, VAT included), renders it with `QuotePdf` (`@react-pdf/renderer`) and downloads
   it. The renderer is a context (`usePdfRenderer`) whose real implementation lazy-loads react-pdf, so the library is a
@@ -128,26 +125,12 @@ apps/web/src/
   project (via the Supabase MCP, when asked) before or together with this build: the app needs both `vat_rate_pct`
   columns. Without them Settings can't save and the editor totals show —; the PDF download fails into its error alert.
 - **Test fake:** `FakeDb#configure({ defaults, embeds, writable })` adds what the database would: `renderApp` fills
-  a new quote's defaults and embeds its `client` and `creator`, gives items an empty `job` unless seeded, and lets
+  a new quote's defaults and embeds its `client` and `creator`, gives plates empty `materials` unless seeded, and lets
   updates and deletes reach draft quotes only (the RLS policy). A `range` starting past the last row fails with
   `PGRST103`, like PostgREST; one starting right at the end returns no rows.
 
-### Simulating a slice locally
-
-The slicer worker doesn't exist yet. With the local stack running, slice the oldest queued job by hand in Studio's
-SQL editor (`http://127.0.0.1:54323`), which runs as `postgres`:
-
-```sql
-select msg_id, message->>'job_id' as job_id from public.worker_claim_job(300, 3);
--- then, with the two values it returned:
-select public.worker_complete_job(
-  <msg_id>, <job_id>,
-  '{"print_time_s": 19800, "filament_g": 120.5, "filament_mm": 40000, "layer_count": 266,
-    "bbox_x_mm": 100, "bbox_y_mm": 80, "bbox_z_mm": 40, "slicer_version": "manual"}'::jsonb
-);
-```
-
-An open editor shows the results without reloading, then prices the item.
+Uploads and slicing were removed with quote items (a new upload system is planned);
+`git log -- apps/web/src/data/model-upload.ts` finds the previous uploader. `tus-js-client` is still a dependency.
 
 ## Staff
 
@@ -185,8 +168,7 @@ An open editor shows the results without reloading, then prices the item.
 
 ## Not done yet
 
-- **Orphaned model files** — files whose item was never created or whose removal failed stay in `models` until a
-  cleanup job exists.
+- **Old model files** — files uploaded for the former quote items stay in `models`; nothing reads or removes them.
 - **Redirect URLs** — the reset email and staff invitations link to `<origin>/account?reset=1`. Allow it under
   Supabase → Authentication → URL Configuration → **Redirect URLs** for every environment (for example
   `https://<host>/account**`; the same entry covers both), or Supabase falls back to the Site URL.

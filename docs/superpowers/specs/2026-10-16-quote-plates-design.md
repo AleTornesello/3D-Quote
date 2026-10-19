@@ -15,7 +15,7 @@ materials, each with a quantity in grams. The quote total is not calculated unti
 | Concern | Choice |
 |---|---|
 | Plate input | Typed by hand: description, printer, print time, quantity (copies of the plate), materials with grams |
-| Uploads and slicing | Out of scope; a new upload system is coming. The upload and slicer code is left untouched and unused by plates |
+| Uploads and slicing | Out of scope; a new upload system is coming. The upload UI and the slicing database layer are removed (they depend on `quote_items`); git history keeps them |
 | Printer | Mandatory for a priceable plate; selectable later (empty in a new plate) |
 | Materials | At least one per plate, each with `grams > 0`; the same material at most once per plate |
 | Print time | Mandatory for a priceable plate (hours and minutes in the UI, stored in seconds) |
@@ -77,7 +77,7 @@ indexes on both foreign keys.
   listed; otherwise net, VAT and total as today. Auto-pricing runs on every plate change.
 - Send dialog: `plate_incomplete` and `no_plates` blockers. PDF: plate lines (description, quantity, price) instead
   of item lines. Error mapping and i18n (`en.json`, `it.json`) updated.
-- Upload components and hooks stay in the repo, detached from the editor, for the upload redesign.
+- Upload components and hooks are deleted; git history keeps them for the upload redesign.
 
 ## Migration
 

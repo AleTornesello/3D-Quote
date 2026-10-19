@@ -20,7 +20,7 @@ JSON `{ "code": "<code>" }`:
 | 409 | `email_already_registered` | `invite` for an email that already has an account |
 | 409 | `not_pending` | `resend`, `link` or `cancel` for someone who has already signed in |
 | 409 | `quote_not_draft` | `price-quote` on a quote that isn't (or stopped being) a draft |
-| 500 | `duplicate_failed` | `duplicate-quote` couldn't copy a file or the items; nothing was left behind |
+| 500 | `duplicate_failed` | `duplicate-quote` couldn't copy the plates; nothing was left behind |
 | 500 | `internal_error` | Anything else; the function log has the cause |
 
 The web app calls all three through `invokeFunction` (`apps/web/src/data/edge-functions.ts`), which turns the `{ code }` into an `AppError`.
@@ -29,13 +29,14 @@ The web app calls all three through `invokeFunction` (`apps/web/src/data/edge-fu
 
 Body `{ "quote_id": 42 }` → `200 { "priced": 2, "skipped": 1 }`.
 
-Prices every item of the draft that has a printer, a material and slice results, with the
-[pricing rules](../frontend/functional-analysis.md#5-pricing-rules). The other items are skipped. An item changed
-between reading and writing is skipped too, so call it again after your own change has landed. Price overrides are
+Prices every complete plate of the draft (a printer, a print time and at least one material), with the
+[pricing rules](../frontend/functional-analysis.md#5-pricing-rules): the material cost is the sum over the plate's
+materials. Incomplete plates are skipped. A plate changed between reading and writing is skipped too, so call it again after your own change has landed. Price overrides are
 never touched. Inactive printers and materials are still priced with their rates.
 
-The quote's markup and its items are read in one statement, so a markup change during a call is caught by the
-guarded write. Settings are read separately: a Recalculate that answers `skipped > 0` for items with results should
+The quote's markup and its plates (with their materials) are read in one statement, so a markup change during a call
+is caught by the guarded write. Settings are read separately: a Recalculate that answers `skipped > 0` for complete
+plates should
 be called again, because another call priced them first, possibly with older settings.
 
 ## `duplicate-quote`
@@ -43,9 +44,9 @@ be called again, because another call priced them first, possibly with older set
 Body `{ "quote_id": 42 }` → `201 { "quote_id": 57 }`.
 
 Copies a quote in any status into a new draft by the caller: same client, notes and markup override; default
-validity; a new number. Files are copied into the new quote's folder. Items keep their settings, results and price
-overrides; sliced items get a `succeeded` job, unsliced ones with printer and material are queued. The copy is then
-priced. Consumable lines of active consumables are copied too, at today's price; inactive ones are skipped.
+validity; a new number. Plates keep their description, printer, print time, copies, materials (inactive ones too)
+and price overrides, in one transaction (`service_copy_quote_plates`); if that fails the new quote is deleted. The
+copy is then priced. Consumable lines of active consumables are copied too, at today's price; inactive ones are skipped.
 
 ## `manage-staff`
 

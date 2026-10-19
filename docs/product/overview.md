@@ -2,8 +2,9 @@
 
 ## What it is
 
-3D-Quote is an internal tool for a 3D print shop. It turns a client's model file into a priced quote by slicing
-the model with the shop's real printer and material settings, instead of estimating print time and material by eye.
+3D-Quote is an internal tool for a 3D print shop. It turns the print jobs for a client's parts into a priced quote
+from the shop's real printers, materials and rates. Today staff type each job's print time and material weights (read
+from their slicer); reading them from uploaded model files is planned.
 
 ## Users
 
@@ -15,12 +16,13 @@ the model with the shop's real printer and material settings, instead of estimat
 ## Quoting workflow
 
 1. A staff member creates a quote for a client.
-2. They upload one or more model files (STL or 3MF) to the quote. Each file becomes a quote item.
-3. For each item they choose a printer, a material, the quantity and print settings (layer height, infill,
-   supports).
-4. The system slices each model in the background and records print time and filament usage.
-5. A price is computed for each item from those metrics plus material, machine and energy costs, a failure
-   allowance, a setup fee and a markup, with a minimum price per item.
+2. They add one or more **plates** to the quote. A plate is one print job: everything printed together, supports
+   included.
+3. For each plate they choose a printer and type the print time, the number of copies and the materials used with
+   their grams.
+4. Once every plate is complete, a price is computed for each from those figures plus material, machine and energy
+   costs, a failure allowance, a setup fee and a markup, with a minimum price per plate. Consumables (bolts, inserts…)
+   can be added at their own price.
 6. The staff member reviews the quote and marks it as sent; only the owner can override a computed price.
 7. The quote is exported as a PDF (Italian or English) and sent to the client outside the tool.
 
@@ -29,7 +31,7 @@ Screen-by-screen detail, roles and the exact pricing formula are in the
 
 ## Goals
 
-- Fast, consistent estimates based on real slicer output rather than guesswork.
+- Fast, consistent estimates based on real slicer figures rather than guesswork.
 - One place to keep the shop's printers, materials and rates, so every quote uses the same numbers.
 - A history of quotes per client.
 

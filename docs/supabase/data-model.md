@@ -8,10 +8,10 @@
 ```mermaid
 erDiagram
     clients ||--o{ quotes : "receives"
-    quotes ||--o{ quote_items : "contains"
-    printers ||--o{ quote_items : "prints"
-    materials ||--o{ quote_items : "uses"
-    quote_items ||--o{ slicing_jobs : "sliced by"
+    quotes ||--o{ quote_plates : "contains"
+    printers ||--o{ quote_plates : "prints"
+    quote_plates ||--o{ quote_plate_materials : "uses"
+    materials ||--o{ quote_plate_materials : "in"
     quotes ||--o{ quote_consumables : "has"
     consumables ||--o{ quote_consumables : "used by"
     staff ||--o{ quotes : "creates"
@@ -44,19 +44,19 @@ erDiagram
         bigint client_id FK
         uuid created_by FK
     }
-    quote_items {
+    quote_plates {
         bigint id PK
         bigint quote_id FK
         bigint printer_id FK
-        bigint material_id FK
     }
-    slicing_jobs {
+    quote_plate_materials {
         bigint id PK
-        bigint quote_item_id FK
+        bigint plate_id FK
+        bigint material_id FK
     }
 ```
 
-Pricing runs in an Edge Function (decided 2026-10-11, not built yet). This schema stores the price breakdown, which
+Pricing runs in the [`price-quote` Edge Function](edge-functions.md). This schema stores the price breakdown, which
 only the service role can write.
 
 ## Conventions
@@ -67,7 +67,6 @@ only the service role can write.
 - Every table has `created_at timestamptz not null default now()`; mutable tables also have `updated_at`, kept
   current by the `private.set_updated_at()` trigger.
 - Tables without user-editable state may omit `updated_at`.
-- `slicing_jobs` uses `queued_at` instead of `created_at`.
 - Money is `numeric(12,2)` in the shop's currency; never floating point.
 - Statuses are `text` with a `check` constraint listing the allowed values.
 - Every foreign key column gets an index (Postgres does not create one automatically).
@@ -110,7 +109,7 @@ The `staff_guard` trigger (every role):
 | `lifetime_hours` | `integer` null | Check: `> 0`. Estimated life in print hours. Null exactly when `purchase_cost` is (check `printers_purchase_pair`) |
 | `power_w` | `integer` not null | Check: `> 0`. Average draw while printing, for energy cost |
 | `failure_rate` | `integer` not null default `0` | Check: `0` to `100`. Percent added to the cost of a copy to cover failed prints on this machine; pricing reads it |
-| `active` | `boolean` not null default `true` | Inactive printers can't be picked for new items |
+| `active` | `boolean` not null default `true` | Inactive printers can't be picked for plates |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 ### `materials`
@@ -123,7 +122,7 @@ The `staff_guard` trigger (every role):
 | `color` | `text` | |
 | `density_g_cm3` | `numeric(4,2)` not null | Used to convert filament length to weight |
 | `cost_per_kg` | `numeric(12,2)` not null | |
-| `active` | `boolean` not null default `true` | |
+| `active` | `boolean` not null default `true` | Inactive materials can't be added to plates |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 ### `consumables`
@@ -151,9 +150,9 @@ migration. See [functional analysis §3.8](../frontend/functional-analysis.md#38
 | `id` | `smallint` PK | Check: `id = 1` |
 | `currency` | `text` not null default `'EUR'` | ISO 4217 |
 | `energy_price_kwh` | `numeric(8,4)` not null default `0` | |
-| `setup_fee` | `numeric(12,2)` not null default `0` | Per item |
+| `setup_fee` | `numeric(12,2)` not null default `0` | Per plate |
 | `default_markup_pct` | `numeric(6,2)` not null default `0` | Check: `>= 0` |
-| `minimum_item_price` | `numeric(12,2)` not null default `0` | |
+| `minimum_item_price` | `numeric(12,2)` not null default `0` | Minimum total of a plate (the name predates plates) |
 | `vat_rate_pct` | `numeric(5,2)` not null default `22` | Check: `0..100`. The shop's VAT rate; draft quotes follow it |
 | `quote_prefix` | `text` not null default `'Q'` | Check: 1–10 letters/digits |
 | `default_validity_days` | `smallint` not null default `30` | Check: `1..365` |
@@ -201,41 +200,62 @@ The `quotes_guard` trigger (every role, the service role included): once a quote
 change is `status` moving from `sent` to `accepted`, `rejected` or `expired`. Anything else, including deleting the
 quote, raises `quote_not_draft`.
 
-### `quote_items`
+### `quote_plates`
+
+One print job: everything printed together, supports and other extras included. Added by the `quote_plates`
+migration (which turned every former quote item into a plate with the same id); declared in
+`supabase/schemas/06_quote_plates.sql`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `bigint` identity PK | |
 | `quote_id` | `bigint` not null FK → `quotes`, `on delete cascade` | Indexed |
-| `model_path` | `text` not null unique | Object path in the `models` bucket, uploaded before the item is created |
-| `original_filename` | `text` not null | |
-| `description` | `text` not null | The web app suggests the file name without extension; printed on the PDF |
-| `printer_id` | `bigint` FK → `printers`, `on delete restrict` | Indexed. Null until chosen; slicing starts once printer and material are set |
-| `material_id` | `bigint` FK → `materials`, `on delete restrict` | Indexed. Same |
-| `quantity` | `integer` not null default `1` | Check: `> 0` |
-| `layer_height_mm` | `numeric(3,2)` not null default `0.20` | |
-| `infill_percent` | `smallint` not null default `20` | Check: `0..100` |
-| `supports` | `boolean` not null default `false` | |
-| `print_time_s` | `integer` | From the newest succeeded slicing job; null until sliced |
-| `filament_g` | `numeric(10,2)` | Same |
-| `bbox_x_mm`, `bbox_y_mm`, `bbox_z_mm` | `numeric(6,1)` | Same, for information; printers have no build volume, so nothing checks it |
+| `description` | `text` not null | Not blank. The web app names new plates "Plate 1", "Plate 2"…; printed on the PDF |
+| `printer_id` | `bigint` FK → `printers`, `on delete restrict` | Indexed. Null until chosen |
+| `print_time_s` | `integer` | Check: `> 0`. Typed by hand (h:mm in the web app); null until set |
+| `quantity` | `integer` not null default `1` | Check: `> 0`. Copies of the plate |
 | `material_cost`, `machine_cost`, `energy_cost`, `failure_cost`, `setup_fee`, `markup_amount` | `numeric(14,4)` | Price breakdown, full precision ([pricing rules](../frontend/functional-analysis.md#5-pricing-rules)) |
 | `markup_pct` | `numeric(6,2)` | Markup % used for this computation |
 | `computed_total` | `numeric(12,2)` | After minimum price, rounded |
 | `override_total` | `numeric(12,2)` | Owner override; null when none |
 | `override_reason` | `text` | Required when `override_total` is set |
-| `item_total` | `numeric(12,2)` generated always as `coalesce(override_total, computed_total)` stored | Null until priced |
+| `plate_total` | `numeric(12,2)` generated always as `coalesce(override_total, computed_total)` stored | Null until priced |
 | `priced_at` | `timestamptz` | Last computation. Never changes once the quote is `sent` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Check `quote_items_override_check`: `override_total` is null, or it is `>= 0` and `override_reason` is not blank.
+Check `quote_plates_override_check`: `override_total` is null, or it is `>= 0` and `override_reason` is not blank.
+
+A plate is **complete** when it has a printer, a print time and at least one material row. Only complete plates are
+priced, and a quote has a total only when it has plates and every one is complete and has a `plate_total`: an
+override on an incomplete plate does not make the total appear.
 
 Triggers (every role, the service role included):
-- `quote_items_guard`: an update or delete raises `quote_not_draft` unless the parent quote is `draft` (the cascade
-  from deleting a draft quote is allowed), and moving an item to another quote raises `quote_item_move_not_allowed`.
+- `quote_plates_guard`: an update or delete raises `quote_not_draft` unless the parent quote is `draft` (the cascade
+  from deleting a draft quote is allowed), and moving a plate to another quote raises `quote_plate_move_not_allowed`.
   It takes `FOR SHARE` on the quote, so it waits for a concurrent send.
-- `quote_items_reprice_on_quantity`: a quantity change clears the price breakdown (`material_cost` … `markup_pct`,
-  `computed_total`, `priced_at`); the override stays.
+- `quote_plates_reprice`: a change of `quantity`, `printer_id` or `print_time_s` clears the price breakdown
+  (`material_cost` … `markup_pct`, `computed_total`, `priced_at`); the override stays.
+
+### `quote_plate_materials`
+
+The materials of a plate, each with its weight per copy. Declared in `supabase/schemas/06_quote_plates.sql`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint` identity PK | |
+| `plate_id` | `bigint` not null FK → `quote_plates`, `on delete cascade` | Unique together with `material_id` (a material appears once per plate) |
+| `material_id` | `bigint` not null FK → `materials`, `on delete restrict` | Indexed |
+| `grams` | `numeric(10,2)` not null | Check: `> 0`. Per copy, supports included |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Triggers (every role, the service role included):
+- `quote_plate_materials_guard`: an insert, update or delete raises `quote_not_draft` unless the plate's quote is
+  `draft` (cascades are allowed), and moving a row to another plate raises `quote_plate_move_not_allowed`.
+- `quote_plate_materials_reprice` (after insert, update, delete; `security definer`): clears the parent plate's price
+  breakdown, which also bumps its `updated_at`.
+
+The four trigger functions are in `private`; the `quote_plates` migration revokes `execute` on them from `public`,
+`anon` and `authenticated`.
 
 ### `quote_consumables`
 
@@ -254,8 +274,8 @@ The consumable lines of a quote. A quote may have none.
 Triggers:
 - `quote_consumables_guard` (every role, the service role included): an insert, update or delete raises
   `quote_not_draft` unless the parent quote is `draft` (the cascade from deleting a draft quote is allowed), and
-  moving a line to another quote raises `quote_item_move_not_allowed`. It takes `FOR SHARE` on the quote, so it waits
-  for a concurrent send.
+  moving a line to another quote raises `quote_item_move_not_allowed` (a name kept from before plates). It takes
+  `FOR SHARE` on the quote, so it waits for a concurrent send.
 - `quotes_return_stock` (on `quotes`, after `status` changes): when a quote goes from `sent` to `rejected` or
   `expired`, every line's quantity is added back to the consumable's stock. This covers `mark_quote_rejected` and the
   daily `expire-quotes` job. An `accepted` quote keeps the stock deducted.
@@ -263,32 +283,12 @@ Triggers:
 Both are `security definer` functions in `private`; the `consumables_setup` migration revokes `execute` on them from
 `public`, `anon` and `authenticated`, since trigger functions in `private` get no default revoke.
 
-### `slicing_jobs`
-
-One row per slicing request for an item. The queue message carries `job_id`; this table is the durable record of
-what happened (see [slicer-worker](../services/slicer-worker.md)).
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `bigint` identity PK | |
-| `quote_item_id` | `bigint` not null FK → `quote_items`, `on delete cascade` | Index `(quote_item_id, id desc)` serves the FK and "newest job of an item" |
-| `status` | `text` not null default `'queued'` | Check: `queued`, `running`, `succeeded`, `failed` |
-| `attempts` | `smallint` not null default `0` | The message's `read_ct` when last claimed |
-| `error` | `text` | Last error message |
-| `print_time_s` | `integer` | Results, see slicer-worker output |
-| `filament_g`, `filament_mm` | `numeric(10,2)` | |
-| `layer_count` | `integer` | |
-| `bbox_x_mm`, `bbox_y_mm`, `bbox_z_mm` | `numeric(6,1)` | |
-| `slicer_version` | `text` | |
-| `queued_at` | `timestamptz` not null default `now()` | |
-| `started_at`, `finished_at` | `timestamptz` | |
-
 ## Views
 
 ### `quotes_list`
 
-The quotes list (home page). `security_invoker = true`, so the caller's RLS on `quotes`, `clients`, `staff` and
-`quote_items` applies: users who aren't active staff see no rows. Declared in `supabase/schemas/08_quotes_list.sql`.
+The quotes list (home page). `security_invoker = true`, so the caller's RLS on `quotes`, `clients`, `staff`,
+`quote_plates`, `quote_plate_materials` and `quote_consumables` applies: users who aren't active staff see no rows. Declared in `supabase/schemas/08_quotes_list.sql`.
 
 A migration generated with `supabase db diff` recreates the view with `create or replace view` and drops
 `security_invoker`, which would show every quote to anyone who can select from the view. Any change to the view
@@ -300,27 +300,24 @@ therefore needs `alter view public.quotes_list set (security_invoker = true);` a
 | `client_name`, `client_company` | From `clients` |
 | `created_by_name` | `staff.display_name` of the creator |
 | `created_on` | `created_at` as a date in `Europe/Rome`, for the date filter |
-| `item_count` | Number of items |
-| `total` | Sum of `item_total` plus the quote's consumable lines (`line_total`); null when there are no items or any item is unpriced |
+| `plate_count` | Number of plates |
+| `total` | Sum of `plate_total` plus the quote's consumable lines (`line_total`); null when there are no plates or any plate is incomplete or unpriced (an override on an incomplete plate included) |
 
 ## Realtime
 
-`quote_items` and `slicing_jobs` are in the `supabase_realtime` publication (migration `quotes_list_setup`; the
-declarative schema can't express publications). The quote editor subscribes to them; Realtime applies each table's
+`quote_plates` and `quote_plate_materials` are in the `supabase_realtime` publication (migration `quote_plates`;
+the declarative schema can't express publications). The quote editor subscribes to them; Realtime applies each table's
 `select` RLS, so only active staff receive changes.
 
 ## Storage
 
 - Private bucket **`models`**, 100 MB per file, no MIME restriction (browsers report STL and 3MF types
-  inconsistently).
-- Object path: `<quote_id>/<upload_id>/<original_filename>`, where `upload_id` is a UUID generated in the browser.
-  The file is uploaded before the quote item exists, so the item id can't be part of the key.
+  inconsistently). Nothing uploads to it since plates replaced items; it stays for the coming upload system.
+- Object path: `<quote_id>/<upload_id>/<original_filename>`, where `upload_id` is a UUID generated in the browser
+  (the layout of the former upload flow, which the policies below still expect).
 - Upload rule: the first folder must be the id of a `draft` quote (`private.can_upload_model(name)`).
 - Change rule: files in the folder of a quote that has left `draft` can't be moved or deleted by staff
   (`private.can_change_model(name)`); folders of deleted quotes stay removable.
-- Objects that no `quote_items.model_path` points to (upload finished, item never created) are orphans; a periodic
-  cleanup removes them (proposed).
-- The worker downloads with the service role.
 - Private bucket **`branding`** for the shop logo, 1 MB, `image/png`, `image/jpeg`, `image/svg+xml`.
 
 Policies on `storage.objects`, all `to authenticated` (declared in `supabase/schemas/30_storage.sql`):
@@ -338,10 +335,8 @@ Policies on `storage.objects`, all `to authenticated` (declared in `supabase/sch
 
 ## Queues
 
-- pgmq queue **`slicing_jobs`** (`pgmq.q_slicing_jobs`, archive `pgmq.a_slicing_jobs`), created by the
-  `grants_and_setup` migration.
-- Messages are sent only by `private.enqueue_slicing_job`, in the same transaction that inserts the `slicing_jobs`
-  row. Message format: see [slicer-worker → Job message](../services/slicer-worker.md#job-message).
+None. The `slicing_jobs` pgmq queue, the `slicing_jobs` table and the worker functions were dropped with
+`quote_items` (migration `quote_plates_cutover`).
 
 ## Scheduled jobs
 
@@ -357,7 +352,7 @@ Policies on `storage.objects`, all `to authenticated` (declared in `supabase/sch
   `(select private.is_staff())` so they run once per statement, not once per row.
 - Public sign-ups are disabled in Supabase Auth; staff accounts are created by invitation. Being `authenticated`
   alone grants nothing — a `staff` row is required.
-- The slicer-worker uses the service role, which bypasses RLS but not the triggers.
+- Edge Functions use the service role, which bypasses RLS but not the triggers.
 
 ### Grants
 
@@ -370,10 +365,10 @@ public table plus these writes; `service_role` gets `all`.
 | `printers`, `materials`, `clients` | ✓ | ✓ | ✓ |
 | `settings` | — | every column except `id` | — |
 | `quotes` | `client_id`, `valid_until`, `notes` | `client_id`, `valid_until`, `notes` | ✓ |
-| `quote_items` | — (created by function) | `description`, `quantity` | ✓ |
+| `quote_plates` | — (created by function) | `description`, `quantity`, `print_time_s` | ✓ |
+| `quote_plate_materials` | — (added by function) | `grams` | ✓ |
 | `consumables` | ✓ | ✓ | ✓ |
 | `quote_consumables` | — (created by function) | `quantity` | ✓ |
-| `slicing_jobs` | — | — | — |
 | `quotes_list` (view) | — | — | — |
 
 `quotes_list` is readable by `authenticated` and `service_role` only.
@@ -389,10 +384,10 @@ Every policy is `to authenticated`. UPDATE policies have both `using` and `with 
 | `settings` | staff | — | owner | — |
 | `clients` | staff | staff | staff | owner |
 | `quotes` | staff | staff | staff, while `status = 'draft'` | owner, while `status = 'draft'` |
-| `quote_items` | staff | — | staff, parent quote draft | staff, parent quote draft |
+| `quote_plates` | staff | — | staff, parent quote draft | staff, parent quote draft |
+| `quote_plate_materials` | staff | — | staff, plate's quote draft | staff, plate's quote draft |
 | `consumables` | staff | owner | owner | owner |
 | `quote_consumables` | staff | — | staff, parent quote draft | staff, parent quote draft |
-| `slicing_jobs` | staff | — | — | — |
 
 ### Functions
 
@@ -400,7 +395,7 @@ Each function in `public` is a `security invoker` SQL wrapper that calls the sam
 in `private`. The private function has `set search_path = ''`, checks `private.is_staff()` or `private.is_owner()`
 first, and raises one of the [errors](#errors) below. EXECUTE is revoked from `public` and `anon` everywhere and
 granted only as listed. Internal helpers (`require_staff`, `require_owner`, `require_draft_quote`,
-`require_active_catalog`, `enqueue_slicing_job`, `mark_quote_outcome`, `expire_quotes`, `require_job_message`) are
+`require_active_catalog`, `mark_quote_outcome`, `expire_quotes`) are
 `security invoker` and granted to nobody. The storage helpers `can_upload_model` and `can_change_model` are
 `security definer` and granted to `authenticated` for the storage policies.
 
@@ -409,13 +404,13 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 | Function | Who | Does |
 |---|---|---|
 | `list_staff() → table(user_id uuid, display_name text, email text, role text, language text, active boolean, created_at timestamptz, last_sign_in_at timestamptz)` | owner | Every staff row with the login email from `auth.users` (which the API can't read), ordered by display name. `last_sign_in_at` is `auth.users.last_sign_in_at` (null = never signed in, which the app shows as Invited). Raises `owner_required` for anyone else. |
-| `create_quote_item(quote_id bigint, model_path text, original_filename text, description text, printer_id bigint default null, material_id bigint default null, quantity integer default 1, layer_height_mm numeric default 0.20, infill_percent integer default 20, supports boolean default false) → bigint` | staff | Checks the quote is a draft, `model_path` starts with `<quote_id>/`, the object exists in `models`, and the chosen printer and material are active. Inserts the item; if printer and material are set, enqueues a job. Returns the item id. |
-| `update_quote_item_settings(item_id bigint, printer_id bigint, material_id bigint, layer_height_mm numeric, infill_percent integer, supports boolean) → void` | staff | Replaces all slicing inputs. If any differ: clears results and price breakdown (override kept) and enqueues a job if printer and material are set. No change → no job. A printer or material that changes must be active. |
-| `retry_slicing(item_id bigint) → bigint` | staff | Draft quote, item's newest job `failed` → enqueues a new job, returns its id |
-| `set_markup_override(quote_id bigint, pct numeric) → void` | owner | Draft only. `pct >= 0` or null. Clears every item's price breakdown. |
-| `set_price_override(item_id bigint, total numeric, reason text) → void` | owner | Draft only. `total >= 0`, reason not blank. |
-| `clear_price_override(item_id bigint) → void` | owner | Draft only |
-| `get_quote_send_blockers(quote_id bigint) → table(quote_item_id bigint, code text)` | staff | Empty means the quote can be sent |
+| `create_quote_plate(quote_id bigint, description text, printer_id bigint default null) → bigint` | staff | Draft only. Description not blank (`invalid_description`); a printer, if given, must be active. Inserts a plate with quantity 1 and no print time; returns its id. Description, quantity and print time are then edited directly through the table. |
+| `set_plate_printer(plate_id bigint, printer_id bigint) → void` | staff | Draft only (`plate_not_found`). The same printer again does nothing; a new one must be active. |
+| `save_plate_material(plate_id bigint, material_id bigint, grams numeric) → bigint` | staff | Draft only. `grams > 0` (`invalid_grams`). Sets the grams of the plate's row for that material, or adds the row (the material must be active). Returns the row id. Rows are deleted directly through the table. |
+| `set_markup_override(quote_id bigint, pct numeric) → void` | owner | Draft only. `pct >= 0` or null. Clears every plate's price breakdown. |
+| `set_price_override(plate_id bigint, total numeric, reason text) → void` | owner | Draft only. `total >= 0`, reason not blank. |
+| `clear_price_override(plate_id bigint) → void` | owner | Draft only |
+| `get_quote_send_blockers(quote_id bigint) → table(quote_plate_id bigint, code text)` | staff | Empty means the quote can be sent |
 | `add_quote_consumable(quote_id bigint, consumable_id bigint, quantity integer) → bigint` | staff | Draft only. The consumable must be active (`consumable_inactive`). Inserts a line at the consumable's current price, or adds `quantity` to the existing line of that consumable (the line keeps its original price). Returns the line id. Lines are edited (`quantity`) and deleted directly through the table. |
 | `mark_quote_sent(quote_id bigint) → void` | staff | Locks the quote's consumables (`FOR UPDATE`, in id order, so two sends can't spend the same stock), then raises `quote_not_sendable` if there are blockers; otherwise deducts each line's quantity from the stock, sets `sent` and `sent_at = now()` and freezes the VAT rate |
 | `mark_quote_accepted(quote_id bigint)`, `mark_quote_rejected(quote_id bigint) → void` | staff | `sent` quotes only |
@@ -424,32 +419,21 @@ granted only as listed. Internal helpers (`require_staff`, `require_owner`, `req
 
 | Code | When |
 |---|---|
-| `not_draft` | Quote is not `draft` (no item id; reported alone) |
-| `no_items` | Quote has no items (no item id) |
-| `valid_until_past` | `valid_until < private.shop_today()` (no item id) |
-| `missing_printer_or_material` | Item has no printer or no material |
-| `not_sliced` | Item's newest job is not `succeeded`, or the item has no results |
-| `not_priced` | `item_total` is null |
-| `insufficient_stock` | A consumable line asks for more than the consumable's stock (no item id) |
-
-**Worker functions** (`service_role` only; each changes the job, the item and the queue message in one transaction).
-`worker_complete_job` and `worker_fail_job` raise `job_message_mismatch` when `msg_id` is still queued but carries a
-different `job_id`:
-
-| Function | Does |
-|---|---|
-| `worker_claim_job(visibility_timeout_s integer, max_attempts integer) → table(msg_id bigint, read_ct integer, message jsonb)` | Reads one message. If `read_ct > max_attempts`: fails the job ("worker stopped on every attempt"), archives the message and reads again. A message whose job no longer exists is archived. Otherwise marks the job `running` with `started_at` and `attempts = read_ct` and returns the message. No rows when the queue is empty. |
-| `worker_complete_job(msg_id bigint, job_id bigint, results jsonb) → void` | Requires `print_time_s`, `filament_g` and the bbox in `results` (`invalid_results`). Stores the results on the job, marks it `succeeded`, deletes the message. Copies `print_time_s`, `filament_g` and the bbox onto the item only if this is the item's newest job and the quote is a draft. A deleted job: archives the message. |
-| `worker_fail_job(msg_id bigint, job_id bigint, error text, final boolean) → void` | Records `error`. `final`: job `failed` with `finished_at`, message archived. Otherwise back to `queued`; the message reappears after its visibility timeout. |
+| `not_draft` | Quote is not `draft` (no plate id; reported alone) |
+| `no_plates` | Quote has no plates (no plate id) |
+| `valid_until_past` | `valid_until < private.shop_today()` (no plate id) |
+| `insufficient_stock` | A consumable line asks for more than the consumable's stock (no plate id) |
+| `plate_incomplete` | Plate has no printer, no print time or no material |
+| `not_priced` | Plate is complete and `plate_total` is null |
 
 **Service functions** (`service_role`, used by the [`duplicate-quote` Edge Function](edge-functions.md)):
 
 | Function | Does |
 |---|---|
 | `service_create_quote_copy(source_id bigint, created_by uuid) → bigint` | Inserts a draft with the source's client, notes and markup override; the trigger assigns the number and default validity. Raises `quote_not_found`. |
-| `service_copy_quote_items(source_id bigint, new_id bigint, files jsonb) → void` | `files` is `[{item_id, model_path}]`, one per source item, each path under `<new_id>/` and already in `models`. Copies the active consumable lines of the source at today's price and the same quantity (inactive ones are skipped). Copies settings, results and price overrides (not the breakdown); a sliced item gets a `succeeded` job, an unsliced one with printer and material is queued. Raises `quote_not_draft`, `invalid_copy`, `invalid_model_path`, `model_not_found`. |
+| `service_copy_quote_plates(source_id bigint, new_id bigint) → void` | Copies every plate (description, printer, print time, quantity, price override; not the breakdown) and its material rows, inactive materials included, then the active consumable lines of the source at today's price and the same quantity (inactive ones are skipped). Raises `quote_not_draft` when the target is not a draft. |
 
-Item prices are written by the [`price-quote` Edge Function](edge-functions.md) with the service role.
+Plate prices are written by the [`price-quote` Edge Function](edge-functions.md) with the service role.
 
 ## Errors
 
@@ -459,9 +443,9 @@ breaking change.
 | errcode | messages |
 |---|---|
 | `42501` | `not_staff`, `owner_required` |
-| `P0001` | `last_owner`, `quote_not_draft`, `quote_not_sent`, `quote_not_sendable`, `retry_not_allowed`, `quote_item_move_not_allowed` |
-| `P0002` | `quote_not_found`, `item_not_found`, `model_not_found` |
-| `22023` | `invalid_model_path`, `printer_inactive`, `material_inactive`, `consumable_inactive`, `invalid_override`, `invalid_markup`, `invalid_results`, `job_message_mismatch`, `invalid_copy` |
+| `P0001` | `last_owner`, `quote_not_draft`, `quote_not_sent`, `quote_not_sendable`, `quote_plate_move_not_allowed`, `quote_item_move_not_allowed` (consumable lines) |
+| `P0002` | `quote_not_found`, `plate_not_found` |
+| `22023` | `invalid_description`, `invalid_grams`, `printer_inactive`, `material_inactive`, `consumable_inactive`, `invalid_override`, `invalid_markup` |
 
 ## Open questions
 

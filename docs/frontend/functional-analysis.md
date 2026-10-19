@@ -25,12 +25,11 @@ the exported PDF.
 | Action | Operator | Owner |
 |---|:-:|:-:|
 | View quotes, clients, printers, materials, consumables, settings | ✓ | ✓ |
-| Create and edit draft quotes, add/edit/remove items | ✓ | ✓ |
-| Retry a failed slice | ✓ | ✓ |
+| Create and edit draft quotes, add/edit/remove plates and their materials | ✓ | ✓ |
 | Mark a quote as sent / accepted / rejected | ✓ | ✓ |
 | Duplicate a quote, export PDF | ✓ | ✓ |
 | Create and edit clients | ✓ | ✓ |
-| Override an item's final price, override a quote's markup | | ✓ |
+| Override a plate's final price, override a quote's markup | | ✓ |
 | Delete quotes or clients | | ✓ |
 | Create, edit, deactivate printers, materials and consumables | | ✓ |
 | Add consumables to a draft quote | ✓ | ✓ |
@@ -83,7 +82,7 @@ Common behaviour applies everywhere:
 | Number | e.g. `Q-2026-0042` |
 | Client | Name (company if present) |
 | Status | Badge: Draft, Sent, Accepted, Rejected, Expired |
-| Total | Sum of item totals; "—" while any item is not yet priced |
+| Total | Sum of plate totals and consumable lines; "—" while the quote has no plates or any plate is incomplete or not yet priced |
 | Created | Date, and who created it |
 | Valid until | Date; highlighted when it falls within 7 days for sent quotes |
 
@@ -112,7 +111,7 @@ On save the quote gets its number (see [§5.4](#54-quote-numbers)), status Draft
 
 ### 3.4 Quote detail / editor
 
-The main screen. Layout: header, items, totals.
+The main screen. Layout: header, plates, consumables, totals.
 
 **Header**
 - Number, status badge, client (link to client), created by/at, valid until, notes, markup in effect (default or
@@ -121,48 +120,52 @@ The main screen. Layout: header, items, totals.
 - Actions, depending on status (see [§4](#4-quote-lifecycle)): Mark as sent, Mark accepted, Mark rejected,
   Duplicate, Export PDF, Delete (owner).
 
-**Adding items**
-- A drop zone and a **Choose files** button (the button is the primary path on tablet). Multiple files at once.
-- Accepted: `.stl`, `.3mf`. Maximum size per file: 100 MB (proposed). Rejected files are listed with the reason and
-  nothing is uploaded for them.
-- Each accepted file shows an upload progress bar; once uploaded it becomes an item with default settings:
-  - printer and material: the ones used on the previous item of this quote, otherwise none selected;
-  - quantity 1, layer height 0.20 mm, infill 20 %, supports off.
-- An item is sent for slicing as soon as it has a printer and a material. Until then it shows
-  "Choose printer and material".
+**Plates**
 
-**Item card** (one per item)
+A plate is one print job: everything printed together on the printer's bed, supports and other extras included, so
+their weight is counted. There is no file upload or slicing for now: the plate's figures are typed by hand (a new
+upload system is planned).
+
+- **Add plate** creates a plate named "Plate 1", "Plate 2"… with quantity 1, no print time and no materials. Its
+  printer is the newest plate's printer when that printer is still active, otherwise none.
+- A plate is **complete** when it has a printer, a print time and at least one material. An incomplete plate says
+  what is missing ("Missing: a printer, the print time, at least one material.").
+
+**Plate card** (one per plate)
 
 | Part | Content |
 |---|---|
-| Description | Defaults to the file name without extension; editable; printed on the PDF. |
-| File | Original file name and a download link. The size isn't shown: it isn't stored on the item. |
-| Settings | Printer (active printers only), material (active materials only, shown with colour), quantity, layer height, infill, supports. Editable in Draft. |
-| Slicing | Status and results — see [§7](#7-slicing-as-the-user-sees-it). |
-| Results | Print time per copy (h:mm), filament per copy (g), bounding box (mm). |
-| Price | Item total and unit price; expandable **price breakdown** (see [§5](#5-pricing-rules)). |
+| Description | Required; editable; printed on the PDF. |
+| Printer | Active printers only; a deactivated printer stays shown (marked inactive) on a plate that already uses it. |
+| Print time | Per copy, typed as hours:minutes (`2:30`); minutes 00–59, at least one minute. |
+| Copies | Whole number ≥ 1: how many times the plate is printed. |
+| Materials | One row per material (active materials only, shown with colour; each material at most once) with its grams per copy, decimals allowed (`12,5` in Italian). A material select and a grams field add a row; each row's grams are editable and the row can be removed. |
+| Price | Plate total and unit price; expandable **price breakdown** (see [§5](#5-pricing-rules)). |
 
-Rules when editing a Draft item:
-- Changing **printer, material, layer height, infill or supports** discards the current results and slices the item
-  again. The previous price disappears until the new results arrive.
-- Changing **quantity** or **description** does not re-slice; quantity re-prices immediately.
-- **Remove item** asks for confirmation and deletes the item and its file.
+Rules when editing a Draft plate:
+- Changing **copies, printer, print time or any material** clears the plate's price; it is priced again
+  automatically once the plate is complete. The owner's override stays.
+- Changing the **description** does not re-price.
+- **Remove** asks for confirmation and deletes the plate and its materials.
 
 **Price override (owner only)**
-- On an item's breakdown: **Override price** sets the item total by hand and requires a reason (free text, shown
+- On a plate's breakdown: **Override price** sets the plate total by hand and requires a reason (free text, shown
   to staff only). The breakdown keeps the computed value and shows the override beside it.
 - **Remove override** returns to the computed price.
+- An override does not make an incomplete plate count: the quote still has no total until every plate is complete.
 
 **Totals**
-- **Net total** = sum of item totals plus the consumable lines; **VAT** = net × VAT rate, rounded half-up to the cent; **Total incl. VAT**.
+- **Net total** = sum of plate totals plus the consumable lines; **VAT** = net × VAT rate, rounded half-up to the cent; **Total incl. VAT**.
   Shown with currency, formatted for the user's language. A draft uses the shop's VAT rate (Settings); marking the
   quote as sent freezes the rate on the quote.
-- **Recalculate prices** (Draft only): re-prices every item with the current settings and rates. Prices are also
-  recalculated automatically whenever an item changes or a slice finishes.
+- The totals are "—" until the quote has plates and **every** plate is complete and priced. While editing, the totals
+  say "Complete all plates to see the total" and list the incomplete plates.
+- **Recalculate prices** (Draft only): re-prices every complete plate with the current settings and rates. Prices are
+  also recalculated automatically whenever a plate changes.
 
-**Empty state:** "Add model files to start" over the drop zone.
+**Empty state:** "Add a plate to start." above the Add plate button.
 
-**Consumables card** (below the items, above the totals)
+**Consumables card** (below the plates, above the totals)
 - Lists the quote's consumable lines: name, price each (frozen when the line was added), quantity and line total.
 - In Draft, a selector (active consumables only) and a quantity add a line; adding a consumable that is already on
   the quote raises the quantity of its line instead. The quantity of a line can be edited in place and a line can be
@@ -203,15 +206,15 @@ unavailable.
 |---|---|
 | Name | Required, unique. |
 | Model | Required. |
-| Type | FDM or SLA; FDM is preselected for a new printer. For now it is only recorded and shown: it does not change slicing, pricing or which materials can be chosen. |
+| Type | FDM or SLA; FDM is preselected for a new printer. For now it is only recorded and shown: it does not change pricing or which materials can be chosen. |
 | Hourly rate method | *Enter directly* (default) or *Calculate from purchase cost*. A printer saved with a purchase cost reopens in the second mode. |
 | Machine rate (per hour) | *Enter directly*: required, ≥ 0. Wear and depreciation only — energy is separate. |
 | Purchase cost, estimated life (hours) | *Calculate from purchase cost*: both required; cost > 0, life a whole number of hours > 0. The machine rate is purchase cost ÷ life, rounded to cents, and shown under the fields as you type. Both are kept, so they can be corrected later. Switching back to *Enter directly* keeps the calculated rate in the field and clears the purchase figures. |
 | Power (W) | Required, > 0. Average draw while printing; used for energy cost. |
 | Failure rate (%) | Whole number from 0 to 100; default 0. The share of the cost of a copy added to cover failed prints on this machine. |
-| Active | Inactive printers can't be chosen for new items; existing items keep them. |
+| Active | Inactive printers can't be chosen for plates; plates that already use them keep them. |
 
-Only the resulting machine rate is used in pricing, however it was entered. Printers used by any item can't be deleted, only deactivated. Changing a printer's rates affects Draft quotes on
+Only the resulting machine rate is used in pricing, however it was entered. Printers used by any plate can't be deleted, only deactivated. Changing a printer's rates affects Draft quotes on
 their next recalculation and never affects Sent quotes.
 
 ### 3.7 Materials
@@ -242,10 +245,10 @@ quotes.
 | Setting | Example | Rules |
 |---|---|---|
 | Energy price (per kWh) | 0.30 | ≥ 0 |
-| Setup / handling fee (per item) | 5.00 | ≥ 0 |
+| Setup / handling fee (per plate) | 5.00 | ≥ 0 |
 | Default markup (%) | 30 | ≥ 0 |
 | VAT rate (%) | 22 | 0–100; applied to the quote's net total; frozen on each quote when it is sent |
-| Minimum item price | 10.00 | ≥ 0 |
+| Minimum plate price | 10.00 | ≥ 0 |
 | Currency | EUR | ISO 4217 code; one currency for the whole shop |
 
 **Quotes**
@@ -315,15 +318,15 @@ stateDiagram-v2
 | Sent | Nothing | Mark accepted, Mark rejected, Duplicate, Export PDF |
 | Accepted / Rejected / Expired | Nothing | Duplicate, Export PDF |
 
-- **Mark as sent** requires: at least one item; every item sliced and priced; valid until is
-  today or later; enough stock for every consumable line. If something is missing, the dialog lists what (for stock:
+- **Mark as sent** requires: at least one plate; every plate complete (printer, print time, a material) and priced;
+  valid until is today or later; enough stock for every consumable line. If something is missing, the dialog lists what (for stock:
   "Some consumables exceed the available stock"). On success the sent date is recorded and prices are frozen: later
   changes to rates, printers, materials or consumable prices never change a sent quote.
 - **Stock:** sending a quote deducts each consumable line's quantity from the consumable's stock. If the quote is
   then **rejected**, or **expires**, the quantities go back. An **accepted** quote keeps them deducted.
 - **Expired** is set automatically once a day for Sent quotes whose valid-until date has passed.
-- **Duplicate** creates a new Draft with a new number, the same client, notes and items (files are reused, not
-  re-uploaded), and prices recalculated with current rates. Consumable lines are copied too, at today's price,
+- **Duplicate** creates a new Draft with a new number, the same client, notes and plates (with their materials, even
+  materials deactivated since, and any price override), and prices recalculated with current rates. Consumable lines are copied too, at today's price,
   except those of consumables that have been deactivated. This is how a sent quote is revised.
 - Only Draft quotes can be deleted (owner). Sent and later quotes are kept as history.
 
@@ -333,17 +336,18 @@ stateDiagram-v2
 
 | Input | Source |
 |---|---|
-| `filament_g`, `print_time_h` | Slicing results, per copy |
-| `cost_per_kg` | Material |
+| `print_time_h` | The plate's print time, per copy |
+| `grams` of each material | The plate's materials, per copy |
+| `cost_per_kg` | Each material |
 | `machine_rate` (per hour), `power_w`, `failure_pct` (the printer's failure rate) | Printer |
 | `energy_price` (per kWh), `setup_fee`, `minimum_price` | Settings |
 | `markup_pct` | Quote override, otherwise Settings default |
-| `quantity` | Item |
+| `quantity` | Plate (copies) |
 
-### 5.2 Formula (per item)
+### 5.2 Formula (per plate)
 
 ```text
-material_cost   = filament_g / 1000 × cost_per_kg
+material_cost   = Σ over the plate's materials of grams / 1000 × cost_per_kg
 machine_cost    = print_time_h × machine_rate
 energy_cost     = power_w / 1000 × print_time_h × energy_price
 copy_cost       = material_cost + machine_cost + energy_cost
@@ -351,19 +355,20 @@ failure_cost    = copy_cost × failure_pct / 100
 production_cost = (copy_cost + failure_cost) × quantity + setup_fee
 markup          = production_cost × markup_pct / 100
 computed_total  = max(production_cost + markup, minimum_price)
-item_total      = override_total if set, else computed_total
-unit_price      = item_total / quantity
+plate_total     = override_total if set, else computed_total
+unit_price      = plate_total / quantity
 ```
 
-- The setup fee is charged **once per item**, not per copy.
-- The minimum price applies to the **item total**.
-- Calculations use full precision; only `item_total` and `unit_price` are rounded, to 2 decimals, half up. The
-  quote total is the sum of rounded item totals.
+- Only complete plates are priced (printer, print time and at least one material).
+- The setup fee is charged **once per plate**, not per copy.
+- The minimum price applies to the **plate total**.
+- Calculations use full precision; only `plate_total` and `unit_price` are rounded, to 2 decimals, half up. The
+  quote total is the sum of rounded plate totals.
 
 ### 5.3 Worked example
 
 PETG at 25.00/kg, printer with machine rate 1.50/h, 120 W and failure rate 10 %, energy 0.30/kWh, setup fee 5.00,
-markup 30 %, minimum 10.00. The slicer reports 120 g and 5 h 30 min per copy; quantity 2.
+markup 30 %, minimum 10.00. One plate of 120 g of PETG and 5 h 30 min per copy; 2 copies.
 
 | Line | Calculation | Value |
 |---|---|---|
@@ -376,7 +381,7 @@ markup 30 %, minimum 10.00. The slicer reports 120 g and 5 h 30 min per copy; qu
 | Setup fee | | 5.0000 |
 | Production cost | | 30.1856 |
 | Markup | 30.1856 × 30 % | 9.0557 |
-| **Item total** | max(39.2413, 10.00), rounded | **39.24** |
+| **Plate total** | max(39.2413, 10.00), rounded | **39.24** |
 | Unit price | 39.24 / 2 | 19.62 |
 
 ### 5.4 Quote numbers
@@ -388,7 +393,7 @@ markup 30 %, minimum 10.00. The slicer reports 120 g and 5 h 30 min per copy; qu
 
 ### 5.5 What is stored
 
-Every item stores its price breakdown (each line above, the markup % used, and any override with its reason). For
+Every plate stores its price breakdown (each line above, the markup % used, and any override with its reason). For
 Draft quotes it is rewritten on every recalculation; once the quote is Sent it is never rewritten, so the stored
 breakdown is the record of what was quoted.
 
@@ -396,7 +401,7 @@ breakdown is the record of what was quoted.
 
 A consumable line costs `quantity × unit_price`, where the unit price was copied from the consumable when the line was
 added. No markup, setup fee or minimum price applies to it, and the markup override doesn't touch it. The net total
-of a quote is the item totals plus the consumable lines; VAT is worked out once on that whole net amount, not per
+of a quote is the plate totals plus the consumable lines; VAT is worked out once on that whole net amount, not per
 line.
 
 ## 6. PDF
@@ -408,39 +413,27 @@ their UI language).
 1. Shop logo and details (from Settings).
 2. Title "Quote" / "Preventivo", number, date (sent date, or today for drafts), valid until.
 3. Client block: name, company, email, phone.
-4. Items table: description, material (type and colour), quantity, unit price, item total.
+4. Plates table: description, materials (type and colour, with grams per copy, e.g. "PLA · Black 12 g, PETG 5 g"),
+   quantity, unit price, plate total.
    When the quote has consumable lines, a second table follows with similar columns: name, unit, quantity, unit
    price, line total.
 5. Net total, VAT (rate) and total incl. VAT, in the shop currency.
 6. Quote notes.
 7. PDF terms from Settings, in the chosen language.
 
-**Not on the PDF:** cost breakdown, print times, filament weights, overrides and their reasons, internal client
-notes.
+**Not on the PDF:** cost breakdown, printers, print times, overrides and their reasons, internal client notes.
 
 Draft PDFs carry a diagonal "DRAFT" / "BOZZA" watermark.
 
 File name: `<number>-<client name>.pdf`, e.g. `Q-2026-0042-Rossi.pdf`.
 
-The Export PDF button is available in every status once every item has a price; it opens a dialog to choose the
-language.
+The Export PDF button is available in every status once the quote has plates and every plate is complete and has a
+price; it opens a dialog to choose the language.
 
-## 7. Slicing as the user sees it
+## 7. Live updates
 
-Each item shows one slicing state. Updates appear without reloading the page.
-
-| State | The user sees | User actions |
-|---|---|---|
-| Waiting for settings | "Choose printer and material" | Edit settings |
-| Queued | "Waiting to slice" with a spinner | — |
-| Slicing | "Slicing…" with a spinner and elapsed time | — |
-| Done | Print time, filament, bounding box, price | Edit settings (re-slices) |
-| Failed | "Slicing failed" + the error message in plain words | **Retry** (new slicing job), edit settings, remove item |
-
-- An item stuck in Queued for more than 10 minutes shows "Slicing is taking longer than usual" (no action; the
-  worker may be busy or down).
-- Retrying after the automatic attempts are exhausted always starts a fresh job.
-- While any item is Queued or Slicing, Mark as sent is disabled with a hint.
+Changes to a quote's plates and their materials made by someone else appear without reloading the page. Slicing,
+which this section used to describe, was removed together with file uploads; a new upload system is planned.
 
 ## 8. Non-functional requirements
 
@@ -461,7 +454,6 @@ Each item shows one slicing state. Updates appear without reloading the page.
 
 **Responsiveness**
 - Lists load in under 1 s for 1 000 quotes on a normal connection (paginated, filtered on the server).
-- Upload progress is shown for every file; a failed upload can be retried without re-selecting the file.
 
 ## 9. Impact on other docs
 
@@ -472,15 +464,11 @@ This analysis requires these changes, applied in the same change set:
   - `printers.power_w`;
   - new single-row `settings` table;
   - `quotes.number` (+ year and sequence), `quotes.markup_override_pct`;
-  - `quote_items.description` and the price breakdown columns, replacing `unit_price`;
+  - the price breakdown columns (now on `quote_plates`), replacing `unit_price`;
   - owner-only write policies, a `set_price_override` function, and a daily job that expires quotes.
 - [Product overview](../product/overview.md): workflow and glossary updated with energy cost, owner-only price
   overrides and PDF export; resolved open questions removed.
 
 ## 10. Open questions
 
-- **Default print settings:** whether the owner can configure the defaults for new items (layer height, infill,
-  supports) instead of the fixed 0.20 mm / 20 % / off.
-- **Maximum upload size:** 100 MB is a proposal; to be confirmed against the worker's limits.
-- **Notifications:** whether staff should be notified (e.g. in-app badge) when a slice fails while they're on
-  another page.
+- None.
