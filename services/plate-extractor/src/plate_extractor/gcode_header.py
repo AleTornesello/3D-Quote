@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import islice
 
-_MAX_LINES = 400
+# Bambu Studio writes HEADER_BLOCK then CONFIG_BLOCK at the top of the file
+# (CONFIG_BLOCK_END is about 34 KB in on the samples); the moves follow.
+# Scanning stops at the end of the config block, and never looks further than
+# MAX_SCAN_CHARS (the size of the head read from the archive).
+MAX_SCAN_CHARS = 512 * 1024
+_CONFIG_BLOCK_END = "; CONFIG_BLOCK_END"
 _TIME_RE = re.compile(r"total estimated time:\s*([0-9dhms ]+)")
 _TIME_PART_RE = re.compile(r"(\d+)\s*([dhms])")
 _UNIT_S = {"d": 86400, "h": 3600, "m": 60, "s": 1}
@@ -31,13 +36,26 @@ def _parse_time(text: str) -> int | None:
     return sum(int(n) * _UNIT_S[u] for n, u in parts)
 
 
+def _head_lines(text: str, limit: int) -> Iterator[str]:
+    """Yield the lines of text[:limit] lazily, without copying the whole text."""
+    pos = 0
+    end = min(len(text), limit)
+    while pos < end:
+        nl = text.find("\n", pos, end)
+        stop = end if nl == -1 else nl
+        yield text[pos:stop].rstrip("\r")
+        pos = stop + 1
+
+
 def parse_gcode_header(text: str) -> GcodeHeader:
     total_time_s: int | None = None
     weight_g: float | None = None
     printer_model: str | None = None
     profiles: tuple[str, ...] = ()
 
-    for line in islice(text.splitlines(), _MAX_LINES):
+    for line in _head_lines(text, MAX_SCAN_CHARS):
+        if line.strip() == _CONFIG_BLOCK_END:
+            break
         if total_time_s is None and (m := _TIME_RE.search(line)):
             total_time_s = _parse_time(m.group(1))
         elif weight_g is None and (m := _WEIGHT_RE.match(line)):
