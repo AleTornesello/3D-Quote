@@ -70,14 +70,14 @@ Returns `200 {"status": "ok"}`. For container health checks.
 
 ## Errors
 
-Every error is `{"error": {"code": "...", "message": "..."}}`.
+Every error is `{"error": {"code": "...", "message": "..."}}`, including those raised by the framework: `404 not_found` (unknown route), `405 method_not_allowed` and `400 invalid_request` (multipart body that cannot be parsed).
 
 | Status | `code` | When |
 |---|---|---|
 | `400` | `not_a_3mf` | The upload is not a zip, has more than 10,000 entries (or a central directory over 4 MiB), or `slice_info.config` / `model_settings.config` is corrupt, compressed with a method other than stored/deflate, over 4 MB, beyond the per-request read budget, or malformed XML. |
 | `422` | `not_sliced` | A valid archive with no sliced plate: no `slice_info.config` (an unsliced project), no plate listed in it, or every plate skipped (the message then lists the warnings). |
 | `422` | `invalid_request` | The request itself is invalid: the `file` field is missing or `include_thumbnails` is not a boolean. The message names the offending field (for example `Invalid request: body.file: Field required`). |
-| `413` | `file_too_large` | The upload exceeds `MAX_UPLOAD_MB`. |
+| `413` | `file_too_large` | The upload exceeds `MAX_UPLOAD_MB` MiB. |
 
 There is no separate `unsupported_slicer` error: an archive without `slice_info.config` (for example from a
 slicer that stores its metadata differently) is reported as `not_sliced`.
@@ -86,13 +86,13 @@ slicer that stores its metadata differently) is reported as `not_sliced`.
 
 | Variable | Required | Default | Meaning |
 |---|---|---|---|
-| `MAX_UPLOAD_MB` | no | `50` | Largest upload the endpoint will read, in MB |
+| `MAX_UPLOAD_MB` | no | `50` | Largest upload the endpoint will read, in MiB (binary: 50 = 52,428,800 bytes) |
 
 ## Reading rules and limits
 
 The upload is untrusted. The service reads only the named `Metadata/` entries (`slice_info.config`,
 `model_settings.config`, the head of `plate_N.gcode`, `plate_N.png`), never extracts the archive and never opens
-`3D/3dmodel.model`. XML is parsed with `defusedxml`. Sizes in MB are decimal (2 MB = 2,000,000 bytes).
+`3D/3dmodel.model`. XML is parsed with `defusedxml`. Sizes in MB are decimal (4 MB = 4,000,000 bytes); KiB and MiB are binary (1 MiB = 1,048,576 bytes).
 
 - **Archive:** more than 10,000 entries, or a central directory over 4 MiB, is `400 not_a_3mf`. Both are checked
   from the zip end record before the entry list is built. Only stored and deflate entries are read (the 3MF

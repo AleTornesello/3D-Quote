@@ -170,3 +170,28 @@ def test_bad_offsets_are_400_not_500(single_plate_bytes, where):
     )
     assert r.status_code == 400
     assert r.json()["error"]["code"] == "not_a_3mf"
+
+
+def test_unknown_route_uses_error_shape():
+    r = client.get("/nope")
+    assert r.status_code == 404
+    assert set(r.json()) == {"error"}
+    assert r.json()["error"]["code"] == "not_found"
+
+
+def test_wrong_method_uses_error_shape():
+    r = client.post("/healthz")
+    assert r.status_code == 405
+    assert set(r.json()) == {"error"}
+    assert r.json()["error"]["code"] == "method_not_allowed"
+
+
+def test_malformed_multipart_uses_error_shape():
+    r = client.post(
+        "/plates",
+        content=b"not multipart at all",
+        headers={"content-type": "multipart/form-data; boundary=x"},
+    )
+    assert r.status_code in (400, 422)
+    assert set(r.json()) == {"error"}
+    assert r.json()["error"]["message"]

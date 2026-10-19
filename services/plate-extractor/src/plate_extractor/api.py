@@ -9,6 +9,7 @@ from dataclasses import asdict
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from plate_extractor.archive import NotA3mfError
 from plate_extractor.extract import NotSlicedError, parse_plates
@@ -17,6 +18,11 @@ from plate_extractor.models import ExtractResult
 _DEFAULT_MAX_UPLOAD_MB = 50
 _CHUNK = 1024 * 1024
 _MULTIPART_OVERHEAD = 64 * 1024
+_HTTP_ERROR_CODES = {
+    400: "invalid_request",
+    404: "not_found",
+    405: "method_not_allowed",
+}
 
 
 class FileTooLargeError(Exception):
@@ -80,6 +86,13 @@ def create_app(max_upload_mb: int | None = None) -> FastAPI:
         )
         return _error(422, "invalid_request", f"Invalid request: {details}")
 
+    @app.exception_handler(StarletteHTTPException)
+    def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+        # Framework-raised errors: unknown route (404), wrong method (405),
+        # multipart parse failure (400).
+        code = _HTTP_ERROR_CODES.get(exc.status_code, "http_error")
+        return _error(exc.status_code, code, str(exc.detail))
+
     @app.exception_handler(NotA3mfError)
     def _not_a_3mf(_: Request, exc: NotA3mfError) -> JSONResponse:
         return _error(400, "not_a_3mf", "The upload is not a valid .3mf archive.")
@@ -91,7 +104,7 @@ def create_app(max_upload_mb: int | None = None) -> FastAPI:
     @app.exception_handler(FileTooLargeError)
     def _too_large(_: Request, exc: FileTooLargeError) -> JSONResponse:
         return _error(
-            413, "file_too_large", f"The upload exceeds {max_upload_mb} MB."
+            413, "file_too_large", f"The upload exceeds {max_upload_mb} MiB."
         )
 
     @app.post("/plates")
