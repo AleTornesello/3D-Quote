@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import zipfile
 
 from plate_extractor.archive import NotA3mfError, open_archive, read_entry
@@ -14,6 +15,8 @@ _SLICE_INFO = "Metadata/slice_info.config"
 _MODEL_SETTINGS = "Metadata/model_settings.config"
 _DESCRIPTION_MAX = 120
 _ENTRY_MAX_BYTES = 20_000_000
+_THUMBNAIL_PATH_RE = re.compile(r"Metadata/plate_[0-9]+\.png")
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 class NotSlicedError(ValueError):
@@ -39,6 +42,20 @@ def _read_optional(zf: zipfile.ZipFile, name: str) -> bytes | None:
         return read_entry(zf, name, _ENTRY_MAX_BYTES)
     except NotA3mfError:
         return None
+
+
+def _read_thumbnail(zf: zipfile.ZipFile, path: str | None) -> bytes | None:
+    """Read a plate thumbnail named by the (uploader-controlled) model_settings.
+
+    Only `Metadata/plate_N.png` entries are read, and only PNG bytes are
+    returned, so a crafted `thumbnail_file` cannot exfiltrate other entries.
+    """
+    if not path or not _THUMBNAIL_PATH_RE.fullmatch(path):
+        return None
+    raw = _read_optional(zf, path)
+    if raw is None or not raw.startswith(_PNG_SIGNATURE):
+        return None
+    return raw
 
 
 def _read_header(zf: zipfile.ZipFile, index: int) -> GcodeHeader | None:
@@ -131,8 +148,8 @@ def parse_plates(data: bytes, *, include_thumbnails: bool = True) -> ExtractResu
             continue
 
         thumbnail = None
-        if include_thumbnails and slot is not None and slot.thumbnail_path:
-            thumbnail = _read_optional(zf, slot.thumbnail_path)
+        if include_thumbnails and slot is not None:
+            thumbnail = _read_thumbnail(zf, slot.thumbnail_path)
 
         plates.append(
             Plate(

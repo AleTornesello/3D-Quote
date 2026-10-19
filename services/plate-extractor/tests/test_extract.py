@@ -38,9 +38,18 @@ def _slice_info(*plates: str) -> str:
     return f"<config>{HEADER}{''.join(plates)}</config>"
 
 
-def _slot(index: int, *, name: str = "", gcode: bool = True, thumb: bool = True) -> str:
+def _slot(
+    index: int,
+    *,
+    name: str = "",
+    gcode: bool = True,
+    thumb: bool = True,
+    thumb_path: str | None = None,
+) -> str:
     gcode_file = f"Metadata/plate_{index}.gcode" if gcode else ""
     thumb_file = f"Metadata/plate_{index}.png" if thumb else ""
+    if thumb_path is not None:
+        thumb_file = thumb_path
     return (
         f'<plate><metadata key="plater_id" value="{index}"/>'
         f'<metadata key="plater_name" value="{name}"/>'
@@ -296,6 +305,62 @@ def test_thumbnail_toggle(single_plate_bytes):
     assert with_thumb.plates[0].thumbnail.startswith(b"\x89PNG")
     without = parse_plates(single_plate_bytes, include_thumbnails=False)
     assert without.plates[0].thumbnail is None
+
+
+def test_fixture_thumbnails_are_returned(multi_plate_bytes):
+    result = parse_plates(multi_plate_bytes)
+    assert all(p.thumbnail.startswith(b"\x89PNG\r\n\x1a\n") for p in result.plates)
+
+
+@pytest.mark.parametrize(
+    "thumb_path",
+    [
+        "3D/3dmodel.model",
+        "Metadata/slice_info.config",
+        "Metadata/plate_1.gcode",
+        "Metadata/../3D/3dmodel.model",
+        "Metadata/plate_1.png.bak",
+        "metadata/plate_1.png",
+    ],
+)
+def test_hostile_thumbnail_path_is_not_read(make_3mf, thumb_path):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+            "Metadata/model_settings.config": _model_settings(
+                _slot(1, thumb_path=thumb_path)
+            ),
+            "Metadata/plate_1.gcode": _gcode(),
+            # Entries that start with the PNG signature so only the path check
+            # can reject them.
+            "3D/3dmodel.model": PNG + b"<model/>",
+            "Metadata/plate_1.png.bak": PNG,
+            "metadata/plate_1.png": PNG,
+        }
+    )
+    assert parse_plates(data).plates[0].thumbnail is None
+
+
+def test_non_png_bytes_at_valid_thumbnail_path_are_dropped(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+            "Metadata/model_settings.config": _model_settings(_slot(1)),
+            "Metadata/plate_1.png": b"<model>not a png</model>",
+        }
+    )
+    assert parse_plates(data).plates[0].thumbnail is None
+
+
+def test_png_at_valid_thumbnail_path_is_returned(make_3mf):
+    data = make_3mf(
+        {
+            "Metadata/slice_info.config": _slice_info(_slice_plate(1)),
+            "Metadata/model_settings.config": _model_settings(_slot(1)),
+            "Metadata/plate_1.png": PNG,
+        }
+    )
+    assert parse_plates(data).plates[0].thumbnail == PNG
 
 
 # --- describe_plate -------------------------------------------------------
